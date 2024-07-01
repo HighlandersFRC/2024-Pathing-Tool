@@ -1,0 +1,35 @@
+name: pathing_tool
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: '>=3.4.1 <4.0.0'
+
+dependencies:
+  archive: ^3.6.1
+  file_picker: ^8.0.5
+  fl_chart: ^0.68.0
+  flutter:
+    sdk: flutter
+  flutter_colorpicker: ^1.0.3
+  flutter_image_converter: ^0.3.3
+  image: ^4.2.0
+  matrices: ^1.2.7
+  path_provider: ^2.1.3
+  provider: ^6.0.4
+  shared_preferences: ^2.2.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  fonts:
+    - family: OpenSans
+      fonts:
+        - asset: fonts/OpenSans-VariableFont_wdth,wght.ttf
+  assets:
+    - Images/game_field.png

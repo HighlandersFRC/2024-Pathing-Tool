@@ -1,1 +1,3 @@
-# 2024-Pathing-Tool
+# pathing_tool
+
+A new Flutter project.
