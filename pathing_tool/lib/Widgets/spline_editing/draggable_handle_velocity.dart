@@ -8,14 +8,18 @@ class VelocityHandle extends StatefulWidget {
   final double usedWidth;
   final double usedHeight;
   final ValueChanged<Waypoint> onUpdate;
+  final void Function() saveState;
   final int opacity;
 
-  const VelocityHandle({super.key, 
+  const VelocityHandle({
+    super.key,
     required this.waypoint,
     required this.fieldImageData,
     required this.usedWidth,
     required this.usedHeight,
-    required this.onUpdate, required this.opacity,
+    required this.onUpdate,
+    required this.opacity,
+    required this.saveState,
   });
 
   @override
@@ -44,9 +48,9 @@ class _VelocityHandleState extends State<VelocityHandle> {
       -metersToPixelsRatio * widget.waypoint.dy,
     );
 
-    return 
-      // fit: StackFit.passthrough,
-      // clipBehavior: Clip.none,
+    return
+        // fit: StackFit.passthrough,
+        // clipBehavior: Clip.none,
         Positioned(
             key: _positionedKey,
             left: xPixels,
@@ -57,6 +61,9 @@ class _VelocityHandleState extends State<VelocityHandle> {
               width: 12,
               height: 12,
               child: GestureDetector(
+                onPanStart: (details){
+                  widget.saveState();
+                },
                 onPanUpdate: (details) {
                   setState(() {
                     RenderBox box = _positionedKey.currentContext!
@@ -89,11 +96,15 @@ class VelocityPainter extends CustomPainter {
   final int opacity;
   final Color color;
 
-  VelocityPainter({required this.start, required this.end, required this.opacity, required this.color, });
+  VelocityPainter({
+    required this.start,
+    required this.end,
+    required this.opacity,
+    required this.color,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    
     final paint = Paint()
       ..color = color.withAlpha(opacity)
       ..strokeWidth = 2.0

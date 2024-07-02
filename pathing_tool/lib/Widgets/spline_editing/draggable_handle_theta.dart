@@ -11,15 +11,19 @@ class DraggableHandleTheta extends StatefulWidget {
   final ImageData fieldImageData;
   final double usedWidth;
   final double usedHeight;
+  final void Function() saveState;
   final ValueChanged<Waypoint> onUpdate;
   final int opacity;
 
-  const DraggableHandleTheta({super.key, 
+  const DraggableHandleTheta({
+    super.key,
     required this.waypoint,
     required this.fieldImageData,
     required this.usedWidth,
     required this.usedHeight,
-    required this.onUpdate, required this.opacity,
+    required this.onUpdate,
+    required this.opacity,
+    required this.saveState,
   });
 
   @override
@@ -39,8 +43,10 @@ class _DraggableHandleThetaState extends State<DraggableHandleTheta> {
         (widget.waypoint.y /
             widget.fieldImageData.imageHeightInMeters *
             widget.usedHeight);
-    double metersToPixelsRatio = widget.usedHeight/widget.fieldImageData.imageHeightInMeters;
-    double handleLength = robotConfigProvider.robotConfig.length*metersToPixelsRatio/2;
+    double metersToPixelsRatio =
+        widget.usedHeight / widget.fieldImageData.imageHeightInMeters;
+    double handleLength =
+        robotConfigProvider.robotConfig.length * metersToPixelsRatio / 2;
     Offset handlePosition = Offset(
       handleLength * math.cos(widget.waypoint.theta),
       -handleLength * math.sin(widget.waypoint.theta),
@@ -51,14 +57,18 @@ class _DraggableHandleThetaState extends State<DraggableHandleTheta> {
       left: xPixels,
       top: yPixels,
       child: Container(
-        transform:
-            Matrix4.translationValues(handlePosition.dx-12, handlePosition.dy-12, 20),
+        transform: Matrix4.translationValues(
+            handlePosition.dx - 12, handlePosition.dy - 12, 20),
         width: 24,
         height: 24,
         child: GestureDetector(
+          onPanStart: (details) {
+            widget.saveState();
+          },
           onPanUpdate: (details) {
             setState(() {
-              RenderBox box = _positionedKey.currentContext!.findRenderObject() as RenderBox;
+              RenderBox box = _positionedKey.currentContext!.findRenderObject()
+                  as RenderBox;
               Offset globalPosition = box.localToGlobal(Offset.zero);
               double dx = details.globalPosition.dx - globalPosition.dx;
               double dy = -(details.globalPosition.dy - globalPosition.dy);
@@ -70,7 +80,8 @@ class _DraggableHandleThetaState extends State<DraggableHandleTheta> {
           },
           child: Container(
               decoration: BoxDecoration(
-            border: Border.all(color: theme.primaryColor.withAlpha(widget.opacity), width: 5),
+            border: Border.all(
+                color: theme.primaryColor.withAlpha(widget.opacity), width: 5),
             shape: BoxShape.circle,
           )),
         ),

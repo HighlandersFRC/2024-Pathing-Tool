@@ -8,19 +8,22 @@ class DraggableHandlePosition extends StatefulWidget {
   final double usedWidth;
   final double usedHeight;
   final ValueChanged<Waypoint> onUpdate;
+  final void Function() saveState;
   final int opacity;
 
-  const DraggableHandlePosition({super.key, 
-    required this.waypoint,
-    required this.fieldImageData,
-    required this.usedWidth,
-    required this.usedHeight,
-    required this.onUpdate,
-    required this.opacity
-  });
+  const DraggableHandlePosition(
+      {super.key,
+      required this.waypoint,
+      required this.fieldImageData,
+      required this.usedWidth,
+      required this.usedHeight,
+      required this.onUpdate,
+      required this.opacity,
+      required this.saveState});
 
   @override
-  _DraggableHandlePositionState createState() => _DraggableHandlePositionState();
+  _DraggableHandlePositionState createState() =>
+      _DraggableHandlePositionState();
 }
 
 class _DraggableHandlePositionState extends State<DraggableHandlePosition> {
@@ -42,25 +45,30 @@ class _DraggableHandlePositionState extends State<DraggableHandlePosition> {
       left: xPixels,
       top: yPixels,
       child: Container(
-        transform: 
-            Matrix4.translationValues(-12, -12, 20),
+        transform: Matrix4.translationValues(-12, -12, 20),
         width: 24,
         height: 24,
         child: GestureDetector(
+          onPanStart: (details) {
+            widget.saveState();
+          },
           onPanUpdate: (details) {
             setState(() {
-              RenderBox box = _positionedKey.currentContext!.findRenderObject() as RenderBox;
+              RenderBox box = _positionedKey.currentContext!.findRenderObject()
+                  as RenderBox;
               Offset globalPosition = box.localToGlobal(Offset.zero);
               double dx = details.globalPosition.dx - globalPosition.dx;
               double dy = -(details.globalPosition.dy - globalPosition.dy);
-              Waypoint updatedWaypoint =
-                  widget.waypoint.copyWith(x: widget.waypoint.x+dx/metersToPixelsRatio, y: widget.waypoint.y+dy/metersToPixelsRatio);
+              Waypoint updatedWaypoint = widget.waypoint.copyWith(
+                  x: widget.waypoint.x + dx / metersToPixelsRatio,
+                  y: widget.waypoint.y + dy / metersToPixelsRatio);
               widget.onUpdate(updatedWaypoint);
             });
           },
           child: Container(
               decoration: BoxDecoration(
-            border: Border.all(color: theme.primaryColor.withAlpha(widget.opacity), width: 3),
+            border: Border.all(
+                color: theme.primaryColor.withAlpha(widget.opacity), width: 3),
             shape: BoxShape.circle,
           )),
         ),

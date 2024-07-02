@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pathing_tool/Utils/Providers/image_data_provider.dart';
 import 'package:pathing_tool/Utils/Providers/robot_config_provider.dart';
 import 'package:pathing_tool/Utils/Structs/image_data.dart';
@@ -26,6 +27,8 @@ class SplineChart extends StatefulWidget {
 }
 
 class _SplineChartState extends State<SplineChart> {
+  List<List<Waypoint>> undoStack = [];
+  List<List<Waypoint>> redoStack = [];
   List<Waypoint> waypoints = [];
   int editMode = 0;
   int selectedWaypoint = -1;
@@ -150,267 +153,349 @@ class _SplineChartState extends State<SplineChart> {
           .showSnackBar(SnackBar(content: Text('Path data saved to $path')));
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: TextField(
-          controller: TextEditingController(text: pathName),
-          onSubmitted: (value) {
-            setState(() {
-              pathName = value;
-            });
-          },
-          decoration: InputDecoration(
-            hintText: 'Enter path name',
-            focusColor: theme.primaryColor,
-            hoverColor: theme.primaryColor,
-            floatingLabelStyle: TextStyle(color: theme.primaryColor),
-            focusedBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: theme.primaryColor)),
-          ),
-          cursorColor: theme.primaryColor,
-        ),
-        automaticallyImplyLeading: false,
-        actions: [
-          ElevatedButton(
-              onPressed: _savePathToFile, child: const Icon(Icons.save)),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        onDestinationSelected: (idx) => setState(() {
-          editMode = idx;
-        }),
-        selectedIndex: editMode,
-        indicatorColor: theme.primaryColor,
-        destinations: const [
-          NavigationDestination(
-            selectedIcon: Icon(Icons.draw),
-            icon: Icon(Icons.draw_outlined),
-            label: "Draw",
-          ),
-          NavigationDestination(
-            selectedIcon: Icon(Icons.edit),
-            icon: Icon(Icons.edit_outlined),
-            label: "Edit",
-          ),
-          NavigationDestination(
-            selectedIcon: Icon(Icons.precision_manufacturing),
-            icon: Icon(Icons.precision_manufacturing_outlined),
-            label: "Commands",
-          ),
-        ],
-      ),
-      body: Row(
-        children: [
-          Expanded(
-            child: Center(
-              child: LayoutBuilder(
-                builder: (BuildContext context, BoxConstraints constraints) {
-                  var availableWidth = constraints.maxWidth;
-                  var availableHeight = constraints.maxHeight;
-                  double usedWidth = availableWidth;
-                  double usedHeight = availableHeight;
-                  if (usedHeight / fieldImageData.imageHeightInPixels >
-                      usedWidth / fieldImageData.imageWidthInPixels) {
-                    usedHeight = fieldImageData.imageHeightInPixels *
-                        (usedWidth / fieldImageData.imageWidthInPixels);
-                  } else {
-                    usedWidth = fieldImageData.imageWidthInPixels *
-                        (usedHeight / fieldImageData.imageHeightInPixels);
-                  }
-                  Image fieldImage = Image(
-                    image: fieldImageData.image.image,
-                    width: usedWidth,
-                    height: usedHeight,
-                    fit: BoxFit.contain,
-                  );
-
-                  void onClick(BuildContext context, TapDownDetails details) {
-                    if (editMode == 0) {
-                      // TODO Add detection for when you click on a point
-                      // int pointIdx = -1;
-                      waypoints.forEach((Waypoint waypoint) {});
-                      var xPixels = details.localPosition.dx;
-                      var yPixels = details.localPosition.dy;
-                      var xMeters = xPixels /
-                          usedWidth *
-                          fieldImageData.imageWidthInMeters;
-                      var yMeters = (usedHeight - yPixels) /
-                          usedHeight *
-                          fieldImageData.imageHeightInMeters;
-                      _addWaypoint(xMeters, yMeters);
-                    }
-                  }
-
-                  return Center(
-                    child: GestureDetector(
-                      onTapDown: (details) => onClick(context, details),
-                      child: Stack(
-                        children: [
-                          SizedBox(
-                            height: usedHeight,
-                            width: usedWidth,
-                            child: fieldImage,
-                          ),
-                          SizedBox(
-                            height: usedHeight,
-                            width: usedWidth,
-                            child: LineChart(
-                              LineChartData(
-                                lineBarsData: [
-                                  LineChartBarData(
-                                    spots: xSpots,
-                                    isCurved: true,
-                                    barWidth: 3,
-                                    color: theme.brightness == Brightness.dark
-                                        ? Colors.grey.shade500
-                                        : Colors.black,
-                                    dotData: const FlDotData(show: false),
-                                  ),
-                                ],
-                                minX: 0,
-                                minY: 0,
-                                maxX: fieldImageData.imageWidthInMeters,
-                                maxY: fieldImageData.imageHeightInMeters,
-                                gridData: const FlGridData(show: false),
-                                titlesData: const FlTitlesData(show: false),
-                                borderData: FlBorderData(show: false),
-                                lineTouchData:
-                                    const LineTouchData(enabled: false),
-                              ),
-                            ),
-                          ),
-                          ...waypoints.map((Waypoint waypoint) {
-                            return CustomPaint(
-                              size: Size(usedWidth, usedHeight),
-                              painter: RobotPainter(
-                                  waypoint,
-                                  fieldImageData,
-                                  usedWidth,
-                                  usedHeight,
-                                  context,
-                                  robotConfigProvider.robotConfig,
-                                  theme.primaryColor,
-                                  selectedWaypoint ==
-                                          waypoints.indexOf(waypoint)
-                                      ? 255
-                                      : 100),
-                            );
-                          }),
-                          if (editMode == 1)
-                            ...waypoints.map((Waypoint waypoint) {
-                              double xPixels = waypoint.x /
-                                  fieldImageData.imageWidthInMeters *
-                                  usedWidth;
-                              double yPixels = usedHeight -
-                                  (waypoint.y /
-                                      fieldImageData.imageHeightInMeters *
-                                      usedHeight);
-                              double metersToPixelsRatio =
-                                  usedWidth / fieldImageData.imageWidthInMeters;
-
-                              Offset handlePosition = Offset(
-                                metersToPixelsRatio * waypoint.dx,
-                                -metersToPixelsRatio * waypoint.dy,
+    return Shortcuts(
+        shortcuts: <LogicalKeySet, Intent>{
+          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyZ):
+              UndoIntent(),
+          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyY):
+              RedoIntent(),
+        },
+        child: Actions(
+            actions: <Type, Action<Intent>>{
+              UndoIntent: UndoAction(_undo),
+              RedoIntent: RedoAction(_redo),
+            },
+            child: Focus(
+                autofocus: true,
+                child: Scaffold(
+                  appBar: AppBar(
+                    title: TextField(
+                      controller: TextEditingController(text: pathName),
+                      onSubmitted: (value) {
+                        setState(() {
+                          pathName = value;
+                        });
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Enter path name',
+                        focusColor: theme.primaryColor,
+                        hoverColor: theme.primaryColor,
+                        floatingLabelStyle:
+                            TextStyle(color: theme.primaryColor),
+                        focusedBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: theme.primaryColor)),
+                      ),
+                      cursorColor: theme.primaryColor,
+                    ),
+                    automaticallyImplyLeading: false,
+                    actions: [
+                      TextButton(
+                        onPressed: undoStack.length > 0
+                            ? () {
+                                _undo();
+                              }
+                            : null,
+                        child: Icon(Icons.undo),
+                        style: ButtonStyle(
+                            foregroundColor: undoStack.length > 0
+                                ? WidgetStateProperty.all(theme.primaryColor)
+                                : WidgetStatePropertyAll(Colors.grey)),
+                      ),
+                      TextButton(
+                        onPressed: redoStack.length > 0
+                            ? () {
+                                _redo();
+                              }
+                            : null,
+                        child: Icon(Icons.redo),
+                        style: ButtonStyle(
+                            foregroundColor: redoStack.length > 0
+                                ? WidgetStateProperty.all(theme.primaryColor)
+                                : WidgetStatePropertyAll(Colors.grey)),
+                      ),
+                      ElevatedButton(
+                          onPressed: _savePathToFile,
+                          child: const Icon(Icons.save)),
+                    ],
+                  ),
+                  bottomNavigationBar: NavigationBar(
+                    onDestinationSelected: (idx) => setState(() {
+                      editMode = idx;
+                    }),
+                    selectedIndex: editMode,
+                    indicatorColor: theme.primaryColor,
+                    destinations: const [
+                      NavigationDestination(
+                        selectedIcon: Icon(Icons.draw),
+                        icon: Icon(Icons.draw_outlined),
+                        label: "Draw",
+                      ),
+                      NavigationDestination(
+                        selectedIcon: Icon(Icons.edit),
+                        icon: Icon(Icons.edit_outlined),
+                        label: "Edit",
+                      ),
+                      NavigationDestination(
+                        selectedIcon: Icon(Icons.precision_manufacturing),
+                        icon: Icon(Icons.precision_manufacturing_outlined),
+                        label: "Commands",
+                      ),
+                    ],
+                  ),
+                  body: Row(
+                    children: [
+                      Expanded(
+                        child: Center(
+                          child: LayoutBuilder(
+                            builder: (BuildContext context,
+                                BoxConstraints constraints) {
+                              var availableWidth = constraints.maxWidth;
+                              var availableHeight = constraints.maxHeight;
+                              double usedWidth = availableWidth;
+                              double usedHeight = availableHeight;
+                              if (usedHeight /
+                                      fieldImageData.imageHeightInPixels >
+                                  usedWidth /
+                                      fieldImageData.imageWidthInPixels) {
+                                usedHeight =
+                                    fieldImageData.imageHeightInPixels *
+                                        (usedWidth /
+                                            fieldImageData.imageWidthInPixels);
+                              } else {
+                                usedWidth = fieldImageData.imageWidthInPixels *
+                                    (usedHeight /
+                                        fieldImageData.imageHeightInPixels);
+                              }
+                              Image fieldImage = Image(
+                                image: fieldImageData.image.image,
+                                width: usedWidth,
+                                height: usedHeight,
+                                fit: BoxFit.contain,
                               );
-                              return CustomPaint(
-                                size: Size(usedWidth, usedHeight),
-                                painter: VelocityPainter(
-                                  opacity: waypoints.indexOf(waypoint) ==
-                                          selectedWaypoint
-                                      ? 255
-                                      : 150,
-                                  start: Offset(xPixels, yPixels),
-                                  end: Offset(xPixels + handlePosition.dx,
-                                      yPixels + handlePosition.dy),
-                                  color: theme.primaryColor,
+
+                              void onClick(BuildContext context,
+                                  TapDownDetails details) {
+                                if (editMode == 0) {
+                                  // TODO Add detection for when you click on a point
+                                  // int pointIdx = -1;
+                                  // waypoints.forEach((Waypoint waypoint) {});
+                                  _saveState();
+                                  var xPixels = details.localPosition.dx;
+                                  var yPixels = details.localPosition.dy;
+                                  var xMeters = xPixels /
+                                      usedWidth *
+                                      fieldImageData.imageWidthInMeters;
+                                  var yMeters = (usedHeight - yPixels) /
+                                      usedHeight *
+                                      fieldImageData.imageHeightInMeters;
+                                  _addWaypoint(xMeters, yMeters);
+                                }
+                              }
+
+                              return Center(
+                                child: GestureDetector(
+                                  onTapDown: (details) =>
+                                      onClick(context, details),
+                                  child: Stack(
+                                    children: [
+                                      SizedBox(
+                                        height: usedHeight,
+                                        width: usedWidth,
+                                        child: fieldImage,
+                                      ),
+                                      SizedBox(
+                                        height: usedHeight,
+                                        width: usedWidth,
+                                        child: LineChart(
+                                          LineChartData(
+                                            lineBarsData: [
+                                              LineChartBarData(
+                                                spots: xSpots,
+                                                isCurved: true,
+                                                barWidth: 3,
+                                                color: theme.brightness ==
+                                                        Brightness.dark
+                                                    ? Colors.grey.shade500
+                                                    : Colors.black,
+                                                dotData: const FlDotData(
+                                                    show: false),
+                                              ),
+                                            ],
+                                            minX: 0,
+                                            minY: 0,
+                                            maxX: fieldImageData
+                                                .imageWidthInMeters,
+                                            maxY: fieldImageData
+                                                .imageHeightInMeters,
+                                            gridData:
+                                                const FlGridData(show: false),
+                                            titlesData:
+                                                const FlTitlesData(show: false),
+                                            borderData:
+                                                FlBorderData(show: false),
+                                            lineTouchData: const LineTouchData(
+                                                enabled: false),
+                                          ),
+                                        ),
+                                      ),
+                                      ...waypoints.map((Waypoint waypoint) {
+                                        return CustomPaint(
+                                          size: Size(usedWidth, usedHeight),
+                                          painter: RobotPainter(
+                                              waypoint,
+                                              fieldImageData,
+                                              usedWidth,
+                                              usedHeight,
+                                              context,
+                                              robotConfigProvider.robotConfig,
+                                              theme.primaryColor,
+                                              selectedWaypoint ==
+                                                      waypoints
+                                                          .indexOf(waypoint)
+                                                  ? 255
+                                                  : 100),
+                                        );
+                                      }),
+                                      if (editMode == 1)
+                                        ...waypoints.map((Waypoint waypoint) {
+                                          double xPixels = waypoint.x /
+                                              fieldImageData
+                                                  .imageWidthInMeters *
+                                              usedWidth;
+                                          double yPixels = usedHeight -
+                                              (waypoint.y /
+                                                  fieldImageData
+                                                      .imageHeightInMeters *
+                                                  usedHeight);
+                                          double metersToPixelsRatio =
+                                              usedWidth /
+                                                  fieldImageData
+                                                      .imageWidthInMeters;
+
+                                          Offset handlePosition = Offset(
+                                            metersToPixelsRatio * waypoint.dx,
+                                            -metersToPixelsRatio * waypoint.dy,
+                                          );
+                                          return CustomPaint(
+                                            size: Size(usedWidth, usedHeight),
+                                            painter: VelocityPainter(
+                                              opacity:
+                                                  waypoints.indexOf(waypoint) ==
+                                                          selectedWaypoint
+                                                      ? 255
+                                                      : 150,
+                                              start: Offset(xPixels, yPixels),
+                                              end: Offset(
+                                                  xPixels + handlePosition.dx,
+                                                  yPixels + handlePosition.dy),
+                                              color: theme.primaryColor,
+                                            ),
+                                          );
+                                        }),
+                                      if (editMode == 1)
+                                        ...waypoints.map((waypoint) =>
+                                            DraggableHandleTheta(
+                                              waypoint: waypoint,
+                                              fieldImageData: fieldImageData,
+                                              usedWidth: usedWidth,
+                                              usedHeight: usedHeight,
+                                              onUpdate: (updatedWaypoint) {
+                                                setState(() {
+                                                  int index = waypoints
+                                                      .indexOf(waypoint);
+                                                  if (index != -1) {
+                                                    waypoints[index] =
+                                                        updatedWaypoint;
+                                                    waypoints = waypoints;
+                                                    editMode = 1;
+                                                    selectedWaypoint = index;
+                                                  }
+                                                });
+                                              },
+                                              opacity:
+                                                  waypoints.indexOf(waypoint) ==
+                                                          selectedWaypoint
+                                                      ? 255
+                                                      : 150,
+                                              saveState: () {
+                                                _saveState();
+                                              },
+                                            )),
+                                      if (editMode == 1)
+                                        ...waypoints.map((waypoint) =>
+                                            DraggableHandlePosition(
+                                              waypoint: waypoint,
+                                              fieldImageData: fieldImageData,
+                                              usedWidth: usedWidth,
+                                              usedHeight: usedHeight,
+                                              onUpdate: (updatedWaypoint) {
+                                                setState(() {
+                                                  int index = waypoints
+                                                      .indexOf(waypoint);
+                                                  if (index != -1) {
+                                                    waypoints[index] =
+                                                        updatedWaypoint;
+                                                    waypoints = waypoints;
+                                                    editMode = 1;
+                                                    selectedWaypoint = index;
+                                                  }
+                                                });
+                                              },
+                                              opacity:
+                                                  waypoints.indexOf(waypoint) ==
+                                                          selectedWaypoint
+                                                      ? 255
+                                                      : 150,
+                                              saveState: () {
+                                                _saveState();
+                                              },
+                                            )),
+                                      if (editMode == 1)
+                                        ...waypoints.map((waypoint) =>
+                                            VelocityHandle(
+                                              waypoint: waypoint,
+                                              fieldImageData: fieldImageData,
+                                              usedWidth: usedWidth,
+                                              usedHeight: usedHeight,
+                                              onUpdate: (updatedWaypoint) {
+                                                setState(() {
+                                                  int index = waypoints
+                                                      .indexOf(waypoint);
+                                                  if (index != -1) {
+                                                    waypoints[index] =
+                                                        updatedWaypoint;
+                                                    waypoints = waypoints;
+                                                    editMode = 1;
+                                                    selectedWaypoint = index;
+                                                  }
+                                                });
+                                              },
+                                              opacity:
+                                                  waypoints.indexOf(waypoint) ==
+                                                          selectedWaypoint
+                                                      ? 255
+                                                      : 150,
+                                              saveState: () {
+                                                _saveState();
+                                              },
+                                            )),
+                                    ],
+                                  ),
                                 ),
                               );
-                            }),
-                          if (editMode == 1)
-                            ...waypoints.map((waypoint) => DraggableHandleTheta(
-                                  waypoint: waypoint,
-                                  fieldImageData: fieldImageData,
-                                  usedWidth: usedWidth,
-                                  usedHeight: usedHeight,
-                                  onUpdate: (updatedWaypoint) {
-                                    setState(() {
-                                      int index = waypoints.indexOf(waypoint);
-                                      if (index != -1) {
-                                        waypoints[index] = updatedWaypoint;
-                                        waypoints = waypoints;
-                                        editMode = 1;
-                                        selectedWaypoint = index;
-                                      }
-                                    });
-                                  },
-                                  opacity: waypoints.indexOf(waypoint) ==
-                                          selectedWaypoint
-                                      ? 255
-                                      : 150,
-                                )),
-                          if (editMode == 1)
-                            ...waypoints
-                                .map((waypoint) => DraggableHandlePosition(
-                                      waypoint: waypoint,
-                                      fieldImageData: fieldImageData,
-                                      usedWidth: usedWidth,
-                                      usedHeight: usedHeight,
-                                      onUpdate: (updatedWaypoint) {
-                                        setState(() {
-                                          int index =
-                                              waypoints.indexOf(waypoint);
-                                          if (index != -1) {
-                                            waypoints[index] = updatedWaypoint;
-                                            waypoints = waypoints;
-                                            editMode = 1;
-                                            selectedWaypoint = index;
-                                          }
-                                        });
-                                      },
-                                      opacity: waypoints.indexOf(waypoint) ==
-                                              selectedWaypoint
-                                          ? 255
-                                          : 150,
-                                    )),
-                          if (editMode == 1)
-                            ...waypoints.map((waypoint) => VelocityHandle(
-                                  waypoint: waypoint,
-                                  fieldImageData: fieldImageData,
-                                  usedWidth: usedWidth,
-                                  usedHeight: usedHeight,
-                                  onUpdate: (updatedWaypoint) {
-                                    setState(() {
-                                      int index = waypoints.indexOf(waypoint);
-                                      if (index != -1) {
-                                        waypoints[index] = updatedWaypoint;
-                                        waypoints = waypoints;
-                                        editMode = 1;
-                                        selectedWaypoint = index;
-                                      }
-                                    });
-                                  },
-                                  opacity: waypoints.indexOf(waypoint) ==
-                                          selectedWaypoint
-                                      ? 255
-                                      : 150,
-                                )),
-                        ],
+                            },
+                          ),
+                        ),
                       ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-          EditWaypointMenu(
-            waypoints: waypoints,
-            onWaypointSelected: _onWaypointSelected,
-            onAttributeChanged: _onAttributeChanged,
-            selectedWaypoint: selectedWaypoint,
-          )
-        ],
-      ),
-    );
+                      EditWaypointMenu(
+                        waypoints: waypoints,
+                        onWaypointSelected: _onWaypointSelected,
+                        onAttributeChanged: _onAttributeChanged,
+                        selectedWaypoint: selectedWaypoint,
+                      )
+                    ],
+                  ),
+                ))));
   }
 
   _onAttributeChanged(Waypoint waypoint) {
@@ -426,6 +511,38 @@ class _SplineChartState extends State<SplineChart> {
     setState(() {
       selectedWaypoint = waypoints.indexOf(waypoint!);
     });
+  }
+
+  _saveState() {
+    setState(() {
+      undoStack = [
+        ...undoStack,
+        [...waypoints]
+      ];
+      redoStack.clear();
+    });
+  }
+
+  _undo() {
+    if (undoStack.isNotEmpty) {
+      setState(() {
+        redoStack = [
+          ...redoStack,
+          [...waypoints]
+        ];
+        waypoints = undoStack.last;
+        undoStack.removeLast();
+      });
+    }
+  }
+
+  _redo() {
+    if (redoStack.isNotEmpty) {
+      setState(() {
+        undoStack = [...undoStack, waypoints];
+        waypoints = redoStack.removeLast();
+      });
+    }
   }
 }
 
@@ -509,3 +626,31 @@ class RobotPainter extends CustomPainter {
     return true;
   }
 }
+
+class UndoAction extends Action<Intent> {
+  final VoidCallback onUndo;
+
+  UndoAction(this.onUndo);
+
+  @override
+  Object? invoke(covariant Intent intent) {
+    onUndo();
+    return null;
+  }
+}
+
+class RedoAction extends Action<Intent> {
+  final VoidCallback onRedo;
+
+  RedoAction(this.onRedo);
+
+  @override
+  Object? invoke(covariant Intent intent) {
+    onRedo();
+    return null;
+  }
+}
+
+class UndoIntent extends Intent {}
+
+class RedoIntent extends Intent {}
