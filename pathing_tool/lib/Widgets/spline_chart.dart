@@ -75,7 +75,7 @@ class _SplineChartState extends State<SplineChart> {
         xSpots.add(FlSpot(point.x, point.y));
       }
     }
-    void _savePathToFile() async {
+    void savePathToFile() async {
       double timeStep = 0.01;
       Spline robot = Spline(waypoints);
       List<Map<String, dynamic>> sampledPoints = [];
@@ -190,31 +190,31 @@ class _SplineChartState extends State<SplineChart> {
                     automaticallyImplyLeading: false,
                     actions: [
                       TextButton(
-                        onPressed: undoStack.length > 0
+                        onPressed: undoStack.isNotEmpty
                             ? () {
                                 _undo();
                               }
                             : null,
-                        child: Icon(Icons.undo),
                         style: ButtonStyle(
-                            foregroundColor: undoStack.length > 0
+                            foregroundColor: undoStack.isNotEmpty
                                 ? WidgetStateProperty.all(theme.primaryColor)
-                                : WidgetStatePropertyAll(Colors.grey)),
+                                : const WidgetStatePropertyAll(Colors.grey)),
+                        child: const Icon(Icons.undo),
                       ),
                       TextButton(
-                        onPressed: redoStack.length > 0
+                        onPressed: redoStack.isNotEmpty
                             ? () {
                                 _redo();
                               }
                             : null,
-                        child: Icon(Icons.redo),
                         style: ButtonStyle(
-                            foregroundColor: redoStack.length > 0
+                            foregroundColor: redoStack.isNotEmpty
                                 ? WidgetStateProperty.all(theme.primaryColor)
-                                : WidgetStatePropertyAll(Colors.grey)),
+                                : const WidgetStatePropertyAll(Colors.grey)),
+                        child: const Icon(Icons.redo),
                       ),
                       ElevatedButton(
-                          onPressed: _savePathToFile,
+                          onPressed: savePathToFile,
                           child: const Icon(Icons.save)),
                     ],
                   ),
@@ -491,7 +491,7 @@ class _SplineChartState extends State<SplineChart> {
                         waypoints: waypoints,
                         onWaypointSelected: _onWaypointSelected,
                         onAttributeChanged: _onAttributeChanged,
-                        selectedWaypoint: selectedWaypoint,
+                        selectedWaypoint: waypoints.length>=selectedWaypoint-1?selectedWaypoint:-1,
                       )
                     ],
                   ),
@@ -532,6 +532,7 @@ class _SplineChartState extends State<SplineChart> {
         ];
         waypoints = undoStack.last;
         undoStack.removeLast();
+        selectedWaypoint = -1;
       });
     }
   }
