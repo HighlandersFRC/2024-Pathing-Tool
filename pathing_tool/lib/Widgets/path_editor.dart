@@ -169,7 +169,7 @@ class _PathEditorState extends State<PathEditor> {
       };
 
       // Allow the user to pick a directory
-      String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
+      String? selectedDirectory = await FilePicker.platform.getDirectoryPath(dialogTitle: "Save to which folder?", initialDirectory: "C:\\Polar Pathing\\Saves");
 
       if (selectedDirectory == null) {
         // User canceled the picker
@@ -193,11 +193,14 @@ class _PathEditorState extends State<PathEditor> {
               UndoIntent(),
           LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyY):
               RedoIntent(),
+          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyS):
+              SaveIntent(),
         },
         child: Actions(
             actions: <Type, Action<Intent>>{
               UndoIntent: UndoAction(_undo),
               RedoIntent: RedoAction(_redo),
+              SaveIntent: SaveAction(() => savePathToFile()),
             },
             child: Focus(
                 autofocus: true,
@@ -535,7 +538,8 @@ class _PathEditorState extends State<PathEditor> {
                         selectedWaypoint:
                             waypoints.length >= selectedWaypoint - 1
                                 ? selectedWaypoint
-                                : -1, onWaypointsChanged: _onWaypointsChanged,
+                                : -1,
+                        onWaypointsChanged: _onWaypointsChanged,
                       )
                     ],
                   ),
@@ -553,7 +557,7 @@ class _PathEditorState extends State<PathEditor> {
 
   _onWaypointSelected(Waypoint? waypoint) {
     setState(() {
-      selectedWaypoint = waypoint != null ?waypoints.indexOf(waypoint): -1;
+      selectedWaypoint = waypoint != null ? waypoints.indexOf(waypoint) : -1;
     });
   }
 
@@ -703,6 +707,20 @@ class RedoAction extends Action<Intent> {
   }
 }
 
+class SaveAction extends Action<Intent> {
+  final VoidCallback onSave;
+
+  SaveAction(this.onSave);
+
+  @override
+  Object? invoke(covariant Intent intent) {
+    onSave();
+    return null;
+  }
+}
+
 class UndoIntent extends Intent {}
 
 class RedoIntent extends Intent {}
+
+class SaveIntent extends Intent {}
