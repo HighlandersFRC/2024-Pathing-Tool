@@ -106,7 +106,7 @@ class _PathEditorState extends State<PathEditor> {
       if (pathName == "") {
         await showDialog(
             builder: (BuildContext context) => AlertDialog(
-                  title: Text("Name the path first"),
+                  title: const Text("Name the path first"),
                   content: TextField(
                     controller: TextEditingController(text: pathName),
                     onSubmitted: (value) {
@@ -169,7 +169,7 @@ class _PathEditorState extends State<PathEditor> {
       };
 
       // Allow the user to pick a directory
-      String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
+      String? selectedDirectory = await FilePicker.platform.getDirectoryPath(dialogTitle: "Save to which folder?", initialDirectory: "C:\\Polar Pathing\\Saves");
 
       if (selectedDirectory == null) {
         // User canceled the picker
@@ -193,11 +193,14 @@ class _PathEditorState extends State<PathEditor> {
               UndoIntent(),
           LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyY):
               RedoIntent(),
+          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyS):
+              SaveIntent(),
         },
         child: Actions(
             actions: <Type, Action<Intent>>{
               UndoIntent: UndoAction(_undo),
               RedoIntent: RedoAction(_redo),
+              SaveIntent: SaveAction(() => savePathToFile()),
             },
             child: Focus(
                 autofocus: true,
@@ -223,33 +226,45 @@ class _PathEditorState extends State<PathEditor> {
                     ),
                     automaticallyImplyLeading: false,
                     actions: [
-                      TextButton(
-                        onPressed: undoStack.isNotEmpty
-                            ? () {
-                                _undo();
-                              }
-                            : null,
-                        style: ButtonStyle(
-                            foregroundColor: undoStack.isNotEmpty
-                                ? WidgetStateProperty.all(theme.primaryColor)
-                                : const WidgetStatePropertyAll(Colors.grey)),
-                        child: const Icon(Icons.undo),
+                      Tooltip(
+                        message: "Undo",
+                        waitDuration: const Duration(milliseconds: 500),
+                        child: TextButton(
+                          onPressed: undoStack.isNotEmpty
+                              ? () {
+                                  _undo();
+                                }
+                              : null,
+                          style: ButtonStyle(
+                              foregroundColor: undoStack.isNotEmpty
+                                  ? WidgetStateProperty.all(theme.primaryColor)
+                                  : const WidgetStatePropertyAll(Colors.grey)),
+                          child: const Icon(Icons.undo),
+                        ),
                       ),
-                      TextButton(
-                        onPressed: redoStack.isNotEmpty
-                            ? () {
-                                _redo();
-                              }
-                            : null,
-                        style: ButtonStyle(
-                            foregroundColor: redoStack.isNotEmpty
-                                ? WidgetStateProperty.all(theme.primaryColor)
-                                : const WidgetStatePropertyAll(Colors.grey)),
-                        child: const Icon(Icons.redo),
+                      Tooltip(
+                        message: "Redo",
+                        waitDuration: const Duration(milliseconds: 500),
+                        child: TextButton(
+                          onPressed: redoStack.isNotEmpty
+                              ? () {
+                                  _redo();
+                                }
+                              : null,
+                          style: ButtonStyle(
+                              foregroundColor: redoStack.isNotEmpty
+                                  ? WidgetStateProperty.all(theme.primaryColor)
+                                  : const WidgetStatePropertyAll(Colors.grey)),
+                          child: const Icon(Icons.redo),
+                        ),
                       ),
-                      ElevatedButton(
-                          onPressed: savePathToFile,
-                          child: const Icon(Icons.save)),
+                      Tooltip(
+                        message: "Save",
+                        waitDuration: const Duration(milliseconds: 500),
+                        child: ElevatedButton(
+                            onPressed: savePathToFile,
+                            child: const Icon(Icons.save)),
+                      ),
                     ],
                   ),
                   bottomNavigationBar: NavigationBar(
@@ -524,6 +539,7 @@ class _PathEditorState extends State<PathEditor> {
                             waypoints.length >= selectedWaypoint - 1
                                 ? selectedWaypoint
                                 : -1,
+                        onWaypointsChanged: _onWaypointsChanged,
                       )
                     ],
                   ),
@@ -541,7 +557,7 @@ class _PathEditorState extends State<PathEditor> {
 
   _onWaypointSelected(Waypoint? waypoint) {
     setState(() {
-      selectedWaypoint = waypoints.indexOf(waypoint!);
+      selectedWaypoint = waypoint != null ? waypoints.indexOf(waypoint) : -1;
     });
   }
 
@@ -576,6 +592,13 @@ class _PathEditorState extends State<PathEditor> {
         waypoints = redoStack.removeLast();
       });
     }
+  }
+
+  _onWaypointsChanged(List<Waypoint> waypoints) {
+    _saveState();
+    setState(() {
+      this.waypoints = [...waypoints];
+    });
   }
 }
 
@@ -684,6 +707,20 @@ class RedoAction extends Action<Intent> {
   }
 }
 
+class SaveAction extends Action<Intent> {
+  final VoidCallback onSave;
+
+  SaveAction(this.onSave);
+
+  @override
+  Object? invoke(covariant Intent intent) {
+    onSave();
+    return null;
+  }
+}
+
 class UndoIntent extends Intent {}
 
 class RedoIntent extends Intent {}
+
+class SaveIntent extends Intent {}
