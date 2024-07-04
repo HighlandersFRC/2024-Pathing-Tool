@@ -32,14 +32,6 @@ class AppDrawer extends StatelessWidget {
                     Navigator.pushNamed(context, '/home');
                   },
                 ),
-                ListTile(
-                  title: const Text('Pathing'),
-                  leading: const Icon(Icons.draw),
-                  onTap: () {
-                    Navigator.pushNamed(context, '/pathing');
-                  },
-                ),
-                // Add more ListTiles as needed
               ],
             ),
           ),

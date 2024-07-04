@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:pathing_tool/Utils/Providers/image_data_provider.dart';
 import 'package:pathing_tool/Utils/Providers/robot_config_provider.dart';
 import 'package:provider/provider.dart';
-import 'Pages/HomePage.dart';
-import 'Pages/PathingPage.dart';
+import 'Pages/home_page.dart';
+import 'Pages/pathing_page.dart';
 import 'Theme/theme_notifier.dart';
 
 void main() {
@@ -31,7 +31,6 @@ class MainApp extends StatelessWidget {
           theme: themeNotifier.themeData,
           routes: {
             '/home': (context) => HomePage(),
-            '/pathing': (context) => PathingPage(),
           },
         );
       }
