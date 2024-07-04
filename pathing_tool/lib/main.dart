@@ -3,7 +3,6 @@ import 'package:pathing_tool/Utils/Providers/image_data_provider.dart';
 import 'package:pathing_tool/Utils/Providers/robot_config_provider.dart';
 import 'package:provider/provider.dart';
 import 'Pages/home_page.dart';
-import 'Pages/pathing_page.dart';
 import 'Theme/theme_notifier.dart';
 
 void main() {
@@ -26,11 +25,11 @@ class MainApp extends StatelessWidget {
       builder: (context, themeNotifier, child) {
         return MaterialApp(
           home: Builder(
-            builder: (context) => HomePage(), // Wrap your home page with Builder
+            builder: (context) => const HomePage(), // Wrap your home page with Builder
           ),
           theme: themeNotifier.themeData,
           routes: {
-            '/home': (context) => HomePage(),
+            '/home': (context) => const HomePage(),
           },
         );
       }

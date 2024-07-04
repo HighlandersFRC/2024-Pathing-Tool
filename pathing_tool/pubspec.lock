@@ -384,6 +384,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.2"
+  simple_snowfall:
+    dependency: "direct main"
+    description:
+      name: simple_snowfall
+      sha256: ebeafe7f374f4136e6a8b0ff822a9abc7910a2fe5ccd52b8e8315ae70a3ae3a5
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0"
   sky_engine:
     dependency: transitive
     description: flutter

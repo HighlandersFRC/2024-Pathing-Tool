@@ -6,12 +6,15 @@ class EditWaypointMenu extends StatefulWidget {
   final int selectedWaypoint;
   final Function(Waypoint?) onWaypointSelected;
   final Function(Waypoint) onAttributeChanged;
+  final Function(List<Waypoint>) onWaypointsChanged;
 
-  const EditWaypointMenu({super.key, 
+  const EditWaypointMenu({
+    super.key,
     required this.waypoints,
     required this.onWaypointSelected,
     required this.onAttributeChanged,
     required this.selectedWaypoint,
+    required this.onWaypointsChanged,
   });
 
   @override
@@ -37,6 +40,7 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
         width: 350, // Adjust as needed
         decoration: BoxDecoration(
@@ -56,21 +60,123 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: DropdownButton<int>(
-                  value: widget.selectedWaypoint != -1 ? widget.selectedWaypoint : null,
-                  hint: const Text('Select a waypoint'),
-                  onChanged: (int? newIndex) {
-                    widget.onWaypointSelected(newIndex != null ? widget.waypoints[newIndex] : null);
-                  },
-                  items: widget.waypoints.asMap().entries.map((entry) {
-                    int idx = entry.key;
-                    return DropdownMenuItem<int>(
-                      value: idx,
-                      child: Text('Waypoint ${idx + 1}'),
-                    );
-                  }).toList(),
-                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(children: [
+                  DropdownButton<int>(
+                    value: widget.selectedWaypoint != -1
+                        ? widget.selectedWaypoint
+                        : null,
+                    hint: const Text('Select a waypoint'),
+                    onChanged: (int? newIndex) {
+                      widget.onWaypointSelected(
+                          newIndex != null ? widget.waypoints[newIndex] : null);
+                    },
+                    items: widget.waypoints.asMap().entries.map((entry) {
+                      int idx = entry.key;
+                      return DropdownMenuItem<int>(
+                        value: idx,
+                        child: Text('Waypoint ${idx + 1}'),
+                      );
+                    }).toList(),
+                  ),
+                  if (widget.selectedWaypoint != -1)
+                    Tooltip(
+                      message: "Delete Waypoint",
+                      waitDuration: const Duration(milliseconds: 500),
+                      child: IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: () {
+                          List<Waypoint> newWaypoints = [];
+                          widget.waypoints.forEach((Waypoint waypoint) {
+                            if (widget.waypoints.isNotEmpty) {
+                              if (widget.selectedWaypoint !=
+                                  widget.waypoints.indexOf(waypoint)) {
+                                if (widget.selectedWaypoint == 0) {
+                                  newWaypoints.add(waypoint.copyWith(
+                                      t: waypoint.t - widget.waypoints[1].t));
+                                } else {
+                                  newWaypoints.add(waypoint.copyWith());
+                                }
+                              }
+                            }
+                          });
+                          if (widget.selectedWaypoint != 0)
+                            widget.onWaypointSelected(
+                                widget.waypoints[widget.selectedWaypoint - 1]);
+                          if (newWaypoints.length == 0)
+                            widget.onWaypointSelected(null);
+                          widget.onWaypointsChanged(newWaypoints);
+                        },
+                      ),
+                    ),
+                  if (widget.selectedWaypoint != -1)
+                    Tooltip(
+                      message: "Move Backward",
+                      waitDuration: const Duration(milliseconds: 500),
+                      child: IconButton(
+                        icon: const Icon(Icons.chevron_left),
+                        onPressed: widget.selectedWaypoint != 0
+                            ? () {
+                                List<Waypoint> newWaypoints = [
+                                  ...widget.waypoints
+                                ];
+                                Waypoint save =
+                                    newWaypoints[widget.selectedWaypoint]
+                                        .copyWith();
+                                newWaypoints[widget.selectedWaypoint] =
+                                    newWaypoints[widget.selectedWaypoint - 1]
+                                        .copyWith(t: save.t);
+                                newWaypoints[widget.selectedWaypoint - 1] =
+                                    save.copyWith(
+                                        t: newWaypoints[
+                                                widget.selectedWaypoint - 1]
+                                            .t);
+                                widget.onWaypointSelected(widget
+                                    .waypoints[widget.selectedWaypoint - 1]);
+                                widget.onWaypointsChanged(newWaypoints);
+                              }
+                            : () {},
+                        color: widget.selectedWaypoint != 0
+                            ? theme.primaryColor
+                            : Colors.grey,
+                      ),
+                    ),
+                  if (widget.selectedWaypoint != -1)
+                    Tooltip(
+                      message: "Move Forward",
+                      waitDuration: const Duration(milliseconds: 500),
+                      child: IconButton(
+                        icon: const Icon(Icons.chevron_right),
+                        onPressed: widget.selectedWaypoint !=
+                                widget.waypoints.length - 1
+                            ? () {
+                                List<Waypoint> newWaypoints = [
+                                  ...widget.waypoints
+                                ];
+                                Waypoint save =
+                                    newWaypoints[widget.selectedWaypoint]
+                                        .copyWith();
+                                newWaypoints[widget.selectedWaypoint] =
+                                    newWaypoints[widget.selectedWaypoint + 1]
+                                        .copyWith(t: save.t);
+                                newWaypoints[widget.selectedWaypoint + 1] =
+                                    save.copyWith(
+                                        t: newWaypoints[
+                                                widget.selectedWaypoint + 1]
+                                            .t);
+                                widget.onWaypointSelected(widget
+                                    .waypoints[widget.selectedWaypoint + 1]);
+                                widget.onWaypointsChanged(newWaypoints);
+                              }
+                            : () {},
+                        color: widget.selectedWaypoint !=
+                                widget.waypoints.length - 1
+                            ? theme.primaryColor
+                            : Colors.grey,
+                      ),
+                    ),
+                ]),
               ),
               if (selectedWaypoint != null) ...[
                 AttributeEditor(
@@ -155,7 +261,8 @@ class AttributeEditor extends StatefulWidget {
   final double currentValue;
   final Function(double) onChanged;
 
-  const AttributeEditor({super.key, 
+  const AttributeEditor({
+    super.key,
     required this.attributeName,
     required this.currentValue,
     required this.onChanged,
@@ -171,7 +278,8 @@ class _AttributeEditorState extends State<AttributeEditor> {
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.currentValue.toStringAsFixed(3));
+    _controller =
+        TextEditingController(text: widget.currentValue.toStringAsFixed(3));
   }
 
   @override
@@ -210,21 +318,30 @@ class _AttributeEditorState extends State<AttributeEditor> {
           Text(widget.attributeName),
           Row(
             children: [
-              IconButton(
-                icon: const Icon(Icons.remove),
-                onPressed: decrement,
+              Tooltip(
+                message: "-0.1",
+                waitDuration: const Duration(milliseconds: 500),
+                child: IconButton(
+                  icon: const Icon(Icons.remove),
+                  onPressed: decrement,
+                ),
               ),
               SizedBox(
                 width: 80,
                 child: TextField(
                   controller: _controller,
                   decoration: const InputDecoration(),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.add),
-                onPressed: increment,
+              Tooltip(
+                message: "+0.1",
+                waitDuration: const Duration(milliseconds: 500),
+                child: IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: increment,
+                ),
               ),
               ElevatedButton(
                 onPressed: () {
