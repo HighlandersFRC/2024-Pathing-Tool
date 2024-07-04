@@ -19,20 +19,47 @@ import 'package:provider/provider.dart';
 import 'dart:math' as math;
 import 'package:path/path.dart' as p;
 
-class SplineChart extends StatefulWidget {
-  const SplineChart({super.key});
+class PathEditor extends StatefulWidget {
+  final List<Waypoint> startingWaypoints;
+  final String pathName;
+  const PathEditor(this.startingWaypoints, this.pathName, {super.key});
+  static PathEditor fromFile(File file) {
+    String jsonString = file.readAsStringSync();
+    var pathJson = json.decode(jsonString);
+    var pointsJsonList = pathJson["key_points"];
+    List<Waypoint> waypoints = [];
+    pointsJsonList.forEach((point) {
+      waypoints.add(Waypoint(
+          x: point["x"],
+          y: point["y"],
+          theta: point["angle"],
+          dx: point["x_velocity"],
+          dy: point["y_velocity"],
+          dtheta: point["angular_velocity"],
+          d2x: point["x_acceleration"],
+          d2y: point["y_acceleration"],
+          d2theta: point["angular_acceleration"],
+          t: point["time"]));
+    });
+    String pathName = pathJson["meta_data"]["path_name"];
+    return PathEditor(waypoints, pathName);
+  }
 
   @override
-  _SplineChartState createState() => _SplineChartState();
+  _PathEditorState createState() =>
+      _PathEditorState(startingWaypoints, pathName);
 }
 
-class _SplineChartState extends State<SplineChart> {
+class _PathEditorState extends State<PathEditor> {
   List<List<Waypoint>> undoStack = [];
   List<List<Waypoint>> redoStack = [];
   List<Waypoint> waypoints = [];
   int editMode = 0;
   int selectedWaypoint = -1;
   String pathName = "";
+  _PathEditorState(List<Waypoint> startingWaypoints, this.pathName) {
+    waypoints = [...startingWaypoints];
+  }
 
   void _addWaypoint(double x, double y) {
     setState(() {
@@ -76,6 +103,31 @@ class _SplineChartState extends State<SplineChart> {
       }
     }
     void savePathToFile() async {
+      if (pathName == "") {
+        await showDialog(
+            builder: (BuildContext context) => AlertDialog(
+                  title: Text("Name the path first"),
+                  content: TextField(
+                    controller: TextEditingController(text: pathName),
+                    onSubmitted: (value) {
+                      setState(() {
+                        pathName = value;
+                        Navigator.pop(context);
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Enter path name',
+                      focusColor: theme.primaryColor,
+                      hoverColor: theme.primaryColor,
+                      floatingLabelStyle: TextStyle(color: theme.primaryColor),
+                      focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: theme.primaryColor)),
+                    ),
+                    cursorColor: theme.primaryColor,
+                  ),
+                ),
+            context: context);
+      }
       double timeStep = 0.01;
       Spline robot = Spline(waypoints);
       List<Map<String, dynamic>> sampledPoints = [];
@@ -97,24 +149,6 @@ class _SplineChartState extends State<SplineChart> {
       }
       final Map<String, dynamic> pathData = {
         "meta_data": {"path_name": pathName, "sample_rate": timeStep},
-        "commands": [
-          {
-            "branched": true,
-            "branchedCommand": {
-              "condition": "right_trigger",
-              "onTrue": {"name": "arm_up"},
-              "onFalse": {"name": "arm_down"}
-            },
-            "start": 0.5,
-            "end": 1.0
-          },
-          {
-            "branched": false,
-            "command": {"name": "arm_up"},
-            "start": 1.0,
-            "end": 1.5
-          }
-        ],
         "key_points": waypoints
             .map((waypoint) => {
                   "index": waypoints.indexOf(waypoint),
@@ -143,7 +177,7 @@ class _SplineChartState extends State<SplineChart> {
       }
 
       // Define the file path
-      final String path = p.join(selectedDirectory, '$pathName.json');
+      final String path = p.join(selectedDirectory, '$pathName.polarpath');
 
       // Write the JSON object to a file
       final File file = File(path);
@@ -234,11 +268,6 @@ class _SplineChartState extends State<SplineChart> {
                         selectedIcon: Icon(Icons.edit),
                         icon: Icon(Icons.edit_outlined),
                         label: "Edit",
-                      ),
-                      NavigationDestination(
-                        selectedIcon: Icon(Icons.precision_manufacturing),
-                        icon: Icon(Icons.precision_manufacturing_outlined),
-                        label: "Commands",
                       ),
                     ],
                   ),
@@ -491,7 +520,10 @@ class _SplineChartState extends State<SplineChart> {
                         waypoints: waypoints,
                         onWaypointSelected: _onWaypointSelected,
                         onAttributeChanged: _onAttributeChanged,
-                        selectedWaypoint: waypoints.length>=selectedWaypoint-1?selectedWaypoint:-1,
+                        selectedWaypoint:
+                            waypoints.length >= selectedWaypoint - 1
+                                ? selectedWaypoint
+                                : -1,
                       )
                     ],
                   ),
