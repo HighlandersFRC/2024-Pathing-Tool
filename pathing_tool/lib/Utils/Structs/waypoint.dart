@@ -36,6 +36,20 @@ class Waypoint {
         position: theta, velocity: dtheta, acceleration: d2theta, time: t);
   }
 
+  static Waypoint fromJson(Map<String, dynamic> waypointJson){
+    return Waypoint(
+          x: waypointJson["x"],
+          y: waypointJson["y"],
+          theta: waypointJson["angle"],
+          dx: waypointJson["x_velocity"],
+          dy: waypointJson["y_velocity"],
+          dtheta: waypointJson["angular_velocity"],
+          d2x: waypointJson["x_acceleration"],
+          d2y: waypointJson["y_acceleration"],
+          d2theta: waypointJson["angular_acceleration"],
+          t: waypointJson["time"]);
+  }
+
   Waypoint copyWith({
     double? x,
     double? y,

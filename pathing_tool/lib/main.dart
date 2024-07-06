@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pathing_tool/Pages/autos_page.dart';
 import 'package:pathing_tool/Utils/Providers/image_data_provider.dart';
 import 'package:pathing_tool/Utils/Providers/robot_config_provider.dart';
 import 'package:provider/provider.dart';
@@ -30,6 +31,7 @@ class MainApp extends StatelessWidget {
           theme: themeNotifier.themeData,
           routes: {
             '/home': (context) => const HomePage(),
+            '/autos': (context) => const AutosPage([], ""),
           },
         );
       }

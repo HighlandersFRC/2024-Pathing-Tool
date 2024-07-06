@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pathing_tool/Utils/Providers/image_data_provider.dart';
 import 'package:pathing_tool/Utils/Providers/robot_config_provider.dart';
+import 'package:pathing_tool/Utils/Structs/command.dart';
 import 'package:pathing_tool/Utils/Structs/image_data.dart';
 import 'package:pathing_tool/Utils/Structs/robot_config.dart';
 import 'package:pathing_tool/Utils/spline.dart';
@@ -14,6 +15,7 @@ import 'package:pathing_tool/Utils/Structs/waypoint.dart';
 import 'package:pathing_tool/Widgets/spline_editing/draggable_handle_position.dart';
 import 'package:pathing_tool/Widgets/spline_editing/draggable_handle_theta.dart';
 import 'package:pathing_tool/Widgets/spline_editing/draggable_handle_velocity.dart';
+import 'package:pathing_tool/Widgets/spline_editing/edit_command_menu.dart';
 import 'package:pathing_tool/Widgets/spline_editing/edit_waypoint_menu.dart';
 import 'package:provider/provider.dart';
 import 'dart:math' as math;
@@ -22,8 +24,10 @@ import 'package:path/path.dart' as p;
 class PathEditor extends StatefulWidget {
   final List<Waypoint> startingWaypoints;
   final String pathName;
-  const PathEditor(this.startingWaypoints, this.pathName, {super.key});
-  static PathEditor fromFile(File file) {
+  final Function(Spline)? returnSpline;
+  const PathEditor(this.startingWaypoints, this.pathName,
+      {super.key, this.returnSpline});
+  static PathEditor fromFile(File file, Function(Spline)? returnSpline) {
     String jsonString = file.readAsStringSync();
     var pathJson = json.decode(jsonString);
     var pointsJsonList = pathJson["key_points"];
@@ -42,7 +46,7 @@ class PathEditor extends StatefulWidget {
           t: point["time"]));
     });
     String pathName = pathJson["meta_data"]["path_name"];
-    return PathEditor(waypoints, pathName);
+    return PathEditor(waypoints, pathName, returnSpline: returnSpline);
   }
 
   @override
@@ -54,8 +58,10 @@ class _PathEditorState extends State<PathEditor> {
   List<List<Waypoint>> undoStack = [];
   List<List<Waypoint>> redoStack = [];
   List<Waypoint> waypoints = [];
+  List<Command> commands = [];
   int editMode = 0;
   int selectedWaypoint = -1;
+  int selectedCommand = -1;
   String pathName = "";
   _PathEditorState(List<Waypoint> startingWaypoints, this.pathName) {
     waypoints = [...startingWaypoints];
@@ -149,6 +155,9 @@ class _PathEditorState extends State<PathEditor> {
       }
       final Map<String, dynamic> pathData = {
         "meta_data": {"path_name": pathName, "sample_rate": timeStep},
+        "commands": commands.map((Command command) {
+          return command.toJson();
+        }).toList(),
         "key_points": waypoints
             .map((waypoint) => {
                   "index": waypoints.indexOf(waypoint),
@@ -169,7 +178,9 @@ class _PathEditorState extends State<PathEditor> {
       };
 
       // Allow the user to pick a directory
-      String? selectedDirectory = await FilePicker.platform.getDirectoryPath(dialogTitle: "Save to which folder?", initialDirectory: "C:\\Polar Pathing\\Saves");
+      String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
+          dialogTitle: "Save to which folder?",
+          initialDirectory: "C:\\Polar Pathing\\Saves");
 
       if (selectedDirectory == null) {
         // User canceled the picker
@@ -206,6 +217,22 @@ class _PathEditorState extends State<PathEditor> {
                 autofocus: true,
                 child: Scaffold(
                   appBar: AppBar(
+                    leading: widget.returnSpline != null
+                        ? Tooltip(
+                            message: "Back",
+                            waitDuration: const Duration(milliseconds: 500),
+                            child: TextButton(
+                                onPressed: () {
+                                  savePathToFile();
+                                  widget.returnSpline!(Spline(waypoints));
+                                  Navigator.pop(context);
+                                },
+                                style: ButtonStyle(
+                                    foregroundColor: WidgetStateProperty.all(
+                                        theme.primaryColor)),
+                                child: const Icon(Icons.arrow_back)),
+                          )
+                        : null,
                     title: TextField(
                       controller: TextEditingController(text: pathName),
                       onSubmitted: (value) {
@@ -259,7 +286,7 @@ class _PathEditorState extends State<PathEditor> {
                         ),
                       ),
                       Tooltip(
-                        message: "Save",
+                        message: "Save Path to File",
                         waitDuration: const Duration(milliseconds: 500),
                         child: ElevatedButton(
                             onPressed: savePathToFile,
@@ -283,6 +310,11 @@ class _PathEditorState extends State<PathEditor> {
                         selectedIcon: Icon(Icons.edit),
                         icon: Icon(Icons.edit_outlined),
                         label: "Edit",
+                      ),
+                      NavigationDestination(
+                        selectedIcon: Icon(Icons.precision_manufacturing),
+                        icon: Icon(Icons.precision_manufacturing_outlined),
+                        label: "Commands",
                       ),
                     ],
                   ),
@@ -531,6 +563,7 @@ class _PathEditorState extends State<PathEditor> {
                           ),
                         ),
                       ),
+                      if (editMode != 2)
                       EditWaypointMenu(
                         waypoints: waypoints,
                         onWaypointSelected: _onWaypointSelected,
@@ -541,6 +574,7 @@ class _PathEditorState extends State<PathEditor> {
                                 : -1,
                         onWaypointsChanged: _onWaypointsChanged,
                       )
+                      else EditCommandMenu(commands: commands, onCommandSelected: _onCommandSelected, onAttributeChanged: _onCommandAttributeChanged, selectedCommand: selectedCommand, onCommandChanged: _onCommandChanged),
                     ],
                   ),
                 ))));
@@ -559,6 +593,20 @@ class _PathEditorState extends State<PathEditor> {
     setState(() {
       selectedWaypoint = waypoint != null ? waypoints.indexOf(waypoint) : -1;
     });
+  }
+
+  _onCommandSelected(Command? command) {
+    setState(() {
+      selectedCommand = command != null ? commands.indexOf(command) : -1;
+    });
+  }
+
+  _onCommandAttributeChanged(Command command) {
+    if (selectedWaypoint != -1) {
+      setState(() {
+        commands[selectedCommand] = command;
+      });
+    }
   }
 
   _saveState() {
@@ -598,6 +646,13 @@ class _PathEditorState extends State<PathEditor> {
     _saveState();
     setState(() {
       this.waypoints = [...waypoints];
+    });
+  }
+
+  _onCommandChanged(List<Command> commands) {
+    _saveState();
+    setState(() {
+      this.commands = [...commands];
     });
   }
 }

@@ -17,17 +17,7 @@ class PathingPage extends StatelessWidget {
     var pointsJsonList = pathJson["key_points"];
     List<Waypoint> waypoints = [];
     pointsJsonList.forEach((point) {
-      waypoints.add(Waypoint(
-          x: point["x"],
-          y: point["y"],
-          theta: point["angle"],
-          dx: point["x_velocity"],
-          dy: point["y_velocity"],
-          dtheta: point["angular_velocity"],
-          d2x: point["x_acceleration"],
-          d2y: point["y_acceleration"],
-          d2theta: point["angular_acceleration"],
-          t: point["time"]));
+      waypoints.add(Waypoint.fromJson(point as Map<String, dynamic>));
     });
     String pathName = pathJson["meta_data"]["path_name"];
     return PathingPage(waypoints, pathName);
