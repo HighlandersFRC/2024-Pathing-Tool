@@ -23,6 +23,8 @@ class Waypoint {
     required this.t,
   });
 
+  get time => t;
+
   Vectors getXVectors() {
     return Vectors(position: x, velocity: dx, acceleration: d2x, time: t);
   }

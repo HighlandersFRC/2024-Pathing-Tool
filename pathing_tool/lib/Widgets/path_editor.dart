@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -33,17 +34,7 @@ class PathEditor extends StatefulWidget {
     var pointsJsonList = pathJson["key_points"];
     List<Waypoint> waypoints = [];
     pointsJsonList.forEach((point) {
-      waypoints.add(Waypoint(
-          x: point["x"],
-          y: point["y"],
-          theta: point["angle"],
-          dx: point["x_velocity"],
-          dy: point["y_velocity"],
-          dtheta: point["angular_velocity"],
-          d2x: point["x_acceleration"],
-          d2y: point["y_acceleration"],
-          d2theta: point["angular_acceleration"],
-          t: point["time"]));
+      waypoints.add(Waypoint.fromJson(point));
     });
     String pathName = pathJson["meta_data"]["path_name"];
     return PathEditor(waypoints, pathName, returnSpline: returnSpline);
@@ -55,10 +46,11 @@ class PathEditor extends StatefulWidget {
 }
 
 class _PathEditorState extends State<PathEditor> {
-  List<List<Waypoint>> undoStack = [];
-  List<List<Waypoint>> redoStack = [];
+  List<(List<Waypoint>, bool)> undoStack = [];
+  List<(List<Waypoint>, bool)> redoStack = [];
   List<Waypoint> waypoints = [];
   List<Command> commands = [];
+  bool smooth = false;
   int editMode = 0;
   int selectedWaypoint = -1;
   int selectedCommand = -1;
@@ -253,6 +245,22 @@ class _PathEditorState extends State<PathEditor> {
                     ),
                     automaticallyImplyLeading: false,
                     actions: [
+                      Tooltip(
+                        message: "Smoothen",
+                        waitDuration: const Duration(milliseconds: 500),
+                        child: TextButton(
+                          onPressed: waypoints.length > 1 && !smooth
+                              ? () {
+                                  _averageAll();
+                                }
+                              : null,
+                          style: ButtonStyle(
+                              foregroundColor: waypoints.length > 1 && !smooth
+                                  ? WidgetStateProperty.all(theme.primaryColor)
+                                  : const WidgetStatePropertyAll(Colors.grey)),
+                          child: const Icon(Icons.switch_access_shortcut),
+                        ),
+                      ),
                       Tooltip(
                         message: "Undo",
                         waitDuration: const Duration(milliseconds: 500),
@@ -564,17 +572,23 @@ class _PathEditorState extends State<PathEditor> {
                         ),
                       ),
                       if (editMode != 2)
-                      EditWaypointMenu(
-                        waypoints: waypoints,
-                        onWaypointSelected: _onWaypointSelected,
-                        onAttributeChanged: _onAttributeChanged,
-                        selectedWaypoint:
-                            waypoints.length >= selectedWaypoint - 1
-                                ? selectedWaypoint
-                                : -1,
-                        onWaypointsChanged: _onWaypointsChanged,
-                      )
-                      else EditCommandMenu(commands: commands, onCommandSelected: _onCommandSelected, onAttributeChanged: _onCommandAttributeChanged, selectedCommand: selectedCommand, onCommandChanged: _onCommandChanged),
+                        EditWaypointMenu(
+                          waypoints: waypoints,
+                          onWaypointSelected: _onWaypointSelected,
+                          onAttributeChanged: _onAttributeChanged,
+                          selectedWaypoint:
+                              waypoints.length >= selectedWaypoint - 1
+                                  ? selectedWaypoint
+                                  : -1,
+                          onWaypointsChanged: _onWaypointsChanged,
+                        )
+                      else
+                        EditCommandMenu(
+                            commands: commands,
+                            onCommandSelected: _onCommandSelected,
+                            onAttributeChanged: _onCommandAttributeChanged,
+                            selectedCommand: selectedCommand,
+                            onCommandChanged: _onCommandChanged),
                     ],
                   ),
                 ))));
@@ -585,6 +599,7 @@ class _PathEditorState extends State<PathEditor> {
       setState(() {
         waypoints[selectedWaypoint] = waypoint;
         waypoints = waypoints;
+        smooth = false;
       });
     }
   }
@@ -613,7 +628,7 @@ class _PathEditorState extends State<PathEditor> {
     setState(() {
       undoStack = [
         ...undoStack,
-        [...waypoints]
+        ([...waypoints], smooth)
       ];
       redoStack.clear();
     });
@@ -624,9 +639,11 @@ class _PathEditorState extends State<PathEditor> {
       setState(() {
         redoStack = [
           ...redoStack,
-          [...waypoints]
+          ([...this.waypoints], this.smooth)
         ];
-        waypoints = undoStack.last;
+        var (waypoints, smooth) = undoStack.last;
+        this.waypoints = waypoints;
+        this.smooth = smooth;
         undoStack.removeLast();
         selectedWaypoint = -1;
       });
@@ -636,8 +653,10 @@ class _PathEditorState extends State<PathEditor> {
   _redo() {
     if (redoStack.isNotEmpty) {
       setState(() {
-        undoStack = [...undoStack, waypoints];
-        waypoints = redoStack.removeLast();
+        undoStack = [...undoStack, (this.waypoints, this.smooth)];
+        var (waypoints, smooth) = redoStack.removeLast();
+        this.waypoints = waypoints;
+        this.smooth = smooth;
       });
     }
   }
@@ -646,6 +665,7 @@ class _PathEditorState extends State<PathEditor> {
     _saveState();
     setState(() {
       this.waypoints = [...waypoints];
+      smooth = false;
     });
   }
 
@@ -654,6 +674,86 @@ class _PathEditorState extends State<PathEditor> {
     setState(() {
       this.commands = [...commands];
     });
+  }
+  
+  (double, double) _averageLinearVelocity(int index) {
+    double dy = 0, dx = 0;
+    if (index != 0 && index != waypoints.length - 1) {
+      Waypoint p0 = waypoints[index - 1];
+      Waypoint p2 = waypoints[index + 1];
+      double dt = p2.time - p0.time;
+      double vTheta = atan2(p2.y - p0.y, p2.x - p0.x);
+      double dist = _getDistance(p0.x, p0.y, p2.x, p2.y);
+      double vMag = dist / dt;
+      double deltaX = vMag * cos(vTheta);
+      double deltaY = vMag * sin(vTheta);
+      dx = deltaX * (dt / 2);
+      dy  = deltaY * (dt / 2); // Approximate mid-point
+    } else {
+      dy = 0;
+      dx = 0;
+    }
+    return (dy, dx);
+  }
+
+  double _averageAngularVelocity(int index) {
+    double angVel;
+    if (index != 0 && index != waypoints.length - 1) {
+      Waypoint p0 = waypoints[index - 1];
+      Waypoint p1 = waypoints[index];
+      Waypoint p2 = waypoints[index + 1];
+      double dt = p2.time - p0.time;
+      double da = p2.theta - p0.theta;
+      if (p2.theta - p0.theta > pi) {
+        da = pi - da;
+      } else if (p2.theta - p0.theta < -pi) {
+        da = pi + da;
+      }
+      int sine1 = _getOptimizedRotationSign(p0.theta, waypoints[index].theta);
+      int sine2 = _getOptimizedRotationSign(waypoints[index].theta, p2.theta);
+      if (sine1 != sine2) {
+        angVel = 0;
+      } else {
+        angVel = da / dt;
+      }
+      if ((p0.theta - p1.theta).abs() < pi / 8) {
+        angVel = 0;
+      } else if ((p1.theta - p2.theta).abs() < pi / 8) {
+        angVel = 0;
+      }
+    } else {
+      angVel = 0;
+    }
+    return angVel;
+  }
+
+  _averageAll() {
+    List<Waypoint> newWaypoints = [];
+    for (int i = 0; i < waypoints.length; i++) {
+      var (dy, dx) = _averageLinearVelocity(i);
+      var dtheta = _averageAngularVelocity(i);
+      newWaypoints.add(waypoints[i].copyWith(dy: dy, dx: dx, dtheta: dtheta));
+    }
+    _onWaypointsChanged(newWaypoints);
+    setState(() {
+      smooth = true;
+    });
+  }
+
+  double _getDistance(double x1, double y1, double x2, double y2) {
+    return sqrt(pow(x2 - x1, 2) + pow(y2 - y1, 2));
+  }
+
+  int _getOptimizedRotationSign(double angle1, double angle2) {
+    double op1, op2;
+    if (angle1 >= angle2) {
+      op2 = ((2 * pi) - (angle1 - angle2));
+      op1 = (angle1 - angle2);
+    } else {
+      op1 = ((2 * pi) - (angle2 - angle1));
+      op2 = (angle2 - angle1);
+    }
+    return op1 <= op2 ? -1 : 1;
   }
 }
 
