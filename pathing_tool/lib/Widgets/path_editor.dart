@@ -503,6 +503,9 @@ class _PathEditorState extends State<PathEditor> {
                                                       : 150,
                                               saveState: () {
                                                 _saveState();
+                                                setState(() {
+                                                  smooth = false;
+                                                });
                                               },
                                             )),
                                       if (editMode == 1)
@@ -532,6 +535,9 @@ class _PathEditorState extends State<PathEditor> {
                                                       : 150,
                                               saveState: () {
                                                 _saveState();
+                                                setState(() {
+                                                  smooth = false;
+                                                });
                                               },
                                             )),
                                       if (editMode == 1)
@@ -561,6 +567,9 @@ class _PathEditorState extends State<PathEditor> {
                                                       : 150,
                                               saveState: () {
                                                 _saveState();
+                                                setState(() {
+                                                  smooth = false;
+                                                });
                                               },
                                             )),
                                     ],
