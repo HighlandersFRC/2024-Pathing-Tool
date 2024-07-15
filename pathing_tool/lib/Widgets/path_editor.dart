@@ -356,16 +356,22 @@ class _PathEditorState extends State<PathEditor> {
                                 height: usedHeight,
                                 fit: BoxFit.contain,
                               );
-
+                              var widthOffset =
+                                  (availableWidth - usedWidth) / 2;
+                              var heightOffset =
+                                  (availableHeight - usedHeight) / 2;
                               void onClick(BuildContext context,
                                   TapDownDetails details) {
                                 if (editMode == 0) {
                                   // TODO Add detection for when you click on a point
                                   // int pointIdx = -1;
                                   // waypoints.forEach((Waypoint waypoint) {});
+
                                   _saveState();
-                                  var xPixels = details.localPosition.dx;
-                                  var yPixels = details.localPosition.dy;
+                                  var xPixels =
+                                      details.localPosition.dx - widthOffset;
+                                  var yPixels =
+                                      details.localPosition.dy - heightOffset;
                                   var xMeters = xPixels /
                                       usedWidth *
                                       fieldImageData.imageWidthInMeters;
@@ -380,200 +386,218 @@ class _PathEditorState extends State<PathEditor> {
                                 child: GestureDetector(
                                   onTapDown: (details) =>
                                       onClick(context, details),
-                                  child: Stack(
-                                    children: [
-                                      SizedBox(
-                                        height: usedHeight,
-                                        width: usedWidth,
-                                        child: fieldImage,
-                                      ),
-                                      SizedBox(
-                                        height: usedHeight,
-                                        width: usedWidth,
-                                        child: LineChart(
-                                          LineChartData(
-                                            lineBarsData: [
-                                              LineChartBarData(
-                                                spots: xSpots,
-                                                isCurved: true,
-                                                barWidth: 3,
-                                                color: theme.brightness ==
-                                                        Brightness.dark
-                                                    ? Colors.grey.shade500
-                                                    : Colors.black,
-                                                dotData: const FlDotData(
-                                                    show: false),
-                                              ),
-                                            ],
-                                            minX: 0,
-                                            minY: 0,
-                                            maxX: fieldImageData
-                                                .imageWidthInMeters,
-                                            maxY: fieldImageData
-                                                .imageHeightInMeters,
-                                            gridData:
-                                                const FlGridData(show: false),
-                                            titlesData:
-                                                const FlTitlesData(show: false),
-                                            borderData:
-                                                FlBorderData(show: false),
-                                            lineTouchData: const LineTouchData(
-                                                enabled: false),
-                                          ),
-                                        ),
-                                      ),
-                                      ...waypoints.map((Waypoint waypoint) {
-                                        return CustomPaint(
-                                          size: Size(usedWidth, usedHeight),
-                                          painter: RobotPainter(
-                                              waypoint,
-                                              fieldImageData,
-                                              usedWidth,
-                                              usedHeight,
-                                              context,
-                                              robotConfigProvider.robotConfig,
-                                              theme.primaryColor,
-                                              selectedWaypoint ==
-                                                      waypoints
-                                                          .indexOf(waypoint)
-                                                  ? 255
-                                                  : 100),
-                                        );
-                                      }),
-                                      if (editMode == 1)
-                                        ...waypoints.map((Waypoint waypoint) {
-                                          double xPixels = waypoint.x /
-                                              fieldImageData
-                                                  .imageWidthInMeters *
-                                              usedWidth;
-                                          double yPixels = usedHeight -
-                                              (waypoint.y /
-                                                  fieldImageData
-                                                      .imageHeightInMeters *
-                                                  usedHeight);
-                                          double metersToPixelsRatio =
-                                              usedWidth /
-                                                  fieldImageData
-                                                      .imageWidthInMeters;
-
-                                          Offset handlePosition = Offset(
-                                            metersToPixelsRatio * waypoint.dx,
-                                            -metersToPixelsRatio * waypoint.dy,
-                                          );
-                                          return CustomPaint(
-                                            size: Size(usedWidth, usedHeight),
-                                            painter: VelocityPainter(
-                                              opacity:
-                                                  waypoints.indexOf(waypoint) ==
-                                                          selectedWaypoint
-                                                      ? 255
-                                                      : 150,
-                                              start: Offset(xPixels, yPixels),
-                                              end: Offset(
-                                                  xPixels + handlePosition.dx,
-                                                  yPixels + handlePosition.dy),
-                                              color: theme.primaryColor,
+                                  child: Stack(children: [
+                                    SizedBox(
+                                      height: availableHeight,
+                                      width: availableWidth,
+                                      child: fieldImage,
+                                    ),
+                                    Container(
+                                        alignment: Alignment.center,
+                                        child: SizedBox(
+                                          height: usedHeight,
+                                          width: usedWidth,
+                                          child: LineChart(
+                                            LineChartData(
+                                              lineBarsData: [
+                                                LineChartBarData(
+                                                  spots: xSpots,
+                                                  isCurved: true,
+                                                  barWidth: 3,
+                                                  color: theme.brightness ==
+                                                          Brightness.dark
+                                                      ? Colors.grey.shade500
+                                                      : Colors.black,
+                                                  dotData: const FlDotData(
+                                                      show: false),
+                                                ),
+                                              ],
+                                              minX: 0,
+                                              minY: 0,
+                                              maxX: fieldImageData
+                                                  .imageWidthInMeters,
+                                              maxY: fieldImageData
+                                                  .imageHeightInMeters,
+                                              gridData:
+                                                  const FlGridData(show: false),
+                                              titlesData: const FlTitlesData(
+                                                  show: false),
+                                              borderData:
+                                                  FlBorderData(show: false),
+                                              lineTouchData:
+                                                  const LineTouchData(
+                                                      enabled: false),
                                             ),
+                                          ),
+                                        )),
+                                    Stack(
+                                      children: [
+                                        ...waypoints.map((Waypoint waypoint) {
+                                          return CustomPaint(
+                                            size: Size(availableHeight,
+                                                availableWidth),
+                                            painter: RobotPainter(
+                                                waypoint,
+                                                fieldImageData,
+                                                usedWidth,
+                                                usedHeight,
+                                                context,
+                                                robotConfigProvider.robotConfig,
+                                                theme.primaryColor,
+                                                selectedWaypoint ==
+                                                        waypoints
+                                                            .indexOf(waypoint)
+                                                    ? 255
+                                                    : 100,
+                                                constraints),
                                           );
                                         }),
-                                      if (editMode == 1)
-                                        ...waypoints.map((waypoint) =>
-                                            DraggableHandleTheta(
-                                              waypoint: waypoint,
-                                              fieldImageData: fieldImageData,
-                                              usedWidth: usedWidth,
-                                              usedHeight: usedHeight,
-                                              onUpdate: (updatedWaypoint) {
-                                                setState(() {
-                                                  int index = waypoints
-                                                      .indexOf(waypoint);
-                                                  if (index != -1) {
-                                                    waypoints[index] =
-                                                        updatedWaypoint;
-                                                    waypoints = waypoints;
-                                                    editMode = 1;
-                                                    selectedWaypoint = index;
-                                                  }
-                                                });
-                                              },
-                                              opacity:
-                                                  waypoints.indexOf(waypoint) ==
-                                                          selectedWaypoint
-                                                      ? 255
-                                                      : 150,
-                                              saveState: () {
-                                                _saveState();
-                                                setState(() {
-                                                  smooth = false;
-                                                });
-                                              },
-                                            )),
-                                      if (editMode == 1)
-                                        ...waypoints.map((waypoint) =>
-                                            DraggableHandlePosition(
-                                              waypoint: waypoint,
-                                              fieldImageData: fieldImageData,
-                                              usedWidth: usedWidth,
-                                              usedHeight: usedHeight,
-                                              onUpdate: (updatedWaypoint) {
-                                                setState(() {
-                                                  int index = waypoints
-                                                      .indexOf(waypoint);
-                                                  if (index != -1) {
-                                                    waypoints[index] =
-                                                        updatedWaypoint;
-                                                    waypoints = waypoints;
-                                                    editMode = 1;
-                                                    selectedWaypoint = index;
-                                                  }
-                                                });
-                                              },
-                                              opacity:
-                                                  waypoints.indexOf(waypoint) ==
-                                                          selectedWaypoint
-                                                      ? 255
-                                                      : 150,
-                                              saveState: () {
-                                                _saveState();
-                                                setState(() {
-                                                  smooth = false;
-                                                });
-                                              },
-                                            )),
-                                      if (editMode == 1)
-                                        ...waypoints.map((waypoint) =>
-                                            VelocityHandle(
-                                              waypoint: waypoint,
-                                              fieldImageData: fieldImageData,
-                                              usedWidth: usedWidth,
-                                              usedHeight: usedHeight,
-                                              onUpdate: (updatedWaypoint) {
-                                                setState(() {
-                                                  int index = waypoints
-                                                      .indexOf(waypoint);
-                                                  if (index != -1) {
-                                                    waypoints[index] =
-                                                        updatedWaypoint;
-                                                    waypoints = waypoints;
-                                                    editMode = 1;
-                                                    selectedWaypoint = index;
-                                                  }
-                                                });
-                                              },
-                                              opacity:
-                                                  waypoints.indexOf(waypoint) ==
-                                                          selectedWaypoint
-                                                      ? 255
-                                                      : 150,
-                                              saveState: () {
-                                                _saveState();
-                                                setState(() {
-                                                  smooth = false;
-                                                });
-                                              },
-                                            )),
-                                    ],
-                                  ),
+                                        if (editMode == 1)
+                                          ...waypoints.map((Waypoint waypoint) {
+                                            double xPixels = waypoint.x /
+                                                fieldImageData
+                                                    .imageWidthInMeters *
+                                                usedWidth;
+                                            double yPixels = usedHeight -
+                                                (waypoint.y /
+                                                    fieldImageData
+                                                        .imageHeightInMeters *
+                                                    usedHeight);
+                                            double metersToPixelsRatio =
+                                                usedWidth /
+                                                    fieldImageData
+                                                        .imageWidthInMeters;
+
+                                            Offset handlePosition = Offset(
+                                              metersToPixelsRatio * waypoint.dx,
+                                              -metersToPixelsRatio *
+                                                  waypoint.dy,
+                                            );
+                                            return CustomPaint(
+                                              size: Size(availableWidth,
+                                                  availableHeight),
+                                              painter: VelocityPainter(
+                                                opacity: waypoints.indexOf(
+                                                            waypoint) ==
+                                                        selectedWaypoint
+                                                    ? 255
+                                                    : 150,
+                                                start: Offset(
+                                                    xPixels + widthOffset,
+                                                    yPixels + heightOffset),
+                                                end: Offset(
+                                                    xPixels +
+                                                        handlePosition.dx +
+                                                        widthOffset,
+                                                    yPixels +
+                                                        handlePosition.dy +
+                                                        heightOffset),
+                                                color: theme.primaryColor,
+                                              ),
+                                            );
+                                          }),
+                                        if (editMode == 1)
+                                          ...waypoints.map((waypoint) =>
+                                              DraggableHandleTheta(
+                                                constraints: constraints,
+                                                waypoint: waypoint,
+                                                fieldImageData: fieldImageData,
+                                                usedWidth: usedWidth,
+                                                usedHeight: usedHeight,
+                                                onUpdate: (updatedWaypoint) {
+                                                  setState(() {
+                                                    int index = waypoints
+                                                        .indexOf(waypoint);
+                                                    if (index != -1) {
+                                                      waypoints[index] =
+                                                          updatedWaypoint;
+                                                      waypoints = waypoints;
+                                                      editMode = 1;
+                                                      selectedWaypoint = index;
+                                                    }
+                                                  });
+                                                },
+                                                opacity: waypoints.indexOf(
+                                                            waypoint) ==
+                                                        selectedWaypoint
+                                                    ? 255
+                                                    : 150,
+                                                saveState: () {
+                                                  _saveState();
+                                                  setState(() {
+                                                    smooth = false;
+                                                  });
+                                                },
+                                              )),
+                                        if (editMode == 1)
+                                          ...waypoints.map((waypoint) =>
+                                              DraggableHandlePosition(
+                                                constraints: constraints,
+                                                waypoint: waypoint,
+                                                fieldImageData: fieldImageData,
+                                                usedWidth: usedWidth,
+                                                usedHeight: usedHeight,
+                                                onUpdate: (updatedWaypoint) {
+                                                  setState(() {
+                                                    int index = waypoints
+                                                        .indexOf(waypoint);
+                                                    if (index != -1) {
+                                                      waypoints[index] =
+                                                          updatedWaypoint;
+                                                      waypoints = waypoints;
+                                                      editMode = 1;
+                                                      selectedWaypoint = index;
+                                                    }
+                                                  });
+                                                },
+                                                opacity: waypoints.indexOf(
+                                                            waypoint) ==
+                                                        selectedWaypoint
+                                                    ? 255
+                                                    : 150,
+                                                saveState: () {
+                                                  _saveState();
+                                                  setState(() {
+                                                    smooth = false;
+                                                  });
+                                                },
+                                              )),
+                                        if (editMode == 1)
+                                          ...waypoints.map((waypoint) =>
+                                              VelocityHandle(
+                                                constraints: constraints,
+                                                waypoint: waypoint,
+                                                fieldImageData: fieldImageData,
+                                                usedWidth: usedWidth,
+                                                usedHeight: usedHeight,
+                                                onUpdate: (updatedWaypoint) {
+                                                  setState(() {
+                                                    int index = waypoints
+                                                        .indexOf(waypoint);
+                                                    if (index != -1) {
+                                                      waypoints[index] =
+                                                          updatedWaypoint;
+                                                      waypoints = waypoints;
+                                                      editMode = 1;
+                                                      selectedWaypoint = index;
+                                                    }
+                                                  });
+                                                },
+                                                opacity: waypoints.indexOf(
+                                                            waypoint) ==
+                                                        selectedWaypoint
+                                                    ? 255
+                                                    : 150,
+                                                saveState: () {
+                                                  _saveState();
+                                                  setState(() {
+                                                    smooth = false;
+                                                  });
+                                                },
+                                              )),
+                                      ],
+                                    ),
+                                  ]),
                                 ),
                               );
                             },
@@ -605,6 +629,7 @@ class _PathEditorState extends State<PathEditor> {
 
   _onAttributeChanged(Waypoint waypoint) {
     if (selectedWaypoint != -1) {
+      _saveState();
       setState(() {
         waypoints[selectedWaypoint] = waypoint;
         waypoints = waypoints;
@@ -684,7 +709,7 @@ class _PathEditorState extends State<PathEditor> {
       this.commands = [...commands];
     });
   }
-  
+
   (double, double) _averageLinearVelocity(int index) {
     double dy = 0, dx = 0;
     if (index != 0 && index != waypoints.length - 1) {
@@ -697,7 +722,7 @@ class _PathEditorState extends State<PathEditor> {
       double deltaX = vMag * cos(vTheta);
       double deltaY = vMag * sin(vTheta);
       dx = deltaX * (dt / 2);
-      dy  = deltaY * (dt / 2); // Approximate mid-point
+      dy = deltaY * (dt / 2); // Approximate mid-point
     } else {
       dy = 0;
       dx = 0;
@@ -776,6 +801,7 @@ class RobotPainter extends CustomPainter {
   final Color color;
   final int opacity;
   late double metersToPixelsRatio;
+  final BoxConstraints constraints;
 
   RobotPainter(
       this.waypoint,
@@ -785,12 +811,15 @@ class RobotPainter extends CustomPainter {
       this.context,
       this.robotConfig,
       this.color,
-      this.opacity) {
+      this.opacity,
+      this.constraints) {
     metersToPixelsRatio = usedWidth / fieldImageData.imageWidthInMeters;
   }
 
   @override
   void paint(Canvas canvas, Size size) {
+    var widthOffset = (constraints.maxWidth - usedWidth) / 2;
+    var heightOffset = (constraints.maxHeight - usedHeight) / 2;
     final Paint paint = Paint()
       ..color = color.withAlpha(opacity)
       ..strokeWidth = 2
@@ -800,9 +829,12 @@ class RobotPainter extends CustomPainter {
       ..color = color.withOpacity(0.0)
       ..style = PaintingStyle.fill;
 
-    double xPixels = waypoint.x / fieldImageData.imageWidthInMeters * usedWidth;
+    double xPixels =
+        (waypoint.x / fieldImageData.imageWidthInMeters * usedWidth) +
+            widthOffset;
     double yPixels = usedHeight -
-        (waypoint.y / fieldImageData.imageHeightInMeters * usedHeight);
+        ((waypoint.y / fieldImageData.imageHeightInMeters * usedHeight) +
+            heightOffset);
     double angle = waypoint.theta;
 
     double boxWidth = robotConfig.length *

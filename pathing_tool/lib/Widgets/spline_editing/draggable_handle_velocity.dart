@@ -10,6 +10,7 @@ class VelocityHandle extends StatefulWidget {
   final ValueChanged<Waypoint> onUpdate;
   final void Function() saveState;
   final int opacity;
+  final BoxConstraints constraints;
 
   const VelocityHandle({
     super.key,
@@ -19,7 +20,8 @@ class VelocityHandle extends StatefulWidget {
     required this.usedHeight,
     required this.onUpdate,
     required this.opacity,
-    required this.saveState,
+    required this.saveState, 
+    required this.constraints,
   });
 
   @override
@@ -47,14 +49,18 @@ class _VelocityHandleState extends State<VelocityHandle> {
       metersToPixelsRatio * widget.waypoint.dx,
       -metersToPixelsRatio * widget.waypoint.dy,
     );
+    var widthOffset =
+        (widget.constraints.maxWidth - widget.usedWidth) / 2;
+    var heightOffset =
+        (widget.constraints.maxHeight - widget.usedHeight) / 2;
 
     return
         // fit: StackFit.passthrough,
         // clipBehavior: Clip.none,
         Positioned(
             key: _positionedKey,
-            left: xPixels,
-            top: yPixels,
+            left: xPixels+widthOffset,
+            top: yPixels+heightOffset,
             child: Container(
               transform: Matrix4.translationValues(
                   handlePosition.dx - 6, handlePosition.dy - 6, 20),
@@ -109,7 +115,6 @@ class VelocityPainter extends CustomPainter {
       ..color = color.withAlpha(opacity)
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke;
-
     canvas.drawLine(start, end, paint);
   }
 

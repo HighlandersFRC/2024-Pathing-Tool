@@ -14,6 +14,7 @@ class DraggableHandleTheta extends StatefulWidget {
   final void Function() saveState;
   final ValueChanged<Waypoint> onUpdate;
   final int opacity;
+  final BoxConstraints constraints;
 
   const DraggableHandleTheta({
     super.key,
@@ -23,7 +24,8 @@ class DraggableHandleTheta extends StatefulWidget {
     required this.usedHeight,
     required this.onUpdate,
     required this.opacity,
-    required this.saveState,
+    required this.saveState, 
+    required this.constraints,
   });
 
   @override
@@ -51,11 +53,15 @@ class _DraggableHandleThetaState extends State<DraggableHandleTheta> {
       handleLength * math.cos(widget.waypoint.theta),
       -handleLength * math.sin(widget.waypoint.theta),
     );
+    var widthOffset =
+        (widget.constraints.maxWidth - widget.usedWidth) / 2;
+    var heightOffset =
+        (widget.constraints.maxHeight - widget.usedHeight) / 2;
 
     return Positioned(
       key: _positionedKey,
-      left: xPixels,
-      top: yPixels,
+      left: xPixels+widthOffset,
+      top: yPixels+heightOffset,
       child: Container(
         transform: Matrix4.translationValues(
             handlePosition.dx - 12, handlePosition.dy - 12, 20),
