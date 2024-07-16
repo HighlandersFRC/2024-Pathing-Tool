@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -45,18 +46,50 @@ class PathEditor extends StatefulWidget {
       _PathEditorState(startingWaypoints, pathName);
 }
 
-class _PathEditorState extends State<PathEditor> {
+class _PathEditorState extends State<PathEditor> with SingleTickerProviderStateMixin{
   List<(List<Waypoint>, bool)> undoStack = [];
   List<(List<Waypoint>, bool)> redoStack = [];
   List<Waypoint> waypoints = [];
   List<Command> commands = [];
+  Waypoint? playbackWaypoint;
   bool smooth = false;
   int editMode = 0;
   int selectedWaypoint = -1;
   int selectedCommand = -1;
   String pathName = "";
+  late AnimationController _animationController;
+  
   _PathEditorState(List<Waypoint> startingWaypoints, this.pathName) {
     waypoints = [...startingWaypoints];
+  }
+   @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: Duration(seconds: waypoints.isNotEmpty ? waypoints.last.t.ceil() : 0),
+    )..addListener(() {
+        setState(() {
+          playbackWaypoint = _getPlaybackWaypoint();
+        });
+      });
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  Waypoint _getPlaybackWaypoint() {
+    var robot = Spline(waypoints);
+    return robot.getRobotWaypoint(_animationController.value * waypoints.last.t);
+  }
+
+  void playPath() {
+    if (!_animationController.isAnimating) {
+      _animationController.forward(from: 0.0);
+    }
   }
 
   void _addWaypoint(double x, double y) {
@@ -79,6 +112,7 @@ class _PathEditorState extends State<PathEditor> {
           d2y: 0,
           d2theta: 0,
           t: t));
+      smooth = false;
     });
   }
 
@@ -87,17 +121,27 @@ class _PathEditorState extends State<PathEditor> {
     ImageDataProvider imageDataProvider =
         Provider.of<ImageDataProvider>(context);
     ImageData fieldImageData = imageDataProvider.selectedImage;
-    List<FlSpot> xSpots = [];
+    List<FlSpot> fullSpline = [];
+    List<FlSpot> commandSpline = [];
     final theme = Theme.of(context);
     final robotConfigProvider = Provider.of<RobotConfigProvider>(context);
     if (waypoints.length > 1) {
       Spline robot = Spline(waypoints);
       double timeStep = 0.01; // Adjust for desired granularity
       double endTime = robot.points.last.t;
-
       for (double t = 0; t <= endTime; t += timeStep) {
         Waypoint point = robot.getRobotWaypoint(t);
-        xSpots.add(FlSpot(point.x, point.y));
+        fullSpline.add(FlSpot(point.x, point.y));
+      }
+    }
+    if (waypoints.length > 1 && selectedCommand != -1) {
+      Spline robot = Spline(waypoints);
+      double timeStep = 0.01; // Adjust for desired granularity
+      double start = commands[selectedCommand].startTime;
+      double endTime = commands[selectedCommand].endTime;
+      for (double t = start; t <= endTime; t += timeStep) {
+        Waypoint point = robot.getRobotWaypoint(t);
+        commandSpline.add(FlSpot(point.x, point.y));
       }
     }
     void savePathToFile() async {
@@ -246,6 +290,20 @@ class _PathEditorState extends State<PathEditor> {
                     automaticallyImplyLeading: false,
                     actions: [
                       Tooltip(
+                        message: "Play Path",
+                        waitDuration: const Duration(milliseconds: 500),
+                        child: TextButton(
+                          onPressed: waypoints.length > 1
+                              ? () {
+                                  playPath();
+                                }
+                              : null,
+                          style: ButtonStyle(
+                              foregroundColor:WidgetStateProperty.all(theme.primaryColor),),
+                          child: const Icon(Icons.play_arrow_rounded),
+                        ),
+                      ),
+                      Tooltip(
                         message: "Smoothen",
                         waitDuration: const Duration(milliseconds: 500),
                         child: TextButton(
@@ -382,6 +440,25 @@ class _PathEditorState extends State<PathEditor> {
                                 }
                               }
 
+                              CustomPaint? playbackPaint = playbackWaypoint !=
+                                      null
+                                  ? CustomPaint(
+                                      size:
+                                          Size(availableHeight, availableWidth),
+                                      painter: RobotPainter(
+                                          playbackWaypoint!,
+                                          fieldImageData,
+                                          usedWidth,
+                                          usedHeight,
+                                          context,
+                                          robotConfigProvider.robotConfig,
+                                          theme.brightness == Brightness.dark
+                                              ? Colors.white
+                                              : Colors.grey,
+                                          255,
+                                          constraints),
+                                    )
+                                  : null;
                               return Center(
                                 child: GestureDetector(
                                   onTapDown: (details) =>
@@ -401,7 +478,7 @@ class _PathEditorState extends State<PathEditor> {
                                             LineChartData(
                                               lineBarsData: [
                                                 LineChartBarData(
-                                                  spots: xSpots,
+                                                  spots: fullSpline,
                                                   isCurved: true,
                                                   barWidth: 3,
                                                   color: theme.brightness ==
@@ -430,6 +507,42 @@ class _PathEditorState extends State<PathEditor> {
                                             ),
                                           ),
                                         )),
+                                    if (editMode == 2)
+                                      Container(
+                                          alignment: Alignment.center,
+                                          child: SizedBox(
+                                            height: usedHeight,
+                                            width: usedWidth,
+                                            child: LineChart(
+                                              LineChartData(
+                                                lineBarsData: [
+                                                  LineChartBarData(
+                                                    spots: commandSpline,
+                                                    isCurved: true,
+                                                    barWidth: 5,
+                                                    color: theme.primaryColor,
+                                                    dotData: const FlDotData(
+                                                        show: false),
+                                                  ),
+                                                ],
+                                                minX: 0,
+                                                minY: 0,
+                                                maxX: fieldImageData
+                                                    .imageWidthInMeters,
+                                                maxY: fieldImageData
+                                                    .imageHeightInMeters,
+                                                gridData: const FlGridData(
+                                                    show: false),
+                                                titlesData: const FlTitlesData(
+                                                    show: false),
+                                                borderData:
+                                                    FlBorderData(show: false),
+                                                lineTouchData:
+                                                    const LineTouchData(
+                                                        enabled: false),
+                                              ),
+                                            ),
+                                          )),
                                     Stack(
                                       children: [
                                         ...waypoints.map((Waypoint waypoint) {
@@ -452,6 +565,8 @@ class _PathEditorState extends State<PathEditor> {
                                                 constraints),
                                           );
                                         }),
+                                        if (playbackPaint != null)
+                                          playbackPaint,
                                         if (editMode == 1)
                                           ...waypoints.map((Waypoint waypoint) {
                                             double xPixels = waypoint.x /
@@ -632,7 +747,8 @@ class _PathEditorState extends State<PathEditor> {
       _saveState();
       setState(() {
         waypoints[selectedWaypoint] = waypoint;
-        waypoints = waypoints;
+        waypoints.sort((a, b) => a.t.compareTo(b.t));
+        selectedWaypoint = waypoints.indexOf(waypoint);
         smooth = false;
       });
     }
@@ -651,9 +767,17 @@ class _PathEditorState extends State<PathEditor> {
   }
 
   _onCommandAttributeChanged(Command command) {
-    if (selectedWaypoint != -1) {
+    if (selectedCommand != -1) {
       setState(() {
-        commands[selectedCommand] = command;
+        List<Command> newCommands = [];
+        commands.forEach((existingCommand) {
+          if (commands[selectedCommand] == existingCommand) {
+            newCommands.add(command);
+          } else {
+            newCommands.add(existingCommand);
+          }
+        });
+        commands = [...newCommands];
       });
     }
   }
@@ -698,6 +822,7 @@ class _PathEditorState extends State<PathEditor> {
   _onWaypointsChanged(List<Waypoint> waypoints) {
     _saveState();
     setState(() {
+      waypoints.sort((a, b) => a.t.compareTo(b.t));
       this.waypoints = [...waypoints];
       smooth = false;
     });
@@ -833,7 +958,7 @@ class RobotPainter extends CustomPainter {
         (waypoint.x / fieldImageData.imageWidthInMeters * usedWidth) +
             widthOffset;
     double yPixels = usedHeight -
-        ((waypoint.y / fieldImageData.imageHeightInMeters * usedHeight) +
+        ((waypoint.y / fieldImageData.imageHeightInMeters * usedHeight) -
             heightOffset);
     double angle = waypoint.theta;
 

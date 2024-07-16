@@ -1,7 +1,8 @@
-// TODO Need to add add command button
-
 import 'package:flutter/material.dart';
+import 'package:pathing_tool/Utils/Providers/robot_config_provider.dart';
 import 'package:pathing_tool/Utils/Structs/command.dart';
+import 'package:pathing_tool/Utils/Structs/robot_config.dart';
+import 'package:provider/provider.dart';
 
 class EditCommandMenu extends StatefulWidget {
   final List<Command> commands;
@@ -29,17 +30,73 @@ class _EditCommandMenuState extends State<EditCommandMenu> {
       : null;
 
   void updateCommand(Command newCommand) {
-    setState(() {
-      widget.commands[widget.selectedCommand] = newCommand;
-    });
     widget.onAttributeChanged(newCommand);
   }
 
-  void deleteCommand() {
+  void deleteCommand(int index) {
     setState(() {
-      widget.commands.removeAt(widget.selectedCommand);
+      widget.commands.removeAt(index);
+    });
+    widget.onCommandSelected((index != 0 ? widget.commands[index - 1] : null));
+    widget.onCommandChanged(widget.commands);
+  }
+
+  void addCommand(Command command) {
+    setState(() {
+      widget.commands.add(command);
     });
     widget.onCommandChanged(widget.commands);
+  }
+
+  void showAddCommandMenu(BuildContext context) {
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final RelativeRect position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        button.localToGlobal(Offset.zero, ancestor: overlay),
+        button.localToGlobal(button.size.bottomRight(Offset.zero),
+            ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    showMenu(
+      context: context,
+      position: position,
+      items: [
+        const PopupMenuItem(
+          value: 'command',
+          child: Text('Add Command'),
+        ),
+        const PopupMenuItem(
+          value: 'branchedCommand',
+          child: Text('Add Branched Command'),
+        ),
+      ],
+    ).then((value) {
+      if (value == 'command') {
+        addCommand(Command(
+          startTime: 0,
+          endTime: 0,
+          commandName: '',
+        ));
+      } else if (value == 'branchedCommand') {
+        addCommand(BranchedCommand(
+          'New Branched Command',
+          Command(
+            startTime: 0,
+            endTime: 0,
+            commandName: '',
+          ),
+          Command(
+            startTime: 0,
+            endTime: 0,
+            commandName: '',
+          ),
+        ));
+      }
+    });
   }
 
   @override
@@ -67,42 +124,64 @@ class _EditCommandMenuState extends State<EditCommandMenu> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Column(
                 children: [
-                  DropdownButton<int>(
-                    value: widget.selectedCommand != -1
-                        ? widget.selectedCommand
-                        : null,
-                    hint: const Text('Select a command'),
-                    onChanged: (int? newIndex) {
-                      widget.onCommandSelected(newIndex != null
-                          ? widget.commands[newIndex]
-                          : null);
-                    },
-                    items: widget.commands.asMap().entries.map((entry) {
-                      int idx = entry.key;
-                      return DropdownMenuItem<int>(
-                        value: idx,
-                        child: Text('Command ${idx + 1}'),
-                      );
-                    }).toList(),
-                  ),
-                  if (selectedCommand != null)
-                    Column(
-                      children: [
-                        CommandEditor(
-                          command: selectedCommand!,
-                          onChanged: updateCommand,
-                        ),
-                        if (selectedCommand is BranchedCommand)
-                          BranchedCommandEditor(
-                            command: selectedCommand as BranchedCommand,
-                            onChanged: updateCommand,
-                          ),
-                        IconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: deleteCommand,
-                        ),
-                      ],
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(
+                          15.0), // Rounded corners for the whole panel
+                      color: theme.primaryColor.withOpacity(0.1),
                     ),
+                    child: ExpansionPanelList(
+                      expansionCallback: (int index, bool isExpanded) {
+                        if (isExpanded) {
+                          widget.onCommandSelected(widget.commands[index]);
+                        } else {
+                          widget.onCommandSelected(null);
+                        }
+                      },
+                      children: widget.commands.asMap().entries.map((entry) {
+                        int idx = entry.key;
+                        Command command = entry.value;
+                        return ExpansionPanel(
+                          canTapOnHeader: true,
+                          headerBuilder:
+                              (BuildContext context, bool isExpanded) {
+                            return ListTile(
+                              title: Text('Command ${idx + 1}'),
+                            );
+                          },
+                          body: Container(
+                            decoration: BoxDecoration(
+                              borderRadius:
+                                  BorderRadius.circular(8.0), // Rounded corners
+                              color: theme.primaryColor.withOpacity(0.1),
+                            ),
+                            child: Column(
+                              children: [
+                                CommandEditor(
+                                  command: command,
+                                  onChanged: (newCommand) {
+                                    setState(() {
+                                      widget.commands[idx] = newCommand;
+                                    });
+                                    widget.onAttributeChanged(newCommand);
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete),
+                                  onPressed: () => deleteCommand(idx),
+                                ),
+                              ],
+                            ),
+                          ),
+                          isExpanded: selectedCommand == command,
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => showAddCommandMenu(context),
+                    child: const Text('Add Command'),
+                  ),
                 ],
               ),
             ),
@@ -117,7 +196,7 @@ class CommandEditor extends StatelessWidget {
   final Command command;
   final Function(Command) onChanged;
 
-  const CommandEditor({
+  CommandEditor({
     super.key,
     required this.onChanged,
     required this.command,
@@ -125,37 +204,124 @@ class CommandEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    TextEditingController startTimeController = TextEditingController(text: command.startTime.toString());
-    TextEditingController endTimeController = TextEditingController(text: command.endTime.toString());
-    TextEditingController nameController = TextEditingController(text: command.commandName);
+    final theme = Theme.of(context);
+    final RobotConfigProvider robotProvider =
+        Provider.of<RobotConfigProvider>(context);
+    var commandNames = [...robotProvider.robotConfig.commands];
 
-    return Column(
-      children: [
-        TextField(
-          controller: startTimeController,
-          decoration: const InputDecoration(labelText: 'Start Time'),
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          onChanged: (value) {
-            onChanged(command.copyWith(startTime: double.parse(value)));
-          },
-        ),
-        TextField(
-          controller: endTimeController,
-          decoration: const InputDecoration(labelText: 'End Time'),
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          onChanged: (value) {
-            onChanged(command.copyWith(endTime: double.parse(value)));
-          },
-        ),
-        TextField(
-          controller: nameController,
-          decoration: const InputDecoration(labelText: 'Command Name'),
-          onChanged: (value) {
-            onChanged(command.copyWith(commandName: value));
-          },
-        ),
-      ],
-    );
+    TextEditingController startTimeController =
+        TextEditingController(text: command.startTime.toString());
+    TextEditingController endTimeController =
+        TextEditingController(text: command.endTime.toString());
+
+    String selectedCommandName = command.commandName;
+
+    // Focus nodes to detect when the TextFields lose focus
+    FocusNode startTimeFocusNode = FocusNode();
+    FocusNode endTimeFocusNode = FocusNode();
+
+    void updateStartTime() {
+      final value = startTimeController.text;
+      if (value.isNotEmpty) {
+        onChanged(command.copyWith(startTime: double.parse(value)));
+      }
+    }
+
+    void updateEndTime() {
+      final value = endTimeController.text;
+      if (value.isNotEmpty) {
+        if (double.parse(value) < command.startTime) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("End Time must be greater than start time!"),
+              backgroundColor: Colors.red,
+            ),
+          );
+          endTimeController.value =
+              TextEditingValue(text: command.endTime.toString());
+        } else {
+          onChanged(command.copyWith(endTime: double.parse(value)));
+        }
+      }
+    }
+
+    startTimeFocusNode.addListener(() {
+      if (!startTimeFocusNode.hasFocus) {
+        updateStartTime();
+      }
+    });
+
+    endTimeFocusNode.addListener(() {
+      if (!endTimeFocusNode.hasFocus) {
+        updateEndTime();
+      }
+    });
+
+    return command is BranchedCommand
+        ? BranchedCommandEditor(
+            command: command as BranchedCommand,
+            onChanged: onChanged,
+          )
+        : Column(
+            children: [
+              TextField(
+                controller: startTimeController,
+                focusNode: startTimeFocusNode,
+                decoration: InputDecoration(
+                  hintText: 'Start Time',
+                  focusColor: theme.primaryColor,
+                  hoverColor: theme.primaryColor,
+                  floatingLabelStyle: TextStyle(color: theme.primaryColor),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: theme.primaryColor),
+                  ),
+                ),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                cursorColor: theme.primaryColor,
+                onSubmitted: (value) {
+                  updateStartTime();
+                },
+              ),
+              TextField(
+                controller: endTimeController,
+                focusNode: endTimeFocusNode,
+                decoration: InputDecoration(
+                  hintText: 'End Time',
+                  focusColor: theme.primaryColor,
+                  hoverColor: theme.primaryColor,
+                  floatingLabelStyle: TextStyle(color: theme.primaryColor),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: theme.primaryColor),
+                  ),
+                ),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                cursorColor: theme.primaryColor,
+                onSubmitted: (value) {
+                  updateEndTime();
+                },
+              ),
+              DropdownButton<int>(
+                value: !commandNames.contains(selectedCommandName)
+                    ? null
+                    : commandNames.indexOf(selectedCommandName),
+                hint: const Text('Select Command Name'),
+                onChanged: (int? newValue) {
+                  if (newValue != null) {
+                    onChanged(
+                        command.copyWith(commandName: commandNames[newValue]));
+                  }
+                },
+                items: commandNames.map<DropdownMenuItem<int>>((String name) {
+                  return DropdownMenuItem<int>(
+                    value: commandNames.indexOf(name),
+                    child: Text(name),
+                  );
+                }).toList(),
+              ),
+            ],
+          );
   }
 }
 
@@ -171,16 +337,29 @@ class BranchedCommandEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    TextEditingController conditionController = TextEditingController(text: command.condition);
-
+    final robotConfig = Provider.of<RobotConfigProvider>(context);
+    var conditionNames = robotConfig.robotConfig.conditions;
+    String selectedConditionName = command.condition;
     return Column(
       children: [
-        TextField(
-          controller: conditionController,
-          decoration: const InputDecoration(labelText: 'Condition'),
-          onChanged: (value) {
-            onChanged(command.copyWith(condition: value));
+        DropdownButton<int>(
+          value: !conditionNames.contains(selectedConditionName)
+              ? null
+              : conditionNames.indexOf(selectedConditionName),
+          hint: const Text('Select Condition'),
+          onChanged: (int? newValue) {
+            if (newValue != null) {
+              onChanged(command.copyWith(condition: conditionNames[newValue]));
+            }
           },
+          items: [
+            ...conditionNames.map<DropdownMenuItem<int>>((String name) {
+              return DropdownMenuItem<int>(
+                value: conditionNames.indexOf(name),
+                child: Text(name),
+              );
+            }),
+          ],
         ),
         const Text('On True Command'),
         CommandEditor(
