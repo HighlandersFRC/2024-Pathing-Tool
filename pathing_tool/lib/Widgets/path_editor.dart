@@ -736,7 +736,7 @@ class _PathEditorState extends State<PathEditor> with SingleTickerProviderStateM
                             onCommandSelected: _onCommandSelected,
                             onAttributeChanged: _onCommandAttributeChanged,
                             selectedCommand: selectedCommand,
-                            onCommandChanged: _onCommandChanged),
+                            onCommandsChanged: _onCommandChanged),
                     ],
                   ),
                 ))));

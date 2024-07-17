@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:pathing_tool/Utils/Providers/robot_config_provider.dart';
 import 'package:pathing_tool/Utils/Structs/command.dart';
-import 'package:pathing_tool/Utils/Structs/robot_config.dart';
+import 'package:pathing_tool/Widgets/Popups/new_image_popup.dart';
 import 'package:provider/provider.dart';
+import 'dart:math';
 
 class EditCommandMenu extends StatefulWidget {
   final List<Command> commands;
   final int selectedCommand;
   final Function(Command?) onCommandSelected;
   final Function(Command) onAttributeChanged;
-  final Function(List<Command>) onCommandChanged;
+  final Function(List<Command>) onCommandsChanged;
 
   const EditCommandMenu({
     super.key,
@@ -17,7 +18,7 @@ class EditCommandMenu extends StatefulWidget {
     required this.onCommandSelected,
     required this.onAttributeChanged,
     required this.selectedCommand,
-    required this.onCommandChanged,
+    required this.onCommandsChanged,
   });
 
   @override
@@ -38,65 +39,14 @@ class _EditCommandMenuState extends State<EditCommandMenu> {
       widget.commands.removeAt(index);
     });
     widget.onCommandSelected((index != 0 ? widget.commands[index - 1] : null));
-    widget.onCommandChanged(widget.commands);
+    widget.onCommandsChanged(widget.commands);
   }
 
   void addCommand(Command command) {
     setState(() {
       widget.commands.add(command);
     });
-    widget.onCommandChanged(widget.commands);
-  }
-
-  void showAddCommandMenu(BuildContext context) {
-    final RenderBox button = context.findRenderObject() as RenderBox;
-    final RenderBox overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
-    final RelativeRect position = RelativeRect.fromRect(
-      Rect.fromPoints(
-        button.localToGlobal(Offset.zero, ancestor: overlay),
-        button.localToGlobal(button.size.bottomRight(Offset.zero),
-            ancestor: overlay),
-      ),
-      Offset.zero & overlay.size,
-    );
-
-    showMenu(
-      context: context,
-      position: position,
-      items: [
-        const PopupMenuItem(
-          value: 'command',
-          child: Text('Add Command'),
-        ),
-        const PopupMenuItem(
-          value: 'branchedCommand',
-          child: Text('Add Branched Command'),
-        ),
-      ],
-    ).then((value) {
-      if (value == 'command') {
-        addCommand(Command(
-          startTime: 0,
-          endTime: 0,
-          commandName: '',
-        ));
-      } else if (value == 'branchedCommand') {
-        addCommand(BranchedCommand(
-          'New Branched Command',
-          Command(
-            startTime: 0,
-            endTime: 0,
-            commandName: '',
-          ),
-          Command(
-            startTime: 0,
-            endTime: 0,
-            commandName: '',
-          ),
-        ));
-      }
-    });
+    widget.onCommandsChanged(widget.commands);
   }
 
   @override
@@ -104,11 +54,6 @@ class _EditCommandMenuState extends State<EditCommandMenu> {
     final theme = Theme.of(context);
     return Container(
       width: 350, // Adjust as needed
-      decoration: BoxDecoration(
-        border: Border(
-          left: BorderSide(color: Colors.grey.shade300, width: 1.0),
-        ),
-      ),
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -125,12 +70,9 @@ class _EditCommandMenuState extends State<EditCommandMenu> {
               child: Column(
                 children: [
                   Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(
-                          15.0), // Rounded corners for the whole panel
-                      color: theme.primaryColor.withOpacity(0.1),
-                    ),
                     child: ExpansionPanelList(
+                      dividerColor: theme.primaryColor.withOpacity(0.2),
+                      expandIconColor: theme.primaryColor.withOpacity(0.2),
                       expansionCallback: (int index, bool isExpanded) {
                         if (isExpanded) {
                           widget.onCommandSelected(widget.commands[index]);
@@ -142,18 +84,19 @@ class _EditCommandMenuState extends State<EditCommandMenu> {
                         int idx = entry.key;
                         Command command = entry.value;
                         return ExpansionPanel(
+                          backgroundColor: theme.primaryColor.withOpacity(0.2),
                           canTapOnHeader: true,
                           headerBuilder:
                               (BuildContext context, bool isExpanded) {
                             return ListTile(
-                              title: Text('Command ${idx + 1}'),
+                              tileColor: theme.primaryColor.withOpacity(0.2),
+                              focusColor: theme.primaryColor.withOpacity(0.2),
+                              title: Text(command.commandName.isNotEmpty? command.commandName : "Command"),
                             );
                           },
                           body: Container(
                             decoration: BoxDecoration(
-                              borderRadius:
-                                  BorderRadius.circular(8.0), // Rounded corners
-                              color: theme.primaryColor.withOpacity(0.1),
+                              color: theme.primaryColor.withOpacity(0.2),
                             ),
                             child: Column(
                               children: [
@@ -179,7 +122,7 @@ class _EditCommandMenuState extends State<EditCommandMenu> {
                     ),
                   ),
                   ElevatedButton(
-                    onPressed: () => showAddCommandMenu(context),
+                    onPressed: () => showAddCommandMenu(context, addCommand),
                     child: const Text('Add Command'),
                   ),
                 ],
@@ -204,6 +147,52 @@ class CommandEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (command is BranchedCommand) {
+      return BranchedCommandEditor(
+        command: command as BranchedCommand,
+        onChanged: onChanged,
+      );
+    } else if (command is ParallelCommandGroup) {
+      return ParallelCommandGroupEditor(
+        command: command as ParallelCommandGroup,
+        onChanged: onChanged,
+      );
+    } else if (command is ParallelDeadlineGroup) {
+      return ParallelDeadlineGroupEditor(
+        command: command as ParallelDeadlineGroup,
+        onChanged: onChanged,
+      );
+    } else if (command is ParallelRaceGroup) {
+      return ParallelRaceGroupEditor(
+        command: command as ParallelRaceGroup,
+        onChanged: onChanged,
+      );
+    } else if (command is SequentialCommandGroup) {
+      return SequentialCommandGroupEditor(
+        command: command as SequentialCommandGroup,
+        onChanged: onChanged,
+      );
+    } else {
+      return NormalCommandEditor(
+        command: command,
+        onChanged: onChanged,
+      );
+    }
+  }
+}
+
+class NormalCommandEditor extends StatelessWidget {
+  final Command command;
+  final Function(Command) onChanged;
+
+  NormalCommandEditor({
+    super.key,
+    required this.onChanged,
+    required this.command,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final RobotConfigProvider robotProvider =
         Provider.of<RobotConfigProvider>(context);
@@ -216,14 +205,24 @@ class CommandEditor extends StatelessWidget {
 
     String selectedCommandName = command.commandName;
 
-    // Focus nodes to detect when the TextFields lose focus
     FocusNode startTimeFocusNode = FocusNode();
     FocusNode endTimeFocusNode = FocusNode();
 
     void updateStartTime() {
       final value = startTimeController.text;
       if (value.isNotEmpty) {
-        onChanged(command.copyWith(startTime: double.parse(value)));
+        if (double.parse(value) > command.endTime) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Start Time must be less than end time!"),
+              backgroundColor: Colors.red,
+            ),
+          );
+          endTimeController.value =
+              TextEditingValue(text: command.endTime.toString());
+        } else {
+          onChanged(command.copyWith(startTime: double.parse(value)));
+        }
       }
     }
 
@@ -257,71 +256,37 @@ class CommandEditor extends StatelessWidget {
       }
     });
 
-    return command is BranchedCommand
-        ? BranchedCommandEditor(
-            command: command as BranchedCommand,
-            onChanged: onChanged,
-          )
-        : Column(
-            children: [
-              TextField(
-                controller: startTimeController,
-                focusNode: startTimeFocusNode,
-                decoration: InputDecoration(
-                  hintText: 'Start Time',
-                  focusColor: theme.primaryColor,
-                  hoverColor: theme.primaryColor,
-                  floatingLabelStyle: TextStyle(color: theme.primaryColor),
-                  focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: theme.primaryColor),
-                  ),
-                ),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                cursorColor: theme.primaryColor,
-                onSubmitted: (value) {
-                  updateStartTime();
-                },
-              ),
-              TextField(
-                controller: endTimeController,
-                focusNode: endTimeFocusNode,
-                decoration: InputDecoration(
-                  hintText: 'End Time',
-                  focusColor: theme.primaryColor,
-                  hoverColor: theme.primaryColor,
-                  floatingLabelStyle: TextStyle(color: theme.primaryColor),
-                  focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: theme.primaryColor),
-                  ),
-                ),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                cursorColor: theme.primaryColor,
-                onSubmitted: (value) {
-                  updateEndTime();
-                },
-              ),
-              DropdownButton<int>(
-                value: !commandNames.contains(selectedCommandName)
-                    ? null
-                    : commandNames.indexOf(selectedCommandName),
-                hint: const Text('Select Command Name'),
-                onChanged: (int? newValue) {
-                  if (newValue != null) {
-                    onChanged(
-                        command.copyWith(commandName: commandNames[newValue]));
-                  }
-                },
-                items: commandNames.map<DropdownMenuItem<int>>((String name) {
-                  return DropdownMenuItem<int>(
-                    value: commandNames.indexOf(name),
-                    child: Text(name),
-                  );
-                }).toList(),
-              ),
-            ],
-          );
+    return Column(
+      children: [
+        TextField(
+          controller: startTimeController,
+          focusNode: startTimeFocusNode,
+          keyboardType: TextInputType.number,
+          onSubmitted: (_) => updateStartTime(),
+          decoration: const InputDecoration(labelText: 'Start Time'),
+        ),
+        TextField(
+          controller: endTimeController,
+          focusNode: endTimeFocusNode,
+          keyboardType: TextInputType.number,
+          onSubmitted: (_) => updateEndTime(),
+          decoration: const InputDecoration(labelText: 'End Time'),
+        ),
+        DropdownButton<String>(
+          value: selectedCommandName.isNotEmpty? selectedCommandName: null,
+          hint: const Text('Select Command'),
+          onChanged: (value) {
+            onChanged(command.copyWith(commandName: value ?? ''));
+          },
+          items: commandNames.map((commandName) {
+            return DropdownMenuItem(
+              value: commandName,
+              child: Text(commandName),
+            );
+          }).toList(),
+        ),
+      ],
+    );
   }
 }
 
@@ -329,53 +294,236 @@ class BranchedCommandEditor extends StatelessWidget {
   final BranchedCommand command;
   final Function(Command) onChanged;
 
-  const BranchedCommandEditor({
+  BranchedCommandEditor({
     super.key,
-    required this.onChanged,
     required this.command,
+    required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    final robotConfig = Provider.of<RobotConfigProvider>(context);
-    var conditionNames = robotConfig.robotConfig.conditions;
-    String selectedConditionName = command.condition;
     return Column(
       children: [
-        DropdownButton<int>(
-          value: !conditionNames.contains(selectedConditionName)
-              ? null
-              : conditionNames.indexOf(selectedConditionName),
-          hint: const Text('Select Condition'),
-          onChanged: (int? newValue) {
-            if (newValue != null) {
-              onChanged(command.copyWith(condition: conditionNames[newValue]));
-            }
-          },
-          items: [
-            ...conditionNames.map<DropdownMenuItem<int>>((String name) {
-              return DropdownMenuItem<int>(
-                value: conditionNames.indexOf(name),
-                child: Text(name),
-              );
-            }),
-          ],
-        ),
-        const Text('On True Command'),
-        CommandEditor(
+        NormalCommandEditor(
           command: command.onTrue,
-          onChanged: (onTrueCommand) {
-            onChanged(command.copyWith(onTrue: onTrueCommand));
+          onChanged: (updatedCommand) {
+            onChanged(command.copyWith(onTrue: updatedCommand));
           },
         ),
-        const Text('On False Command'),
-        CommandEditor(
+        NormalCommandEditor(
           command: command.onFalse,
-          onChanged: (onFalseCommand) {
-            onChanged(command.copyWith(onFalse: onFalseCommand));
+          onChanged: (updatedCommand) {
+            onChanged(command.copyWith(onFalse: updatedCommand));
           },
         ),
       ],
     );
   }
+}
+
+class ParallelCommandGroupEditor extends StatefulWidget {
+  final ParallelCommandGroup command;
+  final Function(Command) onChanged;
+
+  ParallelCommandGroupEditor({
+    super.key,
+    required this.command,
+    required this.onChanged,
+  });
+
+  @override
+  void addCommand(Command command) {
+    var newCommands = [...this.command.commands, command];
+    onChanged(this.command.copyWith(commands: newCommands));
+  }
+
+  @override
+  State<StatefulWidget> createState() {
+    return _ParallelCommandGroupEditorState();
+  }
+}
+
+class _ParallelCommandGroupEditorState
+    extends State<ParallelCommandGroupEditor> {
+  int selectedCommand = -1;
+  @override
+  Widget build(BuildContext context) {
+    return EditCommandMenu(
+        commands: widget.command.commands,
+        onCommandSelected: (command) => {
+              setState(() {
+                selectedCommand = command != null
+                    ? widget.command.commands.indexOf(command)
+                    : -1;
+              })
+            },
+        onAttributeChanged: (command) {
+          widget.command.commands[selectedCommand] = command;
+          widget.onChanged(
+              widget.command.copyWith(commands: widget.command.commands));
+        },
+        selectedCommand: selectedCommand,
+        onCommandsChanged: (commands) {
+          widget.onChanged(widget.command.copyWith(commands: commands));
+        });
+  }
+}
+
+class ParallelDeadlineGroupEditor extends StatelessWidget {
+  final ParallelDeadlineGroup command;
+  final Function(Command) onChanged;
+
+  ParallelDeadlineGroupEditor({
+    super.key,
+    required this.command,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: command.commands.map((parallelCommand) {
+        return NormalCommandEditor(
+          command: parallelCommand,
+          onChanged: (updatedCommand) {
+            List<Command> updatedCommands = [...command.commands]
+                .map((c) => c == parallelCommand ? updatedCommand : c)
+                .toList();
+            onChanged(command.copyWith(commands: updatedCommands));
+          },
+        );
+      }).toList(),
+    );
+  }
+}
+
+class ParallelRaceGroupEditor extends StatelessWidget {
+  final ParallelRaceGroup command;
+  final Function(Command) onChanged;
+
+  ParallelRaceGroupEditor({
+    super.key,
+    required this.command,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: command.commands.map((parallelCommand) {
+        return NormalCommandEditor(
+          command: parallelCommand,
+          onChanged: (updatedCommand) {
+            List<Command> updatedCommands = [...command.commands]
+                .map((c) => c == parallelCommand ? updatedCommand : c)
+                .toList();
+            onChanged(command.copyWith(commands: updatedCommands));
+          },
+        );
+      }).toList(),
+    );
+  }
+}
+
+class SequentialCommandGroupEditor extends StatelessWidget {
+  final SequentialCommandGroup command;
+  final Function(Command) onChanged;
+
+  SequentialCommandGroupEditor({
+    super.key,
+    required this.command,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: command.commands.map((sequentialCommand) {
+        return NormalCommandEditor(
+          command: sequentialCommand,
+          onChanged: (updatedCommand) {
+            List<Command> updatedCommands = [...command.commands]
+                .map((c) => c == sequentialCommand ? updatedCommand : c)
+                .toList();
+            onChanged(command.copyWith(commands: updatedCommands));
+          },
+        );
+      }).toList(),
+    );
+  }
+}
+
+void showAddCommandMenu(BuildContext context, Function(Command) addCommand) {
+  final RenderBox button = context.findRenderObject() as RenderBox;
+  final RenderBox overlay =
+      Overlay.of(context).context.findRenderObject() as RenderBox;
+  final RelativeRect position = RelativeRect.fromRect(
+    Rect.fromPoints(
+      button.localToGlobal(Offset.zero, ancestor: overlay),
+      button.localToGlobal(button.size.bottomRight(Offset.zero),
+          ancestor: overlay),
+    ),
+    Offset.zero & overlay.size,
+  );
+
+  showMenu(
+    context: context,
+    position: position,
+    items: [
+      const PopupMenuItem(
+        value: 'command',
+        child: Text('Add Command'),
+      ),
+      const PopupMenuItem(
+        value: 'branchedCommand',
+        child: Text('Add Branched Command'),
+      ),
+      const PopupMenuItem(
+        value: 'parallelCommandGroup',
+        child: Text('Add Parallel Command Group'),
+      ),
+      const PopupMenuItem(
+        value: 'parallelDeadlineGroup',
+        child: Text('Add Parallel Deadline Group'),
+      ),
+      const PopupMenuItem(
+        value: 'parallelRaceGroup',
+        child: Text('Add Parallel Race Group'),
+      ),
+      const PopupMenuItem(
+        value: 'sequentialCommandGroup',
+        child: Text('Add Sequential Command Group'),
+      ),
+    ],
+  ).then((value) {
+    if (value == 'command') {
+      addCommand(Command(
+        startTime: 0,
+        endTime: 0,
+        commandName: '',
+      ));
+    } else if (value == 'branchedCommand') {
+      addCommand(BranchedCommand(
+        'New Branched Command',
+        Command(
+          startTime: 0,
+          endTime: 0,
+          commandName: '',
+        ),
+        Command(
+          startTime: 0,
+          endTime: 0,
+          commandName: '',
+        ),
+      ));
+    } else if (value == 'parallelCommandGroup') {
+      addCommand(ParallelCommandGroup([]));
+    } else if (value == 'parallelDeadlineGroup') {
+      addCommand(ParallelDeadlineGroup([]));
+    } else if (value == 'parallelRaceGroup') {
+      addCommand(ParallelRaceGroup([]));
+    } else if (value == 'sequentialCommandGroup') {
+      addCommand(SequentialCommandGroup([]));
+    }
+  });
 }

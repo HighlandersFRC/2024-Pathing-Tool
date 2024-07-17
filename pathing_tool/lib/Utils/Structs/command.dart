@@ -18,6 +18,8 @@ class Command {
       return ParallelCommandGroup.parallelCommandGroupFromJson(commandJson);
     } else if (commandJson.containsKey("parallelDeadlineGroup")) {
       return ParallelDeadlineGroup.parallelDeadlineGroupFromJson(commandJson);
+    } else if (commandJson.containsKey("parallelRaceGroup")) {
+      return ParallelRaceGroup.parallelRaceGroupFromJson(commandJson);
     } else if (commandJson.containsKey("sequentialCommandGroup")) {
       return SequentialCommandGroup.sequentialCommandGroupFromJson(commandJson);
     } else {
@@ -33,7 +35,9 @@ class Command {
         "branchedCommand": (this as BranchedCommand).toJson()
       else if (this is ParallelCommandGroup)
         "parallelCommandGroup": (this as ParallelCommandGroup).toJson()
-      else if (this is ParallelDeadlineGroup)
+      else if (this is ParallelRaceGroup)
+        "parallelRaceGroup": (this as ParallelRaceGroup).toJson()
+        else if (this is ParallelDeadlineGroup)
         "parallelDeadlineGroup": (this as ParallelDeadlineGroup).toJson()
       else if (this is SequentialCommandGroup)
         "sequentialCommandGroup": (this as SequentialCommandGroup).toJson()
@@ -103,7 +107,7 @@ class BranchedCommand extends Command {
   ) : super(
           startTime: min(onTrue.startTime, onFalse.startTime),
           endTime: max(onTrue.endTime, onFalse.endTime),
-          commandName: "branched_command",
+          commandName: "Branched Command",
         );
 
   @override
@@ -125,12 +129,11 @@ class BranchedCommand extends Command {
 
 class ParallelCommandGroup extends Command {
   final List<Command> commands;
-  final double startTime, endTime;
-  ParallelCommandGroup(this.commands, this.startTime, this.endTime)
+  ParallelCommandGroup(this.commands)
       : super(
-            commandName: "parallelCommand",
-            startTime: startTime,
-            endTime: endTime);
+            commandName: "Parallel Command Group",
+            startTime: _getFirstStartTime(commands),
+            endTime: _getLastEndTime(commands));
   @override
   Map<String, dynamic> toJson() {
     return {
@@ -149,8 +152,6 @@ class ParallelCommandGroup extends Command {
   }) {
     return ParallelCommandGroup(
       commands ?? this.commands,
-      startTime ?? this.startTime,
-      endTime ?? this.endTime,
     );
   }
 
@@ -161,28 +162,19 @@ class ParallelCommandGroup extends Command {
         Command.fromJson(commandJson);
       })
     ];
-    double startTime = commandJson["start"], endTime = commandJson["end"];
     return ParallelCommandGroup(
       commands,
-      startTime,
-      endTime,
     );
-  }
-
-  double _getEndTime(List<Command> commands){
-    commands.sort((a,b)=>a.endTime.compareTo(b.endTime));
-    return commands.last.endTime;
   }
 }
 
 class ParallelDeadlineGroup extends Command {
   final List<Command> commands;
-  final double startTime, endTime;
-  ParallelDeadlineGroup(this.commands, this.startTime, this.endTime)
+  ParallelDeadlineGroup(this.commands)
       : super(
-            commandName: "parallelDeadlineCommand",
-            startTime: startTime,
-            endTime: endTime);
+            commandName: "Parallel Deadline Group",
+            startTime: _getFirstStartTime(commands),
+            endTime: commands.firstOrNull?.endTime ?? 0);
   @override
   Map<String, dynamic> toJson() {
     return {
@@ -201,8 +193,6 @@ class ParallelDeadlineGroup extends Command {
   }) {
     return ParallelDeadlineGroup(
       commands ?? this.commands,
-      startTime ?? this.startTime,
-      endTime ?? this.endTime,
     );
   }
 
@@ -213,23 +203,60 @@ class ParallelDeadlineGroup extends Command {
         Command.fromJson(commandJson);
       })
     ];
-    double startTime = commandJson["start"], endTime = commandJson["end"];
     return ParallelDeadlineGroup(
       commands,
-      startTime,
-      endTime,
+    );
+  }
+}
+
+class ParallelRaceGroup extends Command {
+  final List<Command> commands;
+  ParallelRaceGroup(this.commands,)
+      : super(
+            commandName: "Parallel Race Group",
+            startTime: _getFirstStartTime(commands),
+            endTime: _getFirstEndTime(commands));
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      "start": startTime,
+      "end": endTime,
+      "commands": [...commands.map((command) => command.toJson())]
+    };
+  }
+
+  @override
+  ParallelRaceGroup copyWith({
+    List<Command>? commands,
+    double? startTime,
+    double? endTime,
+    String? commandName,
+  }) {
+    return ParallelRaceGroup(
+      commands ?? this.commands,
+    );
+  }
+
+  static ParallelRaceGroup parallelRaceGroupFromJson(
+      Map<String, dynamic> commandJson) {
+    List<Command> commands = [
+      ...commandJson["commands"].map((commandJson) {
+        Command.fromJson(commandJson);
+      })
+    ];
+    return ParallelRaceGroup(
+      commands,
     );
   }
 }
 
 class SequentialCommandGroup extends Command {
   final List<Command> commands;
-  final double startTime, endTime;
-  SequentialCommandGroup(this.commands, this.startTime, this.endTime)
+  SequentialCommandGroup(this.commands)
       : super(
-            commandName: "sequentialCommandGroup",
-            startTime: startTime,
-            endTime: endTime);
+            commandName: "Sequential Command Group",
+            startTime: commands.firstOrNull?.startTime ?? 0,
+            endTime: commands.lastOrNull?.endTime ?? 0);
   @override
   Map<String, dynamic> toJson() {
     return {
@@ -248,8 +275,6 @@ class SequentialCommandGroup extends Command {
   }) {
     return SequentialCommandGroup(
       commands ?? this.commands,
-      startTime ?? this.startTime,
-      endTime ?? this.endTime,
     );
   }
 
@@ -260,11 +285,23 @@ class SequentialCommandGroup extends Command {
         Command.fromJson(commandJson);
       })
     ];
-    double startTime = commandJson["start"], endTime = commandJson["end"];
     return SequentialCommandGroup(
       commands,
-      startTime,
-      endTime,
     );
   }
+}
+
+double _getLastEndTime(List<Command> commands) {
+  commands.sort((a, b) => a.endTime.compareTo(b.endTime));
+  return commands.lastOrNull != null ? commands.last.endTime: 0;
+}
+
+double _getFirstEndTime(List<Command> commands) {
+  commands.sort((a, b) => a.endTime.compareTo(b.endTime));
+  return commands.firstOrNull != null ? commands.first.endTime: 0;
+}
+
+double _getFirstStartTime(List<Command> commands) {
+  commands.sort((a, b) => a.endTime.compareTo(b.endTime));
+  return commands.firstOrNull != null ? commands.first.startTime: 0;
 }
