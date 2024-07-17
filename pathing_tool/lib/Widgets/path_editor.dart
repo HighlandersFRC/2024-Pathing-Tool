@@ -46,7 +46,8 @@ class PathEditor extends StatefulWidget {
       _PathEditorState(startingWaypoints, pathName);
 }
 
-class _PathEditorState extends State<PathEditor> with SingleTickerProviderStateMixin{
+class _PathEditorState extends State<PathEditor>
+    with SingleTickerProviderStateMixin {
   List<(List<Waypoint>, bool)> undoStack = [];
   List<(List<Waypoint>, bool)> redoStack = [];
   List<Waypoint> waypoints = [];
@@ -58,16 +59,17 @@ class _PathEditorState extends State<PathEditor> with SingleTickerProviderStateM
   int selectedCommand = -1;
   String pathName = "";
   late AnimationController _animationController;
-  
+
   _PathEditorState(List<Waypoint> startingWaypoints, this.pathName) {
     waypoints = [...startingWaypoints];
   }
-   @override
+  @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: Duration(seconds: waypoints.isNotEmpty ? waypoints.last.t.ceil() : 0),
+      duration:
+          Duration(seconds: waypoints.isNotEmpty ? waypoints.last.t.ceil() : 0),
     )..addListener(() {
         setState(() {
           playbackWaypoint = _getPlaybackWaypoint();
@@ -83,7 +85,8 @@ class _PathEditorState extends State<PathEditor> with SingleTickerProviderStateM
 
   Waypoint _getPlaybackWaypoint() {
     var robot = Spline(waypoints);
-    return robot.getRobotWaypoint(_animationController.value * waypoints.last.t);
+    return robot
+        .getRobotWaypoint(_animationController.value * waypoints.last.t);
   }
 
   void playPath() {
@@ -118,6 +121,8 @@ class _PathEditorState extends State<PathEditor> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
+    _animationController.duration =
+        Duration(seconds: waypoints.isNotEmpty ? waypoints.last.t.ceil() : 0);
     ImageDataProvider imageDataProvider =
         Provider.of<ImageDataProvider>(context);
     ImageData fieldImageData = imageDataProvider.selectedImage;
@@ -299,7 +304,9 @@ class _PathEditorState extends State<PathEditor> with SingleTickerProviderStateM
                                 }
                               : null,
                           style: ButtonStyle(
-                              foregroundColor:WidgetStateProperty.all(theme.primaryColor),),
+                            foregroundColor:
+                                WidgetStateProperty.all(theme.primaryColor),
+                          ),
                           child: const Icon(Icons.play_arrow_rounded),
                         ),
                       ),
