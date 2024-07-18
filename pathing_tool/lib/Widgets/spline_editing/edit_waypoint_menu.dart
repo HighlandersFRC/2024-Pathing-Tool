@@ -43,11 +43,6 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
     final theme = Theme.of(context);
     return Container(
         width: 350, // Adjust as needed
-        decoration: BoxDecoration(
-          border: Border(
-            left: BorderSide(color: Colors.grey.shade300, width: 1.0),
-          ),
-        ),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -310,6 +305,7 @@ class _AttributeEditorState extends State<AttributeEditor> {
 
   @override
   Widget build(BuildContext context) {
+    ThemeData theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -330,9 +326,16 @@ class _AttributeEditorState extends State<AttributeEditor> {
                 width: 80,
                 child: TextField(
                   controller: _controller,
-                  decoration: const InputDecoration(),
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    focusColor: theme.primaryColor,
+                    hoverColor: theme.primaryColor,
+                    floatingLabelStyle: TextStyle(color: theme.primaryColor),
+                    focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: theme.primaryColor)),
+                  ),
+                  cursorColor: theme.primaryColor,
                 ),
               ),
               Tooltip(

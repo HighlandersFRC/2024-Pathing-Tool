@@ -95,7 +95,7 @@ class _PathEditorState extends State<PathEditor>
     }
   }
 
-  void _addWaypoint(double x, double y) {
+  void _addWaypoint(double x, double y) { 
     setState(() {
       double t = waypoints.isNotEmpty ? waypoints.last.t + 1 : 0;
       double dx = waypoints.isNotEmpty
@@ -726,24 +726,37 @@ class _PathEditorState extends State<PathEditor>
                           ),
                         ),
                       ),
-                      if (editMode != 2)
-                        EditWaypointMenu(
-                          waypoints: waypoints,
-                          onWaypointSelected: _onWaypointSelected,
-                          onAttributeChanged: _onAttributeChanged,
-                          selectedWaypoint:
-                              waypoints.length >= selectedWaypoint - 1
-                                  ? selectedWaypoint
-                                  : -1,
-                          onWaypointsChanged: _onWaypointsChanged,
-                        )
-                      else
-                        EditCommandMenu(
-                            commands: commands,
-                            onCommandSelected: _onCommandSelected,
-                            onAttributeChanged: _onCommandAttributeChanged,
-                            selectedCommand: selectedCommand,
-                            onCommandsChanged: _onCommandChanged),
+                      SizedBox(
+                          width: 350,
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              return Container(
+                                  height: constraints.maxHeight,
+                                  color: theme.primaryColor.withOpacity(0.2),
+                                  child: SingleChildScrollView(
+                                      child: Column(children: [
+                                    if (editMode != 2)
+                                      EditWaypointMenu(
+                                        waypoints: waypoints,
+                                        onWaypointSelected: _onWaypointSelected,
+                                        onAttributeChanged: _onAttributeChanged,
+                                        selectedWaypoint: waypoints.length >=
+                                                selectedWaypoint - 1
+                                            ? selectedWaypoint
+                                            : -1,
+                                        onWaypointsChanged: _onWaypointsChanged,
+                                      )
+                                    else
+                                      EditCommandMenu(
+                                          commands: commands,
+                                          onCommandSelected: _onCommandSelected,
+                                          onAttributeChanged:
+                                              _onCommandAttributeChanged,
+                                          selectedCommand: selectedCommand,
+                                          onCommandsChanged: _onCommandChanged),
+                                  ])));
+                            },
+                          )),
                     ],
                   ),
                 ))));
@@ -777,13 +790,13 @@ class _PathEditorState extends State<PathEditor>
     if (selectedCommand != -1) {
       setState(() {
         List<Command> newCommands = [];
-        commands.forEach((existingCommand) {
+        for (var existingCommand in commands) {
           if (commands[selectedCommand] == existingCommand) {
             newCommands.add(command);
           } else {
             newCommands.add(existingCommand);
           }
-        });
+        }
         commands = [...newCommands];
       });
     }

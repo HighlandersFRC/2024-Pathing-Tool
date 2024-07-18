@@ -23,7 +23,7 @@ class Command {
     } else if (commandJson.containsKey("sequentialCommandGroup")) {
       return SequentialCommandGroup.sequentialCommandGroupFromJson(commandJson);
     } else {
-      return normalCommandFromJson(commandJson["command"]);
+      return normalCommandFromJson(commandJson);
     }
   }
 
@@ -37,7 +37,7 @@ class Command {
         "parallelCommandGroup": (this as ParallelCommandGroup).toJson()
       else if (this is ParallelRaceGroup)
         "parallelRaceGroup": (this as ParallelRaceGroup).toJson()
-        else if (this is ParallelDeadlineGroup)
+      else if (this is ParallelDeadlineGroup)
         "parallelDeadlineGroup": (this as ParallelDeadlineGroup).toJson()
       else if (this is SequentialCommandGroup)
         "sequentialCommandGroup": (this as SequentialCommandGroup).toJson()
@@ -75,11 +75,9 @@ class BranchedCommand extends Command {
 
   static BranchedCommand branchedCommandFromJson(
       Map<String, dynamic> commandJson) {
-    String condition = commandJson["branchedCommand"]["condition"];
-    Command onTrue = Command.normalCommandFromJson(
-        commandJson["branchedCommand"]["on_true"]);
-    Command onFalse = Command.normalCommandFromJson(
-        commandJson["branchedCommand"]["on_false"]);
+    String condition = commandJson["condition"];
+    Command onTrue = Command.fromJson(commandJson["on_true"]);
+    Command onFalse = Command.fromJson(commandJson["on_false"]);
     return BranchedCommand(
       condition,
       onTrue,
@@ -119,6 +117,16 @@ class BranchedCommand extends Command {
     double? endTime,
     String? commandName,
   }) {
+    if (startTime != null) {
+      onTrue = (onTrue ?? this.onTrue).copyWith(startTime: startTime);
+      onFalse = (onFalse ?? this.onFalse).copyWith(startTime: startTime);
+      if (onTrue.endTime < onTrue.startTime){
+        onTrue = onTrue.copyWith(endTime: onTrue.startTime);
+      }
+      if (onFalse.endTime < onFalse.startTime){
+        onFalse = onFalse.copyWith(endTime: onFalse.startTime);
+      }
+    }
     return BranchedCommand(
       condition ?? this.condition,
       onTrue ?? this.onTrue,
@@ -127,13 +135,20 @@ class BranchedCommand extends Command {
   }
 }
 
-class ParallelCommandGroup extends Command {
+abstract class MultipleCommand extends Command {
   final List<Command> commands;
-  ParallelCommandGroup(this.commands)
-      : super(
-            commandName: "Parallel Command Group",
-            startTime: _getFirstStartTime(commands),
-            endTime: _getLastEndTime(commands));
+
+  MultipleCommand({
+    required this.commands,
+    required double startTime,
+    required double endTime,
+    required String commandName,
+  }) : super(
+          startTime: startTime,
+          endTime: endTime,
+          commandName: commandName,
+        );
+
   @override
   Map<String, dynamic> toJson() {
     return {
@@ -142,6 +157,24 @@ class ParallelCommandGroup extends Command {
       "commands": [...commands.map((command) => command.toJson())]
     };
   }
+
+  @override
+  MultipleCommand copyWith({
+    List<Command>? commands,
+    double? startTime,
+    double? endTime,
+    String? commandName,
+  });
+}
+
+class ParallelCommandGroup extends MultipleCommand {
+  ParallelCommandGroup(List<Command> commands, {double start = 0})
+      : super(
+          commands: commands,
+          startTime: _getFirstStartTime(commands, start),
+          endTime: _getLastEndTime(commands, start),
+          commandName: "Parallel Command Group",
+        );
 
   @override
   ParallelCommandGroup copyWith({
@@ -150,39 +183,37 @@ class ParallelCommandGroup extends Command {
     double? endTime,
     String? commandName,
   }) {
+    if (startTime != null) {
+      commands =[...(commands ?? this.commands).map((subCommand){
+        if (subCommand.endTime<startTime){
+          return subCommand.copyWith(startTime: startTime, endTime: startTime);
+        }
+        return subCommand.copyWith(startTime: startTime);
+      })];
+    }
     return ParallelCommandGroup(
       commands ?? this.commands,
+      start: startTime ?? 0
     );
   }
 
   static ParallelCommandGroup parallelCommandGroupFromJson(
       Map<String, dynamic> commandJson) {
     List<Command> commands = [
-      ...commandJson["commands"].map((commandJson) {
-        Command.fromJson(commandJson);
-      })
+      for (var cmdJson in commandJson["commands"]) Command.fromJson(cmdJson)
     ];
-    return ParallelCommandGroup(
-      commands,
-    );
+    return ParallelCommandGroup(commands);
   }
 }
 
-class ParallelDeadlineGroup extends Command {
-  final List<Command> commands;
-  ParallelDeadlineGroup(this.commands)
+class ParallelDeadlineGroup extends MultipleCommand {
+  ParallelDeadlineGroup(List<Command> commands, {double start = 0})
       : super(
-            commandName: "Parallel Deadline Group",
-            startTime: _getFirstStartTime(commands),
-            endTime: commands.firstOrNull?.endTime ?? 0);
-  @override
-  Map<String, dynamic> toJson() {
-    return {
-      "start": startTime,
-      "end": endTime,
-      "commands": [...commands.map((command) => command.toJson())]
-    };
-  }
+          commands: commands,
+          startTime: _getFirstStartTime(commands, start),
+          endTime: commands.isNotEmpty ? commands[0].endTime : start,
+          commandName: "Parallel Deadline Group",
+        );
 
   @override
   ParallelDeadlineGroup copyWith({
@@ -191,39 +222,37 @@ class ParallelDeadlineGroup extends Command {
     double? endTime,
     String? commandName,
   }) {
+    if (startTime != null) {
+      commands =[...(commands ?? this.commands).map((subCommand){
+        if (subCommand.endTime<startTime){
+          return subCommand.copyWith(startTime: startTime, endTime: startTime);
+        }
+        return subCommand.copyWith(startTime: startTime);
+      })];
+    }
     return ParallelDeadlineGroup(
       commands ?? this.commands,
+      start: startTime ?? 0
     );
   }
 
   static ParallelDeadlineGroup parallelDeadlineGroupFromJson(
       Map<String, dynamic> commandJson) {
     List<Command> commands = [
-      ...commandJson["commands"].map((commandJson) {
-        Command.fromJson(commandJson);
-      })
+      for (var cmdJson in commandJson["commands"]) Command.fromJson(cmdJson)
     ];
-    return ParallelDeadlineGroup(
-      commands,
-    );
+    return ParallelDeadlineGroup(commands);
   }
 }
 
-class ParallelRaceGroup extends Command {
-  final List<Command> commands;
-  ParallelRaceGroup(this.commands,)
+class ParallelRaceGroup extends MultipleCommand {
+  ParallelRaceGroup(List<Command> commands, {double start = 0})
       : super(
-            commandName: "Parallel Race Group",
-            startTime: _getFirstStartTime(commands),
-            endTime: _getFirstEndTime(commands));
-  @override
-  Map<String, dynamic> toJson() {
-    return {
-      "start": startTime,
-      "end": endTime,
-      "commands": [...commands.map((command) => command.toJson())]
-    };
-  }
+          commands: commands,
+          startTime: _getFirstStartTime(commands, start),
+          endTime: _getFirstEndTime(commands, start),
+          commandName: "Parallel Race Group",
+        );
 
   @override
   ParallelRaceGroup copyWith({
@@ -232,39 +261,37 @@ class ParallelRaceGroup extends Command {
     double? endTime,
     String? commandName,
   }) {
+    if (startTime != null) {
+      commands =[...(commands ?? this.commands).map((subCommand){
+        if (subCommand.endTime<startTime){
+          return subCommand.copyWith(startTime: startTime, endTime: startTime);
+        }
+        return subCommand.copyWith(startTime: startTime);
+      })];
+    }
     return ParallelRaceGroup(
       commands ?? this.commands,
+      start: startTime ?? 0
     );
   }
 
   static ParallelRaceGroup parallelRaceGroupFromJson(
       Map<String, dynamic> commandJson) {
     List<Command> commands = [
-      ...commandJson["commands"].map((commandJson) {
-        Command.fromJson(commandJson);
-      })
+      for (var cmdJson in commandJson["commands"]) Command.fromJson(cmdJson)
     ];
-    return ParallelRaceGroup(
-      commands,
-    );
+    return ParallelRaceGroup(commands);
   }
 }
 
-class SequentialCommandGroup extends Command {
-  final List<Command> commands;
-  SequentialCommandGroup(this.commands)
+class SequentialCommandGroup extends MultipleCommand {
+  SequentialCommandGroup(List<Command> commands, {double start = 0})
       : super(
-            commandName: "Sequential Command Group",
-            startTime: commands.firstOrNull?.startTime ?? 0,
-            endTime: commands.lastOrNull?.endTime ?? 0);
-  @override
-  Map<String, dynamic> toJson() {
-    return {
-      "start": startTime,
-      "end": endTime,
-      "commands": [...commands.map((command) => command.toJson())]
-    };
-  }
+          commands: commands,
+          startTime: commands.isNotEmpty ? commands[0].startTime : start,
+          endTime: commands.isNotEmpty ? commands.last.endTime : start,
+          commandName: "Sequential Command Group",
+        );
 
   @override
   SequentialCommandGroup copyWith({
@@ -273,35 +300,53 @@ class SequentialCommandGroup extends Command {
     double? endTime,
     String? commandName,
   }) {
+    if (commands != null) commands.sort((a,b)=>a.startTime.compareTo(b.startTime));
+    commands =[...(commands ?? this.commands).map((subCommand){
+        if (subCommand.endTime< subCommand.startTime){
+          return subCommand.copyWith(endTime: subCommand.startTime);
+        }else {
+          return subCommand;
+        }
+      })];
+    if (startTime != null) {
+      if (commands.isNotEmpty) {
+        commands.first = commands.first.copyWith(startTime: startTime);
+      }
+    }
+    commands =[...(commands).map((subCommand){
+        if (subCommand.endTime< subCommand.startTime){
+          return subCommand.copyWith(endTime: subCommand.startTime);
+        }else {
+          return subCommand;
+        }
+      })];
+    
     return SequentialCommandGroup(
-      commands ?? this.commands,
+      commands,
+      start: startTime ?? 0
     );
   }
 
   static SequentialCommandGroup sequentialCommandGroupFromJson(
       Map<String, dynamic> commandJson) {
     List<Command> commands = [
-      ...commandJson["commands"].map((commandJson) {
-        Command.fromJson(commandJson);
-      })
+      for (var cmdJson in commandJson["commands"]) Command.fromJson(cmdJson)
     ];
-    return SequentialCommandGroup(
-      commands,
-    );
+    return SequentialCommandGroup(commands);
   }
 }
 
-double _getLastEndTime(List<Command> commands) {
+double _getLastEndTime(List<Command> commands, double defaultNum) {
   commands.sort((a, b) => a.endTime.compareTo(b.endTime));
-  return commands.lastOrNull != null ? commands.last.endTime: 0;
+  return commands.isNotEmpty ? commands.last.endTime : defaultNum;
 }
 
-double _getFirstEndTime(List<Command> commands) {
+double _getFirstEndTime(List<Command> commands, double defaultNum) {
   commands.sort((a, b) => a.endTime.compareTo(b.endTime));
-  return commands.firstOrNull != null ? commands.first.endTime: 0;
+  return commands.isNotEmpty ? commands.first.endTime : defaultNum;
 }
 
-double _getFirstStartTime(List<Command> commands) {
-  commands.sort((a, b) => a.endTime.compareTo(b.endTime));
-  return commands.firstOrNull != null ? commands.first.startTime: 0;
+double _getFirstStartTime(List<Command> commands, double defaultNum) {
+  commands.sort((a, b) => a.startTime.compareTo(b.startTime));
+  return commands.isNotEmpty ? commands.first.startTime : defaultNum;
 }
