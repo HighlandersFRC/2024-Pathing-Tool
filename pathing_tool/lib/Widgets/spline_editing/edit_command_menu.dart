@@ -68,60 +68,79 @@ class _EditCommandMenuState extends State<EditCommandMenu> {
             child: Column(
               children: [
                 Container(
-                  child: ExpansionPanelList(
-                    dividerColor: theme.primaryColor.withOpacity(0.2),
-                    expandIconColor: theme.primaryColor.withOpacity(0.2),
-                    expansionCallback: (int index, bool isExpanded) {
-                      if (isExpanded) {
-                        widget.onCommandSelected(widget.commands[index]);
-                      } else {
-                        widget.onCommandSelected(null);
-                      }
-                    },
-                    children: [...widget.commands.asMap().entries.map((entry) {
-                      int idx = entry.key;
-                      Command command = entry.value;
-                      return ExpansionPanel(
-                        backgroundColor: theme.primaryColor.withOpacity(0.2),
-                        canTapOnHeader: true,
-                        headerBuilder:
-                            (BuildContext context, bool isExpanded) {
-                          return ListTile(
-                            // tileColor: theme.brightness == Brightness.dark? theme.primaryColor.withOpacity(0.2) : null,
-                            // focusColor: theme.brightness == Brightness.dark? theme.primaryColor.withOpacity(0.2) : null,
-                            title: Text(command.commandName.isNotEmpty
-                                ? "${command.commandName} \n${command.startTime.toStringAsFixed(1)} - ${command.endTime.toStringAsFixed(1)}"
-                                : "Command"),
-                          );
-                        },
-                        body: Container(
-                          decoration: BoxDecoration(
-                            color: theme.primaryColor.withOpacity(0.2),
-                          ),
-                          child: Column(
-                            children: [
-                              CommandEditor(
-                                command: command,
-                                onChanged: (newCommand) {
-                                  setState(() {
-                                    widget.commands[idx] = newCommand;
-                                  });
-                                  widget.onAttributeChanged(newCommand);
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(
+                          15.0), // Adjust the radius as needed
+                    ),
+                    child: ClipRRect(
+                        borderRadius: BorderRadius.circular(15.0),
+                        child: ExpansionPanelList(
+                          elevation: 0,
+                          materialGapSize: 0,
+                          expandedHeaderPadding: const EdgeInsets.all(0),
+                          dividerColor: theme.primaryColor.withOpacity(1),
+                          expandIconColor: theme.primaryColor.withOpacity(0.1),
+                          expansionCallback: (int index, bool isExpanded) {
+                            if (isExpanded) {
+                              widget.onCommandSelected(widget.commands[index]);
+                            } else {
+                              widget.onCommandSelected(null);
+                            }
+                          },
+                          children: [
+                            ...widget.commands.asMap().entries.map((entry) {
+                              int idx = entry.key;
+                              Command command = entry.value;
+                              return ExpansionPanel(
+                                backgroundColor:
+                                    theme.primaryColor.withOpacity(0.0),
+                                canTapOnHeader: true,
+                                headerBuilder:
+                                    (BuildContext context, bool isExpanded) {
+                                  return ListTile(
+                                    // tileColor: theme.brightness == Brightness.dark? theme.primaryColor.withOpacity(0.2) : null,
+                                    // focusColor: theme.brightness == Brightness.dark? theme.primaryColor.withOpacity(0.2) : null,
+                                    title: Text(command.commandName.isNotEmpty
+                                        ? "${command.commandName} \n${command.startTime.toStringAsFixed(1)} - ${command.endTime.toStringAsFixed(1)}"
+                                        : "Command"),
+                                  );
                                 },
-                                startTimeLocked: widget.startTimeLocked,
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete),
-                                onPressed: () => deleteCommand(idx),
-                              ),
-                            ],
-                          ),
-                        ),
-                        isExpanded: widget.selectedCommand == idx,
-                      );
-                    })],
-                  ),
-                ),
+                                body: ClipRRect(
+                                  borderRadius: const BorderRadius.vertical(
+                                      bottom: Radius.circular(15.0)),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(15.0),
+                                      color:
+                                          theme.primaryColor.withOpacity(0.2),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        CommandEditor(
+                                          command: command,
+                                          onChanged: (newCommand) {
+                                            setState(() {
+                                              widget.commands[idx] = newCommand;
+                                            });
+                                            widget
+                                                .onAttributeChanged(newCommand);
+                                          },
+                                          startTimeLocked:
+                                              widget.startTimeLocked,
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.delete),
+                                          onPressed: () => deleteCommand(idx),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                isExpanded: widget.selectedCommand == idx,
+                              );
+                            })
+                          ],
+                        ))),
                 ElevatedButton(
                   onPressed: () => showAddCommandMenu(context, addCommand),
                   child: const Text('Add Command'),
@@ -274,9 +293,9 @@ class NormalCommandEditor extends StatelessWidget {
           focusNode: startTimeFocusNode,
           keyboardType: TextInputType.number,
           onSubmitted: (_) => updateStartTime(),
-          style: TextStyle(color: startTimeLocked? Colors.grey:null),
+          style: TextStyle(color: startTimeLocked ? Colors.grey : null),
           decoration: InputDecoration(
-            hintText: 'Start Time',
+            helperText: 'Start Time',
             focusColor: theme.primaryColor,
             hoverColor: theme.primaryColor,
             floatingLabelStyle: TextStyle(color: theme.primaryColor),
@@ -291,7 +310,7 @@ class NormalCommandEditor extends StatelessWidget {
           keyboardType: TextInputType.number,
           onSubmitted: (_) => updateEndTime(),
           decoration: InputDecoration(
-            hintText: 'End Time',
+            helperText: 'End Time',
             focusColor: theme.primaryColor,
             hoverColor: theme.primaryColor,
             floatingLabelStyle: TextStyle(color: theme.primaryColor),
@@ -309,7 +328,10 @@ class NormalCommandEditor extends StatelessWidget {
           items: commandNames.map((commandName) {
             return DropdownMenuItem(
               value: commandName.name,
-              child: Row(children:[Icon(commandName.icon), Text("   ${commandName.name}")]),
+              child: Row(children: [
+                Icon(commandName.icon),
+                Text("   ${commandName.name}")
+              ]),
             );
           }).toList(),
         ),
@@ -334,8 +356,10 @@ class BranchedCommandEditor extends StatelessWidget {
   Widget build(BuildContext context) {
     final robotConfigProvider = Provider.of<RobotConfigProvider>(context);
     var conditionNames = robotConfigProvider.robotConfig.conditions;
+    var theme = Theme.of(context);
     return Column(
       children: [
+        const Text("Condition"),
         DropdownButton<String>(
           value: command.condition != '' ? command.condition : null,
           hint: const Text('Select Condition'),
@@ -345,10 +369,15 @@ class BranchedCommandEditor extends StatelessWidget {
           items: conditionNames.map((conditionName) {
             return DropdownMenuItem(
               value: conditionName.name,
-              child: Row(children:[Icon(conditionName.icon), Text(" - ${conditionName.name}")]),
+              child: Row(children: [
+                Icon(conditionName.icon),
+                Text(" - ${conditionName.name}")
+              ]),
             );
           }).toList(),
         ),
+        Divider(height: 1, color: theme.primaryColor,),
+        const Text("On True"),
         NormalCommandEditor(
           command: command.onTrue,
           onChanged: (updatedCommand) {
@@ -356,6 +385,8 @@ class BranchedCommandEditor extends StatelessWidget {
           },
           startTimeLocked: startTimeLocked,
         ),
+        Divider(height: 1, color: theme.primaryColor,),
+        const Text("On False"),
         NormalCommandEditor(
           command: command.onFalse,
           onChanged: (updatedCommand) {
@@ -481,6 +512,7 @@ class _MultipleCommandEditorState extends State<MultipleCommandEditor> {
             .onChanged(widget.command.copyWith(startTime: double.parse(value)));
       }
     }
+
     startTimeFocusNode.addListener(() {
       if (!startTimeFocusNode.hasFocus) {
         updateStartTime();
@@ -492,7 +524,7 @@ class _MultipleCommandEditorState extends State<MultipleCommandEditor> {
         controller: startTimeController,
         focusNode: startTimeFocusNode,
         keyboardType: TextInputType.number,
-        style: TextStyle(color: widget.startTimeLocked? Colors.grey:null),
+        style: TextStyle(color: widget.startTimeLocked ? Colors.grey : null),
         onSubmitted: (_) => updateStartTime(),
         decoration: InputDecoration(
           helperText: 'Start Time',

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:pathing_tool/Utils/Structs/command.dart';
 import 'package:pathing_tool/Utils/quintic_hermite_spline.dart';
 import 'package:pathing_tool/Utils/Structs/waypoint.dart';
@@ -11,6 +12,15 @@ class Spline {
   final List<Command> commands;
 
   Spline(this.points, {this.commands = const []}) {
+    for (int i = 1; i < points.length; i++) {
+      var p1 = points[i - 1];
+      points[i] = points[i].copyWith(theta: points[i].theta % (2 * pi));
+      if (points[i].theta - p1.theta > pi) {
+        points[i] = points[i].copyWith(theta: points[i].theta - 2 * pi);
+      } else if (points[i].theta - p1.theta < -pi) {
+        points[i] = points[i].copyWith(theta: points[i].theta + 2 * pi);
+      }
+    }
     xVectors = List.generate(points.length, (int i) => points[i].getXVectors());
     yVectors = List.generate(points.length, (int i) => points[i].getYVectors());
     thetaVectors =

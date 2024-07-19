@@ -534,8 +534,8 @@ class _PathEditorState extends State<PathEditor>
                                                   LineChartBarData(
                                                     spots: commandSpline,
                                                     isCurved: true,
-                                                    barWidth: 5,
-                                                    color: theme.primaryColor,
+                                                    barWidth: 10,
+                                                    color: theme.primaryColor.withOpacity(0.5),
                                                     dotData: const FlDotData(
                                                         show: false),
                                                   ),
