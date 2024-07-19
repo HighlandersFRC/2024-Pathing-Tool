@@ -87,8 +87,8 @@ class _EditCommandMenuState extends State<EditCommandMenu> {
                         headerBuilder:
                             (BuildContext context, bool isExpanded) {
                           return ListTile(
-                            tileColor: theme.primaryColor.withOpacity(0.2),
-                            focusColor: theme.primaryColor.withOpacity(0.2),
+                            // tileColor: theme.brightness == Brightness.dark? theme.primaryColor.withOpacity(0.2) : null,
+                            // focusColor: theme.brightness == Brightness.dark? theme.primaryColor.withOpacity(0.2) : null,
                             title: Text(command.commandName.isNotEmpty
                                 ? "${command.commandName} \n${command.startTime.toStringAsFixed(1)} - ${command.endTime.toStringAsFixed(1)}"
                                 : "Command"),
@@ -308,8 +308,8 @@ class NormalCommandEditor extends StatelessWidget {
           },
           items: commandNames.map((commandName) {
             return DropdownMenuItem(
-              value: commandName,
-              child: Text(commandName),
+              value: commandName.name,
+              child: Row(children:[Icon(commandName.icon), Text("   ${commandName.name}")]),
             );
           }).toList(),
         ),
@@ -344,8 +344,8 @@ class BranchedCommandEditor extends StatelessWidget {
           },
           items: conditionNames.map((conditionName) {
             return DropdownMenuItem(
-              value: conditionName,
-              child: Text(conditionName),
+              value: conditionName.name,
+              child: Row(children:[Icon(conditionName.icon), Text(" - ${conditionName.name}")]),
             );
           }).toList(),
         ),
@@ -476,7 +476,6 @@ class _MultipleCommandEditorState extends State<MultipleCommandEditor> {
     final theme = Theme.of(context);
     void updateStartTime() {
       final value = startTimeController.text;
-      // print("value: ${value}");
       if (value.isNotEmpty) {
         widget
             .onChanged(widget.command.copyWith(startTime: double.parse(value)));

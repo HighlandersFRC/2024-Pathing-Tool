@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:pathing_tool/Utils/Providers/robot_config_provider.dart';
 import 'package:pathing_tool/Utils/Structs/robot_config.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_iconpicker/flutter_iconpicker.dart';
 
 class RobotConfigPopup extends StatefulWidget {
   const RobotConfigPopup({super.key});
@@ -15,20 +16,33 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
   final TextEditingController _robotWidthController = TextEditingController();
   final TextEditingController _robotLengthController = TextEditingController();
   final TextEditingController _robotNameController = TextEditingController();
+  List<IconData?> _commandIcons = [];
   List<TextEditingController> _commandControllers = [];
+  List<IconData?> _conditionIcons = [];
   List<TextEditingController> _conditionControllers = [];
   bool fieldsFilled = true;
+  Future<IconData?> _pickIcon() async {
+    final IconData? icon = await showIconPicker(context);
+    return icon;
+  }
 
   @override
   void initState() {
     super.initState();
-    final robotConfigProvider = Provider.of<RobotConfigProvider>(context, listen: false);
+    final robotConfigProvider =
+        Provider.of<RobotConfigProvider>(context, listen: false);
     final robotConfig = robotConfigProvider.robotConfig;
     _robotNameController.text = robotConfig.name;
     _robotLengthController.text = robotConfig.length.toString();
     _robotWidthController.text = robotConfig.width.toString();
-    _commandControllers = robotConfig.commands.map((command) => TextEditingController(text: command)).toList();
-    _conditionControllers = robotConfig.conditions.map((condition) => TextEditingController(text: condition)).toList();
+    _commandControllers = robotConfig.commands
+        .map((command) => TextEditingController(text: command.name))
+        .toList();
+    _commandIcons =  [...robotConfigProvider.robotConfig.commands.map((e) => e.icon)];
+    _conditionIcons =  [...robotConfigProvider.robotConfig.conditions.map((e) => e.icon)];
+    _conditionControllers = robotConfig.conditions
+        .map((condition) => TextEditingController(text: condition.name))
+        .toList();
   }
 
   @override
@@ -104,7 +118,8 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
               inputFormatters: <TextInputFormatter>[
                 FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
               ],
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               cursorColor: theme.primaryColor,
             ),
             TextFormField(
@@ -118,7 +133,8 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
                   borderSide: BorderSide(color: theme.primaryColor),
                 ),
               ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: <TextInputFormatter>[
                 FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
               ],
@@ -131,6 +147,16 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
               TextEditingController controller = entry.value;
               return Row(
                 children: [
+                  Icon(_commandIcons[index]),
+                  IconButton(
+                    onPressed: () async{
+                      var newIcon = await _pickIcon();
+                      setState(() {
+                        _commandIcons[index] = newIcon;
+                      });
+                    },
+                    icon: const Icon(Icons.arrow_drop_down),
+                  ),
                   Expanded(
                     child: TextFormField(
                       controller: controller,
@@ -138,7 +164,8 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
                         labelText: 'Command ${index + 1}',
                         focusColor: theme.primaryColor,
                         hoverColor: theme.primaryColor,
-                        floatingLabelStyle: TextStyle(color: theme.primaryColor),
+                        floatingLabelStyle:
+                            TextStyle(color: theme.primaryColor),
                         focusedBorder: UnderlineInputBorder(
                           borderSide: BorderSide(color: theme.primaryColor),
                         ),
@@ -165,6 +192,16 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
               TextEditingController controller = entry.value;
               return Row(
                 children: [
+                  Icon(_conditionIcons[index]),
+                  IconButton(
+                    onPressed: () async{
+                      var newIcon = await _pickIcon();
+                      setState(() {
+                        _conditionIcons[index] = newIcon;
+                      });
+                    },
+                    icon: const Icon(Icons.arrow_drop_down),
+                  ),
                   Expanded(
                     child: TextFormField(
                       controller: controller,
@@ -172,7 +209,8 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
                         labelText: 'Condition ${index + 1}',
                         focusColor: theme.primaryColor,
                         hoverColor: theme.primaryColor,
-                        floatingLabelStyle: TextStyle(color: theme.primaryColor),
+                        floatingLabelStyle:
+                            TextStyle(color: theme.primaryColor),
                         focusedBorder: UnderlineInputBorder(
                           borderSide: BorderSide(color: theme.primaryColor),
                         ),
@@ -213,14 +251,22 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
             if (_robotWidthController.text.isEmpty ||
                 _robotLengthController.text.isEmpty ||
                 _robotNameController.text.isEmpty ||
-                _commandControllers.any((controller) => controller.text.isEmpty)) {
+                _commandControllers
+                    .any((controller) => controller.text.isEmpty)) {
               setState(() {
                 fieldsFilled = false;
               });
               return;
             }
-            List<String> commands = _commandControllers.map((controller) => controller.text).toList();
-            List<String> conditions = _conditionControllers.map((controller) => controller.text).toList();
+            List<IconCommand> commands =
+                _commandControllers.asMap().entries.map((entry) {
+              return IconCommand(entry.value.text, _commandIcons[entry.key]);
+            }).toList();
+            List<IconCondition> conditions =
+                _conditionControllers.asMap().entries.map((entry) {
+              return IconCondition(
+                  entry.value.text, _conditionIcons[entry.key]!);
+            }).toList();
             RobotConfig robotConfig = RobotConfig(
               _robotNameController.text,
               double.parse(_robotLengthController.text),
@@ -228,7 +274,8 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
               commands,
               conditions,
             );
-            RobotConfigProvider robotConfigProvider = Provider.of<RobotConfigProvider>(context, listen: false);
+            RobotConfigProvider robotConfigProvider =
+                Provider.of<RobotConfigProvider>(context, listen: false);
             robotConfigProvider.setRobotConfig(robotConfig);
             // Clear input fields
             _robotLengthController.clear();

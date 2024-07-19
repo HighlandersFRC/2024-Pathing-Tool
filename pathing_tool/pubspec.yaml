@@ -13,6 +13,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_colorpicker: ^1.0.3
+  flutter_iconpicker: ^3.3.3
   flutter_image_converter: ^0.3.3
   image: ^4.2.0
   matrices: ^1.2.7

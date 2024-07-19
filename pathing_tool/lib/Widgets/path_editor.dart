@@ -482,6 +482,8 @@ class _PathEditorState extends State<PathEditor>
                                           height: usedHeight,
                                           width: usedWidth,
                                           child: LineChart(
+                                            duration: const Duration(milliseconds: 250),
+                                            curve: Curves.decelerate,
                                             LineChartData(
                                               lineBarsData: [
                                                 LineChartBarData(
