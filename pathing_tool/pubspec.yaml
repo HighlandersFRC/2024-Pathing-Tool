@@ -35,3 +35,4 @@ flutter:
         - asset: fonts/OpenSans-VariableFont_wdth,wght.ttf
   assets:
     - Images/game_field.png
+    - Images/PolarBearHead.png

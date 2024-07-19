@@ -15,7 +15,7 @@ class HomePage extends StatelessWidget {
     Navigator.push(
         context,
         MaterialPageRoute(
-            builder: (BuildContext context) => const PathingPage([], "")));
+            builder: (BuildContext context) => const PathingPage([], [], "")));
   }
 
   void _loadPath(BuildContext context) async {
@@ -38,7 +38,6 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
       appBar: const CustomAppBar(),
       drawer: const AppDrawer(),

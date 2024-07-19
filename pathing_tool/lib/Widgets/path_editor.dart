@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -25,9 +24,10 @@ import 'package:path/path.dart' as p;
 
 class PathEditor extends StatefulWidget {
   final List<Waypoint> startingWaypoints;
+  final List<Command> startingCommands;
   final String pathName;
   final Function(Spline)? returnSpline;
-  const PathEditor(this.startingWaypoints, this.pathName,
+  const PathEditor(this.startingWaypoints, this.pathName, this.startingCommands,
       {super.key, this.returnSpline});
   static PathEditor fromFile(File file, Function(Spline)? returnSpline) {
     String jsonString = file.readAsStringSync();
@@ -37,13 +37,18 @@ class PathEditor extends StatefulWidget {
     pointsJsonList.forEach((point) {
       waypoints.add(Waypoint.fromJson(point));
     });
+    List<Command> commands = [];
+    var commandsJsonList = pathJson["commands"];
+    commandsJsonList.forEach((command){
+      commands.add(Command.fromJson(command));
+    });
     String pathName = pathJson["meta_data"]["path_name"];
-    return PathEditor(waypoints, pathName, returnSpline: returnSpline);
+    return PathEditor(waypoints, pathName, commands, returnSpline: returnSpline);
   }
 
   @override
   _PathEditorState createState() =>
-      _PathEditorState(startingWaypoints, pathName);
+      _PathEditorState(startingWaypoints,  startingCommands, pathName);
 }
 
 class _PathEditorState extends State<PathEditor>
@@ -60,8 +65,9 @@ class _PathEditorState extends State<PathEditor>
   String pathName = "";
   late AnimationController _animationController;
 
-  _PathEditorState(List<Waypoint> startingWaypoints, this.pathName) {
+  _PathEditorState(List<Waypoint> startingWaypoints, List<Command> startingCommands, this.pathName) {
     waypoints = [...startingWaypoints];
+    commands = [...startingCommands];
   }
   @override
   void initState() {

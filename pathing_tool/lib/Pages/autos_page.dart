@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:pathing_tool/Utils/Structs/command.dart';
 import 'package:pathing_tool/Utils/Structs/waypoint.dart';
 import 'package:pathing_tool/Utils/spline.dart';
 import 'package:pathing_tool/Widgets/auto_editor.dart';

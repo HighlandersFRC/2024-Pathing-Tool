@@ -1,7 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
-import 'package:flutter/material.dart';
 import 'package:pathing_tool/Utils/Structs/command.dart';
 import 'package:pathing_tool/Utils/quintic_hermite_spline.dart';
 import 'package:pathing_tool/Utils/Structs/waypoint.dart';
