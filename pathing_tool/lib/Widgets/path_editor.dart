@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -39,16 +40,17 @@ class PathEditor extends StatefulWidget {
     });
     List<Command> commands = [];
     var commandsJsonList = pathJson["commands"];
-    commandsJsonList.forEach((command){
+    commandsJsonList.forEach((command) {
       commands.add(Command.fromJson(command));
     });
     String pathName = pathJson["meta_data"]["path_name"];
-    return PathEditor(waypoints, pathName, commands, returnSpline: returnSpline);
+    return PathEditor(waypoints, pathName, commands,
+        returnSpline: returnSpline);
   }
 
   @override
   _PathEditorState createState() =>
-      _PathEditorState(startingWaypoints,  startingCommands, pathName);
+      _PathEditorState(startingWaypoints, startingCommands, pathName);
 }
 
 class _PathEditorState extends State<PathEditor>
@@ -59,13 +61,15 @@ class _PathEditorState extends State<PathEditor>
   List<Command> commands = [];
   Waypoint? playbackWaypoint;
   bool smooth = false;
+  bool playing = false;
   int editMode = 0;
   int selectedWaypoint = -1;
   int selectedCommand = -1;
   String pathName = "";
   late AnimationController _animationController;
 
-  _PathEditorState(List<Waypoint> startingWaypoints, List<Command> startingCommands, this.pathName) {
+  _PathEditorState(List<Waypoint> startingWaypoints,
+      List<Command> startingCommands, this.pathName) {
     waypoints = [...startingWaypoints];
     commands = [...startingCommands];
   }
@@ -97,11 +101,19 @@ class _PathEditorState extends State<PathEditor>
 
   void playPath() {
     if (!_animationController.isAnimating) {
-      _animationController.forward(from: 0.0);
+      _animationController.repeat();
+      setState(() {
+        playing = true;
+      });
+    } else {
+      _animationController.stop();
+      setState(() {
+        playing = false;
+      });
     }
   }
 
-  void _addWaypoint(double x, double y) { 
+  void _addWaypoint(double x, double y) {
     setState(() {
       double t = waypoints.isNotEmpty ? waypoints.last.t + 1 : 0;
       double dx = waypoints.isNotEmpty
@@ -150,7 +162,9 @@ class _PathEditorState extends State<PathEditor>
       double timeStep = 0.01; // Adjust for desired granularity
       double start = commands[selectedCommand].startTime;
       double endTime = commands[selectedCommand].endTime;
-      for (double t = start; t <= endTime; t += timeStep) {
+      for (double t = start;
+          t <= endTime && t <= robot.points.last.t;
+          t += timeStep) {
         Waypoint point = robot.getRobotWaypoint(t);
         commandSpline.add(FlSpot(point.x, point.y));
       }
@@ -201,7 +215,11 @@ class _PathEditorState extends State<PathEditor>
         sampledPoints.add(sampledPoint);
       }
       final Map<String, dynamic> pathData = {
-        "meta_data": {"path_name": pathName, "sample_rate": timeStep, "robot_name": robotConfigProvider.robotConfig.name},
+        "meta_data": {
+          "path_name": pathName,
+          "sample_rate": timeStep,
+          "robot_name": robotConfigProvider.robotConfig.name
+        },
         "commands": commands.map((Command command) {
           return command.toJson();
         }).toList(),
@@ -244,7 +262,6 @@ class _PathEditorState extends State<PathEditor>
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Path data saved to $path')));
     }
-
     return Shortcuts(
         shortcuts: <LogicalKeySet, Intent>{
           LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyZ):
@@ -262,7 +279,44 @@ class _PathEditorState extends State<PathEditor>
             },
             child: Focus(
                 autofocus: true,
+                descendantsAreTraversable: false,
                 child: Scaffold(
+                  persistentFooterButtons: [
+                    ProgressBar(
+                      thumbColor: theme.primaryColor,
+                      thumbGlowColor: theme.primaryColor.withOpacity(0.2),
+                      progress: Duration(
+                          microseconds: waypoints.isNotEmpty
+                              ? (_animationController.value *
+                                      waypoints.last.t *
+                                      1000000)
+                                  .floor()
+                              : 0),
+                      total: Duration(
+                          microseconds: waypoints.isNotEmpty
+                              ? (waypoints.last.t * 1000000).floor()
+                              : 0),
+                      progressBarColor: theme.primaryColor,
+                      onDragStart: (details) {
+                        _animationController.stop();
+                        var pathTime =
+                            details.timeStamp.inMicroseconds / 1000000;
+                        _animationController.value =
+                            pathTime / waypoints.last.t;
+                      },
+                      onDragUpdate: (details) {
+                        var pathTime =
+                            details.timeStamp.inMicroseconds / 1000000;
+                        _animationController.value =
+                            pathTime / waypoints.last.t;
+                      },
+                      onDragEnd: () {
+                        if (playing) {
+                          _animationController.repeat();
+                        }
+                      },
+                    ),
+                  ],
                   appBar: AppBar(
                     leading: widget.returnSpline != null
                         ? Tooltip(
@@ -280,7 +334,8 @@ class _PathEditorState extends State<PathEditor>
                                 child: const Icon(Icons.arrow_back)),
                           )
                         : null,
-                    title: TextField(
+                    title: //Row(children: [
+                        TextField(
                       controller: TextEditingController(text: pathName),
                       onSubmitted: (value) {
                         setState(() {
@@ -298,8 +353,11 @@ class _PathEditorState extends State<PathEditor>
                       ),
                       cursorColor: theme.primaryColor,
                     ),
+                    // ]),
                     automaticallyImplyLeading: false,
                     actions: [
+                      // Text((_animationController.value * waypoints.last.t)
+                      //     .toStringAsFixed(2)),
                       Tooltip(
                         message: "Play Path",
                         waitDuration: const Duration(milliseconds: 500),
@@ -313,7 +371,9 @@ class _PathEditorState extends State<PathEditor>
                             foregroundColor:
                                 WidgetStateProperty.all(theme.primaryColor),
                           ),
-                          child: const Icon(Icons.play_arrow_rounded),
+                          child: Icon(!playing
+                              ? Icons.play_arrow_rounded
+                              : Icons.pause_rounded),
                         ),
                       ),
                       Tooltip(
@@ -488,7 +548,8 @@ class _PathEditorState extends State<PathEditor>
                                           height: usedHeight,
                                           width: usedWidth,
                                           child: LineChart(
-                                            duration: const Duration(milliseconds: 250),
+                                            duration: const Duration(
+                                                milliseconds: 250),
                                             curve: Curves.decelerate,
                                             LineChartData(
                                               lineBarsData: [
@@ -535,7 +596,8 @@ class _PathEditorState extends State<PathEditor>
                                                     spots: commandSpline,
                                                     isCurved: true,
                                                     barWidth: 10,
-                                                    color: theme.primaryColor.withOpacity(0.5),
+                                                    color: theme.primaryColor
+                                                        .withOpacity(0.5),
                                                     dotData: const FlDotData(
                                                         show: false),
                                                   ),

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:pathing_tool/Pages/autos_page.dart';
 import 'package:pathing_tool/Utils/Providers/image_data_provider.dart';
@@ -7,6 +9,9 @@ import 'Pages/home_page.dart';
 import 'Theme/theme_notifier.dart';
 
 void main() {
+  Directory("C:/Polar Pathing/Robots").createSync(recursive: true);
+  Directory("C:/Polar Pathing/Saves").createSync(recursive: true);
+  Directory("C:/Polar Pathing/Images").createSync(recursive: true);
   runApp(
     MultiProvider(
       providers: [
@@ -20,6 +25,7 @@ void main() {
 }
 
 class MainApp extends StatelessWidget {
+   
   @override
   Widget build(BuildContext context) {
     return Consumer<ThemeNotifier>(

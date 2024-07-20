@@ -54,6 +54,11 @@ class Command {
     double? endTime,
     String? commandName,
   }) {
+    if (!(startTime == null)) {
+      if ((endTime ?? this.endTime) < startTime) {
+        endTime = startTime; 
+      }
+    }
     return Command(
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
@@ -319,8 +324,6 @@ class SequentialCommandGroup extends MultipleCommand {
     double? endTime,
     String? commandName,
   }) {
-    if (commands != null)
-      commands.sort((a, b) => a.startTime.compareTo(b.startTime));
     commands = [
       ...(commands ?? this.commands).map((subCommand) {
         if (subCommand.endTime < subCommand.startTime) {
@@ -336,9 +339,20 @@ class SequentialCommandGroup extends MultipleCommand {
       }
     }
     commands = [
-      ...(commands).map((subCommand) {
+      ...commands.map((subCommand) {
         if (subCommand.endTime < subCommand.startTime) {
           return subCommand.copyWith(endTime: subCommand.startTime);
+        } else {
+          return subCommand;
+        }
+      })
+    ];
+    commands = [
+      ...commands.asMap().entries.map((value) {
+        var subCommand = value.value;
+        var idx = value.key;
+        if (idx > 0) {
+          return subCommand.copyWith(startTime: commands![idx-1].endTime);
         } else {
           return subCommand;
         }

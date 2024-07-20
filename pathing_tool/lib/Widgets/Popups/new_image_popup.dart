@@ -29,14 +29,14 @@ class AddImagePopup extends StatefulWidget {
 class _AddImagePopupState extends State<AddImagePopup> {
   String _filePath = "";
   bool fieldsFilled = true;
-  late final TextEditingController _imageNameContreller;
+  late final TextEditingController _imageNameController;
   late final TextEditingController _widthMetersController;
   late final TextEditingController _heightMetersController;
   late final TextEditingController _widthPixelsController;
   late final TextEditingController _heightPixelsController;
   @override
   void initState() {
-    _imageNameContreller = TextEditingController(text: widget.name);
+    _imageNameController = TextEditingController(text: widget.name);
     _widthMetersController =
         TextEditingController(text: widget.widthMeters.toString());
     _heightMetersController =
@@ -79,7 +79,7 @@ class _AddImagePopupState extends State<AddImagePopup> {
                 : widget.image ?? Container(),
             const SizedBox(height: 10),
             TextFormField(
-              controller: _imageNameContreller,
+              controller: _imageNameController,
               decoration: InputDecoration(
                   labelText: 'Field Name',
                   focusColor: theme.primaryColor,
@@ -187,7 +187,7 @@ class _AddImagePopupState extends State<AddImagePopup> {
             // Create ImageData object
             ImageData newImage = ImageData(
               image: _filePath.isEmpty? widget.image!: Image.file(File(_filePath)),
-              imageName: _imageNameContreller.text,
+              imageName: _imageNameController.text,
               imageWidthInMeters: double.parse(_widthMetersController.text),
               imageHeightInMeters: double.parse(_heightMetersController.text),
               imageWidthInPixels: double.parse(_widthPixelsController.text),
@@ -202,7 +202,7 @@ class _AddImagePopupState extends State<AddImagePopup> {
                 .addImage(newImage);
 
             // Clear input fields
-            _imageNameContreller.clear();
+            _imageNameController.clear();
             _widthMetersController.clear();
             _heightMetersController.clear();
             _widthPixelsController.clear();

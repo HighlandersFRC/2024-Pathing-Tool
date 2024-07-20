@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:pathing_tool/Utils/Structs/waypoint.dart';
 
@@ -41,7 +43,7 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
+    return SizedBox(
         width: 350, // Adjust as needed
         child: SingleChildScrollView(
           child: Column(
@@ -83,7 +85,7 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                         icon: const Icon(Icons.delete),
                         onPressed: () {
                           List<Waypoint> newWaypoints = [];
-                          widget.waypoints.forEach((Waypoint waypoint) {
+                          for (var waypoint in widget.waypoints) {
                             if (widget.waypoints.isNotEmpty) {
                               if (widget.selectedWaypoint !=
                                   widget.waypoints.indexOf(waypoint)) {
@@ -95,12 +97,14 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                                 }
                               }
                             }
-                          });
-                          if (widget.selectedWaypoint != 0)
+                          }
+                          if (widget.selectedWaypoint != 0) {
                             widget.onWaypointSelected(
                                 widget.waypoints[widget.selectedWaypoint - 1]);
-                          if (newWaypoints.length == 0)
+                          }
+                          if (newWaypoints.isEmpty) {
                             widget.onWaypointSelected(null);
+                          }
                           widget.onWaypointsChanged(newWaypoints);
                         },
                       ),
@@ -197,9 +201,9 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                 ),
                 AttributeEditor(
                   attributeName: 'Heading',
-                  currentValue: selectedWaypoint!.theta,
+                  currentValue: selectedWaypoint!.theta * (180 / pi),
                   onChanged: (value) {
-                    updateWaypoint(selectedWaypoint!.copyWith(theta: value));
+                    updateWaypoint(selectedWaypoint!.copyWith(theta: value * pi / 180));
                   },
                 ),
                 AttributeEditor(
@@ -218,9 +222,9 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                 ),
                 AttributeEditor(
                   attributeName: 'Ang-Vel',
-                  currentValue: selectedWaypoint!.dtheta,
+                  currentValue: selectedWaypoint!.dtheta * (180 / pi),
                   onChanged: (value) {
-                    updateWaypoint(selectedWaypoint!.copyWith(dtheta: value));
+                    updateWaypoint(selectedWaypoint!.copyWith(dtheta: value * pi / 180));
                   },
                 ),
                 AttributeEditor(
@@ -239,9 +243,9 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                 ),
                 AttributeEditor(
                   attributeName: 'Ang-Acc',
-                  currentValue: selectedWaypoint!.d2theta,
+                  currentValue: selectedWaypoint!.d2theta * (180 / pi),
                   onChanged: (value) {
-                    updateWaypoint(selectedWaypoint!.copyWith(d2theta: value));
+                    updateWaypoint(selectedWaypoint!.copyWith(d2theta: value * pi / 180));
                   },
                 ),
               ],
@@ -288,7 +292,7 @@ class _AttributeEditorState extends State<AttributeEditor> {
   void increment() {
     setState(() {
       double value = double.parse(_controller.text);
-      value += 0.1;
+      value += 0.025;
       _controller.text = value.toStringAsFixed(3);
       widget.onChanged(value);
     });
@@ -297,7 +301,7 @@ class _AttributeEditorState extends State<AttributeEditor> {
   void decrement() {
     setState(() {
       double value = double.parse(_controller.text);
-      value -= 0.1;
+      value -= 0.025;
       _controller.text = value.toStringAsFixed(3);
       widget.onChanged(value);
     });
@@ -315,7 +319,7 @@ class _AttributeEditorState extends State<AttributeEditor> {
           Row(
             children: [
               Tooltip(
-                message: "-0.1",
+                message: "-0.025",
                 waitDuration: const Duration(milliseconds: 500),
                 child: IconButton(
                   icon: const Icon(Icons.remove),
@@ -335,22 +339,19 @@ class _AttributeEditorState extends State<AttributeEditor> {
                     focusedBorder: UnderlineInputBorder(
                         borderSide: BorderSide(color: theme.primaryColor)),
                   ),
+                  onSubmitted: (value){
+                    widget.onChanged(double.parse(value));
+                  },
                   cursorColor: theme.primaryColor,
                 ),
               ),
               Tooltip(
-                message: "+0.1",
+                message: "+0.025",
                 waitDuration: const Duration(milliseconds: 500),
                 child: IconButton(
                   icon: const Icon(Icons.add),
                   onPressed: increment,
                 ),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  widget.onChanged(double.parse(_controller.text));
-                },
-                child: const Text('Set'),
               ),
             ],
           ),

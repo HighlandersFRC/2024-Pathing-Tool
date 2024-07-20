@@ -10,7 +10,7 @@ class EditCommandMenu extends StatefulWidget {
   final Function(Command?) onCommandSelected;
   final Function(Command) onAttributeChanged;
   final Function(List<Command>) onCommandsChanged;
-  final bool startTimeLocked;
+  final double? startTime;
 
   const EditCommandMenu({
     super.key,
@@ -19,7 +19,7 @@ class EditCommandMenu extends StatefulWidget {
     required this.onAttributeChanged,
     required this.selectedCommand,
     required this.onCommandsChanged,
-    this.startTimeLocked = false,
+    this.startTime,
   });
 
   @override
@@ -44,6 +44,9 @@ class _EditCommandMenuState extends State<EditCommandMenu> {
   }
 
   void addCommand(Command command) {
+    if (widget.startTime != null ) {
+      command = command.copyWith(startTime: widget.startTime);
+    }
     setState(() {
       widget.commands.insert(widget.commands.length, command);
     });
@@ -127,7 +130,7 @@ class _EditCommandMenuState extends State<EditCommandMenu> {
                                                 .onAttributeChanged(newCommand);
                                           },
                                           startTimeLocked:
-                                              widget.startTimeLocked,
+                                              widget.startTime != null,
                                         ),
                                         IconButton(
                                           icon: const Icon(Icons.delete),
@@ -590,7 +593,7 @@ class _MultipleCommandEditorState extends State<MultipleCommandEditor> {
         onCommandsChanged: (commands) {
           widget.onChanged(widget.command.copyWith(commands: commands));
         },
-        startTimeLocked: true,
+        startTime: widget.command.startTime,
       )
     ]);
   }
