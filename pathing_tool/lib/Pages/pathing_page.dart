@@ -2,10 +2,13 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:pathing_tool/Utils/Providers/robot_config_provider.dart';
 import 'package:pathing_tool/Utils/Structs/command.dart';
+import 'package:pathing_tool/Utils/Structs/robot_config.dart';
 import 'package:pathing_tool/Utils/Structs/waypoint.dart';
 import 'package:pathing_tool/Widgets/custom_app_bar.dart';
 import 'package:pathing_tool/Widgets/path_editor.dart';
+import 'package:provider/provider.dart';
 import '../Widgets/app_drawer.dart';
 
 class PathingPage extends StatelessWidget {
@@ -24,7 +27,8 @@ class PathingPage extends StatelessWidget {
     List<Command> commands = [];
     var commandsJsonList = pathJson["commands"];
     commandsJsonList.forEach((command){
-      commands.add(Command.fromJson(command));
+      var newCommand = Command.fromJson(command);
+      commands.add(newCommand);
     });
     String pathName = pathJson["meta_data"]["path_name"];
     return PathingPage(waypoints, commands, pathName);

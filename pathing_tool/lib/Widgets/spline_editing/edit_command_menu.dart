@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pathing_tool/Utils/Providers/robot_config_provider.dart';
 import 'package:pathing_tool/Utils/Structs/command.dart';
+import 'package:pathing_tool/Utils/Structs/robot_config.dart';
 import 'package:provider/provider.dart';
 
 class EditCommandMenu extends StatefulWidget {
@@ -225,8 +226,8 @@ class NormalCommandEditor extends StatelessWidget {
     final theme = Theme.of(context);
     final RobotConfigProvider robotProvider =
         Provider.of<RobotConfigProvider>(context);
-    var commandNames = [...robotProvider.robotConfig.commands];
-
+    var robotCommands = [...robotProvider.robotConfig.commands];
+    var commandNames = [ for (var command  in robotCommands) command.name];
     TextEditingController startTimeController =
         TextEditingController(text: command.startTime.toString());
     TextEditingController endTimeController =
@@ -236,6 +237,15 @@ class NormalCommandEditor extends StatelessWidget {
 
     FocusNode startTimeFocusNode = FocusNode();
     FocusNode endTimeFocusNode = FocusNode();
+    if (!commandNames.contains(selectedCommandName)){
+      robotProvider.setRobotConfig(RobotConfig(
+        robotProvider.robotConfig.name,
+        robotProvider.robotConfig.length,
+        robotProvider.robotConfig.width,
+        [...robotProvider.robotConfig.commands, IconCommand(selectedCommandName, null)],
+        robotProvider.robotConfig.conditions
+      ));
+    }
 
     void updateStartTime() {
       final value = startTimeController.text;
@@ -325,7 +335,7 @@ class NormalCommandEditor extends StatelessWidget {
           onChanged: (value) {
             onChanged(command.copyWith(commandName: value ?? ''));
           },
-          items: commandNames.map((commandName) {
+          items: robotCommands.map((commandName) {
             return DropdownMenuItem(
               value: commandName.name,
               child: Row(children: [
@@ -354,9 +364,19 @@ class BranchedCommandEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final robotConfigProvider = Provider.of<RobotConfigProvider>(context);
-    var conditionNames = robotConfigProvider.robotConfig.conditions;
+    final robotProvider = Provider.of<RobotConfigProvider>(context);
+    var robotConditions = robotProvider.robotConfig.conditions;
+    var conditionNames = [for (var condition in robotConditions) condition.name];
     var theme = Theme.of(context);
+    if (!conditionNames.contains(command.condition)){
+      robotProvider.setRobotConfig(RobotConfig(
+        robotProvider.robotConfig.name,
+        robotProvider.robotConfig.length,
+        robotProvider.robotConfig.width,
+        robotProvider.robotConfig.commands,
+        [...robotProvider.robotConfig.conditions, IconCondition(command.condition, null)],
+      ));
+    }
     return Column(
       children: [
         const Text("Condition"),
@@ -366,12 +386,12 @@ class BranchedCommandEditor extends StatelessWidget {
           onChanged: (value) {
             onChanged(command.copyWith(condition: value ?? ''));
           },
-          items: conditionNames.map((conditionName) {
+          items: robotConditions.map((robotCondition) {
             return DropdownMenuItem(
-              value: conditionName.name,
+              value: robotCondition.name,
               child: Row(children: [
-                Icon(conditionName.icon),
-                Text(" - ${conditionName.name}")
+                Icon(robotCondition.icon),
+                Text(" - ${robotCondition.name}")
               ]),
             );
           }).toList(),

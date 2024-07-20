@@ -201,7 +201,7 @@ class _PathEditorState extends State<PathEditor>
         sampledPoints.add(sampledPoint);
       }
       final Map<String, dynamic> pathData = {
-        "meta_data": {"path_name": pathName, "sample_rate": timeStep},
+        "meta_data": {"path_name": pathName, "sample_rate": timeStep, "robot_name": robotConfigProvider.robotConfig.name},
         "commands": commands.map((Command command) {
           return command.toJson();
         }).toList(),
