@@ -67,7 +67,7 @@ class _PathEditorState extends State<PathEditor>
   int selectedCommand = -1;
   String pathName = "";
   late AnimationController _animationController;
-
+  late FocusNode _focusNode;
   _PathEditorState(List<Waypoint> startingWaypoints,
       List<Command> startingCommands, this.pathName) {
     waypoints = [...startingWaypoints];
@@ -75,6 +75,7 @@ class _PathEditorState extends State<PathEditor>
   }
   @override
   void initState() {
+    _focusNode = FocusNode();
     super.initState();
     _animationController = AnimationController(
       vsync: this,
@@ -90,6 +91,7 @@ class _PathEditorState extends State<PathEditor>
   @override
   void dispose() {
     _animationController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -139,6 +141,10 @@ class _PathEditorState extends State<PathEditor>
 
   @override
   Widget build(BuildContext context) {
+    final focusScope = FocusScope.of(context);
+    if (focusScope.focusedChild?.ancestors.contains(_focusNode) ?? true) {
+      focusScope.requestFocus(_focusNode);
+    }
     _animationController.duration =
         Duration(seconds: waypoints.isNotEmpty ? waypoints.last.t.ceil() : 0);
     ImageDataProvider imageDataProvider =
@@ -278,6 +284,7 @@ class _PathEditorState extends State<PathEditor>
               SaveIntent: SaveAction(() => savePathToFile()),
             },
             child: Focus(
+                focusNode: _focusNode,
                 autofocus: true,
                 descendantsAreTraversable: false,
                 child: Scaffold(
