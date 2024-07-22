@@ -864,9 +864,9 @@ class _PathEditorState extends State<PathEditor>
     }
   }
 
-  _onWaypointSelected(Waypoint? waypoint) {
+  _onWaypointSelected(int index) {
     setState(() {
-      selectedWaypoint = waypoint != null ? waypoints.indexOf(waypoint) : -1;
+      selectedWaypoint = index;
     });
   }
 

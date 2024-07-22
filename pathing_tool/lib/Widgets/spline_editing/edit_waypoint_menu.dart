@@ -6,7 +6,7 @@ import 'package:pathing_tool/Utils/Structs/waypoint.dart';
 class EditWaypointMenu extends StatefulWidget {
   final List<Waypoint> waypoints;
   final int selectedWaypoint;
-  final Function(Waypoint?) onWaypointSelected;
+  final Function(int) onWaypointSelected;
   final Function(Waypoint) onAttributeChanged;
   final Function(List<Waypoint>) onWaypointsChanged;
 
@@ -66,8 +66,7 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                         : null,
                     hint: const Text('Select a waypoint'),
                     onChanged: (int? newIndex) {
-                      widget.onWaypointSelected(
-                          newIndex != null ? widget.waypoints[newIndex] : null);
+                      widget.onWaypointSelected(newIndex ?? -1);
                     },
                     items: widget.waypoints.asMap().entries.map((entry) {
                       int idx = entry.key;
@@ -100,10 +99,10 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                           }
                           if (widget.selectedWaypoint != 0) {
                             widget.onWaypointSelected(
-                                widget.waypoints[widget.selectedWaypoint - 1]);
+                                widget.selectedWaypoint - 1);
                           }
                           if (newWaypoints.isEmpty) {
-                            widget.onWaypointSelected(null);
+                            widget.onWaypointSelected(-1);
                           }
                           widget.onWaypointsChanged(newWaypoints);
                         },
@@ -131,8 +130,7 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                                         t: newWaypoints[
                                                 widget.selectedWaypoint - 1]
                                             .t);
-                                widget.onWaypointSelected(widget
-                                    .waypoints[widget.selectedWaypoint - 1]);
+                                widget.onWaypointSelected(widget.selectedWaypoint - 1);
                                 widget.onWaypointsChanged(newWaypoints);
                               }
                             : () {},
@@ -164,8 +162,7 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                                         t: newWaypoints[
                                                 widget.selectedWaypoint + 1]
                                             .t);
-                                widget.onWaypointSelected(widget
-                                    .waypoints[widget.selectedWaypoint + 1]);
+                                widget.onWaypointSelected(widget.selectedWaypoint + 1);
                                 widget.onWaypointsChanged(newWaypoints);
                               }
                             : () {},
