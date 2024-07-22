@@ -128,9 +128,9 @@ class _PathEditorState extends State<PathEditor>
                     .t /
                 waypoints.last.t
             : 0);
-    // if (playing) {
-    //   _animationController.repeat();
-    // }
+    setState(() {
+      playing = false;
+    });
   }
 
   void _forward() {
@@ -138,16 +138,17 @@ class _PathEditorState extends State<PathEditor>
         1,
         waypoints.length > 1
             ? waypoints
-                    .firstWhere((waypoint) =>
-                        waypoint.t >
-                        _animationController.value * waypoints.last.t,
+                    .firstWhere(
+                        (waypoint) =>
+                            waypoint.t >
+                            _animationController.value * waypoints.last.t,
                         orElse: () => waypoints.last)
                     .t /
                 waypoints.last.t
             : 0);
-    // if (playing) {
-    //   _animationController.repeat();
-    // }
+    setState(() {
+      playing = false;
+    });
   }
 
   void _addWaypoint(double x, double y) {
