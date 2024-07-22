@@ -181,7 +181,7 @@ class _PathEditorState extends State<PathEditor>
     if (!(focusScope.focusedChild?.ancestors.contains(_focusNode) ?? false) &&
         !(focusScope.focusedChild.hashCode == _focusNode.hashCode)) {
       // print(focusScope.focusedChild?.ancestors.contains(_focusNode));
-      print("requesting focus for PathEditor");
+      // print("requesting focus for PathEditor");
       focusScope.requestFocus(_focusNode);
     }
     _animationController.duration =
