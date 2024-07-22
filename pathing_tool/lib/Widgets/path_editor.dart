@@ -179,7 +179,7 @@ class _PathEditorState extends State<PathEditor>
   Widget build(BuildContext context) {
     final focusScope = FocusScope.of(context);
     if (!(focusScope.focusedChild?.ancestors.contains(_focusNode) ?? false) ||
-        !(focusScope.focusedChild == _focusNode)) {
+        !(focusScope.focusedChild.hashCode == _focusNode.hashCode)) {
       // print(focusScope.focusedChild?.ancestors.contains(_focusNode));
       // print("requesting focus for PathEditor");
       focusScope.requestFocus(_focusNode);
