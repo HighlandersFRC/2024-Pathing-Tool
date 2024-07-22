@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:pathing_tool/Utils/Providers/image_data_provider.dart';
 import 'package:pathing_tool/Utils/Providers/robot_config_provider.dart';
 import 'package:pathing_tool/Utils/Structs/command.dart';
-import 'package:pathing_tool/Utils/Structs/robot_config.dart';
 import 'package:pathing_tool/Utils/Structs/waypoint.dart';
 import 'package:pathing_tool/Widgets/custom_app_bar.dart';
 import 'package:pathing_tool/Widgets/path_editor.dart';
@@ -15,7 +15,8 @@ class PathingPage extends StatelessWidget {
   final List<Waypoint> waypoints;
   final List<Command> commands;
   final String pathName;
-  const PathingPage(this.waypoints, this.commands, this.pathName, {super.key});
+  final String? robotName, fieldName;
+  const PathingPage(this.waypoints, this.commands, this.pathName, {super.key, this.robotName, this.fieldName});
   static PathingPage fromFile(File file) {
     String jsonString = file.readAsStringSync();
     var pathJson = json.decode(jsonString);
@@ -31,15 +32,36 @@ class PathingPage extends StatelessWidget {
       commands.add(newCommand);
     });
     String pathName = pathJson["meta_data"]["path_name"];
-    return PathingPage(waypoints, commands, pathName);
+    String? robotName = pathJson["meta_data"]["robot_name"], fieldName = pathJson["meta_data"]["field_name"];
+    return PathingPage(waypoints, commands, pathName, robotName: robotName, fieldName: fieldName,);
   }
 
   @override
   Widget build(BuildContext context) {
+    if (robotName != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final robotProvider = Provider.of<RobotConfigProvider>(context, listen: false);
+        if (robotProvider.robotConfigs.any((config) => config.name == robotName)) {
+          robotProvider.setRobotConfig(robotProvider.robotConfigs.firstWhere((config) => config.name == robotName));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Robot "$robotName"not found')));
+        }
+      });
+    }
+    if (fieldName != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final fieldProvider = Provider.of<ImageDataProvider>(context, listen: false);
+        if (fieldProvider.images.any((config) => config.imageName == fieldName)) {
+          fieldProvider.selectImage(fieldProvider.images.firstWhere((config) => config.imageName == fieldName));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Field "$fieldName" not found')));
+        }
+      });
+    }
     return Scaffold(
       appBar: const CustomAppBar(),
       drawer: const AppDrawer(),
-      body: PathEditor(waypoints, pathName, commands),
+      body: PathEditor(waypoints, pathName, commands,),
     );
   }
 }

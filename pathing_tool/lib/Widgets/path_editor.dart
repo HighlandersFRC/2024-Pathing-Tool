@@ -224,7 +224,8 @@ class _PathEditorState extends State<PathEditor>
         "meta_data": {
           "path_name": pathName,
           "sample_rate": timeStep,
-          "robot_name": robotConfigProvider.robotConfig.name
+          "robot_name": robotConfigProvider.robotConfig.name,
+          "field_name": imageDataProvider.selectedImage.imageName
         },
         "commands": commands.map((Command command) {
           return command.toJson();
