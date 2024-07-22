@@ -589,10 +589,19 @@ class _PathEditorState extends State<PathEditor>
                                           usedHeight,
                                           context,
                                           robotConfigProvider.robotConfig,
-                                          editMode == 2 && selectedCommand != -1 && playbackWaypoint!.t > commands[selectedCommand].startTime && playbackWaypoint!.t < commands[selectedCommand].endTime ? 
-                                          theme.primaryColor: theme.brightness == Brightness.dark
-                                              ? Colors.white
-                                              : Colors.grey.shade700,
+                                          editMode == 2 &&
+                                                  selectedCommand != -1 &&
+                                                  playbackWaypoint!.t >
+                                                      commands[selectedCommand]
+                                                          .startTime &&
+                                                  playbackWaypoint!.t <
+                                                      commands[selectedCommand]
+                                                          .endTime
+                                              ? theme.primaryColor
+                                              : theme.brightness ==
+                                                      Brightness.dark
+                                                  ? Colors.white
+                                                  : Colors.grey.shade700,
                                           255,
                                           constraints),
                                     )
@@ -661,8 +670,12 @@ class _PathEditorState extends State<PathEditor>
                                                     spots: commandSpline,
                                                     isCurved: true,
                                                     barWidth: 10,
-                                                    color: theme.brightness == Brightness.dark? theme.primaryColor
-                                                        .withOpacity(0.5): theme.primaryColor.withOpacity(0.4),
+                                                    color: theme.brightness ==
+                                                            Brightness.dark
+                                                        ? theme.primaryColor
+                                                            .withOpacity(0.5)
+                                                        : theme.primaryColor
+                                                            .withOpacity(0.4),
                                                     dotData: const FlDotData(
                                                         show: false),
                                                   ),
@@ -930,7 +943,7 @@ class _PathEditorState extends State<PathEditor>
   }
 
   _onCommandAttributeChanged(Command command) {
-    print("command attribute changed");
+    // print("command attribute changed");
     if (selectedCommand != -1) {
       _saveState();
       setState(() {
@@ -948,7 +961,7 @@ class _PathEditorState extends State<PathEditor>
   }
 
   _saveState() {
-    print("saving state");
+    // print("saving state");
     setState(() {
       undoStack = [
         ...undoStack,
