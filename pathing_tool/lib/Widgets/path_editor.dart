@@ -115,6 +115,41 @@ class _PathEditorState extends State<PathEditor>
     }
   }
 
+  void _backward() {
+    _animationController.value = math.max(
+        0,
+        waypoints.length > 1
+            ? waypoints
+                    .lastWhere(
+                        (waypoint) =>
+                            waypoint.t <
+                            _animationController.value * waypoints.last.t,
+                        orElse: () => waypoints.first)
+                    .t /
+                waypoints.last.t
+            : 0);
+    // if (playing) {
+    //   _animationController.repeat();
+    // }
+  }
+
+  void _forward() {
+    _animationController.value = math.min(
+        1,
+        waypoints.length > 1
+            ? waypoints
+                    .firstWhere((waypoint) =>
+                        waypoint.t >
+                        _animationController.value * waypoints.last.t,
+                        orElse: () => waypoints.last)
+                    .t /
+                waypoints.last.t
+            : 0);
+    // if (playing) {
+    //   _animationController.repeat();
+    // }
+  }
+
   void _addWaypoint(double x, double y) {
     setState(() {
       double t = waypoints.isNotEmpty ? waypoints.last.t + 1 : 0;
@@ -142,7 +177,8 @@ class _PathEditorState extends State<PathEditor>
   @override
   Widget build(BuildContext context) {
     final focusScope = FocusScope.of(context);
-    if (!(focusScope.focusedChild?.ancestors.contains(_focusNode) ?? false) || !(focusScope.focusedChild == _focusNode)) {
+    if (!(focusScope.focusedChild?.ancestors.contains(_focusNode) ?? false) ||
+        !(focusScope.focusedChild == _focusNode)) {
       // print(focusScope.focusedChild?.ancestors.contains(_focusNode));
       // print("requesting focus for PathEditor");
       focusScope.requestFocus(_focusNode);
@@ -280,25 +316,33 @@ class _PathEditorState extends State<PathEditor>
               RedoIntent(),
           LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyS):
               SaveIntent(),
-          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.tab): SwitchModeIntent(),
+          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.tab):
+              SwitchModeIntent(),
+          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.space):
+              PlayIntent(),
+          LogicalKeySet(LogicalKeyboardKey.arrowLeft): BackwardIntent(),
+          LogicalKeySet(LogicalKeyboardKey.arrowRight): ForwardIntent(),
         },
         child: Actions(
             actions: <Type, Action<Intent>>{
               UndoIntent: UndoAction(_undo),
               RedoIntent: RedoAction(_redo),
               SaveIntent: SaveAction(() => savePathToFile()),
-              SwitchModeIntent: SwitchModeAction(() => setState((){
-                switch (editMode) {
-                  case 0:
-                    editMode = 1;
-                    break;
-                  case 1:
-                    editMode = 2;
-                    break;
-                  default:
-                    editMode = 0;
-                }
-              }))
+              SwitchModeIntent: SwitchModeAction(() => setState(() {
+                    switch (editMode) {
+                      case 0:
+                        editMode = 1;
+                        break;
+                      case 1:
+                        editMode = 2;
+                        break;
+                      default:
+                        editMode = 0;
+                    }
+                  })),
+              PlayIntent: PlayAction(() => playPath()),
+              BackwardIntent: BackwardAction(_backward),
+              ForwardIntent: ForwardAction(_forward),
             },
             child: Focus(
                 focusNode: _focusNode,
@@ -356,8 +400,7 @@ class _PathEditorState extends State<PathEditor>
                                 child: const Icon(Icons.arrow_back)),
                           )
                         : null,
-                    title:
-                        TextField(
+                    title: TextField(
                       controller: TextEditingController(text: pathName),
                       onSubmitted: (value) {
                         setState(() {
@@ -826,7 +869,10 @@ class _PathEditorState extends State<PathEditor>
                                       child: Column(children: [
                                     if (editMode != 2)
                                       EditWaypointMenu(
-                                        waypoints: [for (var waypoint in waypoints) waypoint.copyWith()],
+                                        waypoints: [
+                                          for (var waypoint in waypoints)
+                                            waypoint.copyWith()
+                                        ],
                                         onWaypointSelected: _onWaypointSelected,
                                         onAttributeChanged: _onAttributeChanged,
                                         selectedWaypoint: waypoints.length >=
@@ -837,12 +883,16 @@ class _PathEditorState extends State<PathEditor>
                                       )
                                     else
                                       EditCommandMenu(
-                                          commands: [for (var command in commands) command.copyWith()],
+                                          commands: [
+                                            for (var command in commands)
+                                              command.copyWith()
+                                          ],
                                           onCommandSelected: _onCommandSelected,
                                           onAttributeChanged:
                                               _onCommandAttributeChanged,
                                           selectedCommand: selectedCommand,
-                                          onCommandsChanged: _onCommandsChanged),
+                                          onCommandsChanged:
+                                              _onCommandsChanged),
                                   ])));
                             },
                           )),
@@ -899,7 +949,11 @@ class _PathEditorState extends State<PathEditor>
     setState(() {
       undoStack = [
         ...undoStack,
-        ([for (var waypoint in waypoints) waypoint.copyWith()], [for (var command in commands) command.copyWith()], smooth)
+        (
+          [for (var waypoint in waypoints) waypoint.copyWith()],
+          [for (var command in commands) command.copyWith()],
+          smooth
+        )
       ];
       redoStack.clear();
     });
@@ -910,7 +964,11 @@ class _PathEditorState extends State<PathEditor>
       setState(() {
         redoStack = [
           ...redoStack,
-          ([...this.waypoints], [for (var command in this.commands) command.copyWith()], this.smooth)
+          (
+            [...this.waypoints],
+            [for (var command in this.commands) command.copyWith()],
+            this.smooth
+          )
         ];
         var (waypoints, commands, smooth) = undoStack.last;
         if (!(this.waypoints.length == waypoints.length)) {
@@ -930,7 +988,14 @@ class _PathEditorState extends State<PathEditor>
   _redo() {
     if (redoStack.isNotEmpty) {
       setState(() {
-        undoStack = [...undoStack, ([...this.waypoints], [for (var command in this.commands) command.copyWith()], this.smooth)];
+        undoStack = [
+          ...undoStack,
+          (
+            [...this.waypoints],
+            [for (var command in this.commands) command.copyWith()],
+            this.smooth
+          )
+        ];
         var (waypoints, commands, smooth) = redoStack.removeLast();
         this.waypoints = waypoints;
         this.commands = commands;
@@ -1174,6 +1239,42 @@ class SwitchModeAction extends Action<Intent> {
   }
 }
 
+class PlayAction extends Action<Intent> {
+  final VoidCallback onPlay;
+
+  PlayAction(this.onPlay);
+
+  @override
+  Object? invoke(covariant Intent intent) {
+    onPlay();
+    return null;
+  }
+}
+
+class ForwardAction extends Action<Intent> {
+  final VoidCallback onForward;
+
+  ForwardAction(this.onForward);
+
+  @override
+  Object? invoke(covariant Intent intent) {
+    onForward();
+    return null;
+  }
+}
+
+class BackwardAction extends Action<Intent> {
+  final VoidCallback onBackward;
+
+  BackwardAction(this.onBackward);
+
+  @override
+  Object? invoke(covariant Intent intent) {
+    onBackward();
+    return null;
+  }
+}
+
 class UndoIntent extends Intent {}
 
 class RedoIntent extends Intent {}
@@ -1181,3 +1282,9 @@ class RedoIntent extends Intent {}
 class SaveIntent extends Intent {}
 
 class SwitchModeIntent extends Intent {}
+
+class PlayIntent extends Intent {}
+
+class ForwardIntent extends Intent {}
+
+class BackwardIntent extends Intent {}
