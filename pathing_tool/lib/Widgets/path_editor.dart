@@ -178,10 +178,10 @@ class _PathEditorState extends State<PathEditor>
   @override
   Widget build(BuildContext context) {
     final focusScope = FocusScope.of(context);
-    if (!(focusScope.focusedChild?.ancestors.contains(_focusNode) ?? false) ||
+    if (!(focusScope.focusedChild?.ancestors.contains(_focusNode) ?? false) &&
         !(focusScope.focusedChild.hashCode == _focusNode.hashCode)) {
       // print(focusScope.focusedChild?.ancestors.contains(_focusNode));
-      // print("requesting focus for PathEditor");
+      print("requesting focus for PathEditor");
       focusScope.requestFocus(_focusNode);
     }
     _animationController.duration =
@@ -1044,18 +1044,32 @@ class _PathEditorState extends State<PathEditor>
       Waypoint p0 = waypoints[index - 1];
       Waypoint p2 = waypoints[index + 1];
       double dt = p2.time - p0.time;
-      double vTheta = atan2(p2.y - p0.y, p2.x - p0.x);
-      double dist = _getDistance(p0.x, p0.y, p2.x, p2.y);
-      double vMag = dist / dt;
-      double deltaX = vMag * cos(vTheta);
-      double deltaY = vMag * sin(vTheta);
-      dx = deltaX * (dt / 2);
-      dy = deltaY * (dt / 2); // Approximate mid-point
+      double deltaX = p2.x - p0.x;
+      double deltaY = p2.y - p0.y;
+      dx = deltaX / dt;
+      dy = deltaY / dt;
     } else {
       dy = 0;
       dx = 0;
     }
     return (dy, dx);
+  }
+
+  (double, double) _averageLinearAcceleration(int index, List<Waypoint> waypoints) {
+    double d2y = 0, d2x = 0;
+    if (index != 0 && index != waypoints.length - 1) {
+      Waypoint p0 = waypoints[index - 1];
+      Waypoint p2 = waypoints[index + 1];
+      double dt = p2.time - p0.time;
+      double deltaX = p2.dx - p0.dx;
+      double deltaY = p2.dy - p0.dy;
+      d2x = deltaX / pow(dt, 2);
+      d2y = deltaY / pow(dt, 2);
+    } else {
+      d2y = 0;
+      d2x = 0;
+    }
+    return (d2y, d2x);
   }
 
   double _averageAngularVelocity(int index) {
@@ -1089,12 +1103,35 @@ class _PathEditorState extends State<PathEditor>
     return angVel;
   }
 
+  double _averageAngularAcceleration(int index, List<Waypoint> waypoints) {
+    double angAcc;
+    if (index != 0 && index != waypoints.length - 1) {
+      Waypoint p0 = waypoints[index - 1];
+      Waypoint p2 = waypoints[index + 1];
+      double dt = p2.time - p0.time;
+      double d2a = p2.dtheta - p0.dtheta;
+      angAcc = d2a / pow(dt, 2);
+    } else {
+      angAcc = 0;
+    }
+    return angAcc;
+  }
+
   _averageAll() {
     List<Waypoint> newWaypoints = [];
     for (int i = 0; i < waypoints.length; i++) {
       var (dy, dx) = _averageLinearVelocity(i);
       var dtheta = _averageAngularVelocity(i);
       newWaypoints.add(waypoints[i].copyWith(dy: dy, dx: dx, dtheta: dtheta));
+    }
+    for (int i = 0; i < newWaypoints.length; i++) {
+      var (d2y, d2x) = _averageLinearAcceleration(i, newWaypoints);
+      var d2theta = _averageAngularAcceleration(i, newWaypoints);
+      newWaypoints[i] = newWaypoints[i].copyWith(
+        d2y: d2y,
+        d2x: d2x,
+        d2theta: d2theta
+      );
     }
     _onWaypointsChanged(newWaypoints);
     setState(() {

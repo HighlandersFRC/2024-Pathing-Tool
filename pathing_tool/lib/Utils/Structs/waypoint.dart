@@ -1,3 +1,5 @@
+import 'dart:math';
+
 class Waypoint {
   final double x;
   final double y;
@@ -24,6 +26,10 @@ class Waypoint {
   });
 
   get time => t;
+
+  get velocityMag => sqrt(pow(dx, 2) + pow(dy, 2));
+
+  get accelerationMag => sqrt(pow(d2x, 2) + pow(d2y, 2));
 
   Vectors getXVectors() {
     return Vectors(position: x, velocity: dx, acceleration: d2x, time: t);
