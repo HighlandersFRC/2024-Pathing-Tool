@@ -125,10 +125,12 @@ class BranchedCommand extends Command {
         onFalse = onFalse.copyWith(endTime: onFalse.startTime);
       }
     }
+    onTrue = (onTrue?? this.onTrue).copyWith();
+    onFalse = (onFalse?? this.onFalse).copyWith();
     return BranchedCommand(
       condition ?? this.condition,
-      onTrue ?? this.onTrue,
-      onFalse ?? this.onFalse,
+      onTrue,
+      onFalse,
     );
   }
 }
@@ -183,7 +185,8 @@ class ParallelCommandGroup extends MultipleCommand {
         })
       ];
     }
-    return ParallelCommandGroup(commands ?? this.commands,
+    commands = [for (var command in (commands?? this.commands)) command.copyWith()];
+    return ParallelCommandGroup(commands,
         start: startTime ?? 0);
   }
 
@@ -234,7 +237,8 @@ class ParallelDeadlineGroup extends MultipleCommand {
         })
       ];
     }
-    return ParallelDeadlineGroup(commands ?? this.commands,
+    commands = [for (var command in (commands?? this.commands)) command.copyWith()];
+    return ParallelDeadlineGroup(commands,
         start: startTime ?? 0);
   }
 
@@ -285,7 +289,8 @@ class ParallelRaceGroup extends MultipleCommand {
         })
       ];
     }
-    return ParallelRaceGroup(commands ?? this.commands, start: startTime ?? 0);
+    commands = [for (var command in (commands?? this.commands)) command.copyWith()];
+    return ParallelRaceGroup(commands, start: startTime ?? 0);
   }
 
   static ParallelRaceGroup parallelRaceGroupFromJson(
@@ -358,7 +363,7 @@ class SequentialCommandGroup extends MultipleCommand {
         }
       })
     ];
-
+    commands = [for (var command in (commands)) command.copyWith()];
     return SequentialCommandGroup(commands, start: startTime ?? 0);
   }
 

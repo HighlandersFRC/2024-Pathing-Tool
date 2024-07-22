@@ -7,7 +7,7 @@ import 'package:provider/provider.dart';
 class EditCommandMenu extends StatefulWidget {
   final List<Command> commands;
   final int selectedCommand;
-  final Function(Command?) onCommandSelected;
+  final Function(int) onCommandSelected;
   final Function(Command) onAttributeChanged;
   final Function(List<Command>) onCommandsChanged;
   final double? startTime;
@@ -39,12 +39,12 @@ class _EditCommandMenuState extends State<EditCommandMenu> {
     setState(() {
       widget.commands.removeAt(index);
     });
-    widget.onCommandSelected((index != 0 ? widget.commands[index - 1] : null));
+    widget.onCommandSelected(index);
     widget.onCommandsChanged(widget.commands);
   }
 
   void addCommand(Command command) {
-    if (widget.startTime != null ) {
+    if (widget.startTime != null) {
       command = command.copyWith(startTime: widget.startTime);
     }
     setState(() {
@@ -86,9 +86,9 @@ class _EditCommandMenuState extends State<EditCommandMenu> {
                           expandIconColor: theme.primaryColor.withOpacity(0.1),
                           expansionCallback: (int index, bool isExpanded) {
                             if (isExpanded) {
-                              widget.onCommandSelected(widget.commands[index]);
+                              widget.onCommandSelected(index);
                             } else {
-                              widget.onCommandSelected(null);
+                              widget.onCommandSelected(-1);
                             }
                           },
                           children: [
@@ -123,9 +123,9 @@ class _EditCommandMenuState extends State<EditCommandMenu> {
                                         CommandEditor(
                                           command: command,
                                           onChanged: (newCommand) {
-                                            setState(() {
-                                              widget.commands[idx] = newCommand;
-                                            });
+                                            // setState(() {
+                                            //   widget.commands[idx] = newCommand.copyWith();
+                                            // });
                                             widget
                                                 .onAttributeChanged(newCommand);
                                           },
@@ -230,7 +230,7 @@ class NormalCommandEditor extends StatelessWidget {
     final RobotConfigProvider robotProvider =
         Provider.of<RobotConfigProvider>(context);
     var robotCommands = [...robotProvider.robotConfig.commands];
-    var commandNames = [ for (var command  in robotCommands) command.name];
+    var commandNames = [for (var command in robotCommands) command.name];
     TextEditingController startTimeController =
         TextEditingController(text: command.startTime.toString());
     TextEditingController endTimeController =
@@ -240,15 +240,20 @@ class NormalCommandEditor extends StatelessWidget {
 
     FocusNode startTimeFocusNode = FocusNode();
     FocusNode endTimeFocusNode = FocusNode();
-    if (!commandNames.contains(selectedCommandName)){
-      robotProvider.setRobotConfig(RobotConfig(
-        robotProvider.robotConfig.name,
-        robotProvider.robotConfig.length,
-        robotProvider.robotConfig.width,
-        [...robotProvider.robotConfig.commands, IconCommand(selectedCommandName, null)],
-        robotProvider.robotConfig.conditions
-      ));
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!commandNames.contains(selectedCommandName) &&
+          selectedCommandName != "") {
+        robotProvider.setRobotConfig(RobotConfig(
+            robotProvider.robotConfig.name,
+            robotProvider.robotConfig.length,
+            robotProvider.robotConfig.width,
+            [
+              ...robotProvider.robotConfig.commands,
+              IconCommand(selectedCommandName, null)
+            ],
+            robotProvider.robotConfig.conditions));
+      }
+    });
 
     void updateStartTime() {
       final value = startTimeController.text;
@@ -305,7 +310,6 @@ class NormalCommandEditor extends StatelessWidget {
           controller: startTimeController,
           focusNode: startTimeFocusNode,
           keyboardType: TextInputType.number,
-          onSubmitted: (_) => updateStartTime(),
           style: TextStyle(color: startTimeLocked ? Colors.grey : null),
           decoration: InputDecoration(
             helperText: 'Start Time',
@@ -321,7 +325,6 @@ class NormalCommandEditor extends StatelessWidget {
           controller: endTimeController,
           focusNode: endTimeFocusNode,
           keyboardType: TextInputType.number,
-          onSubmitted: (_) => updateEndTime(),
           decoration: InputDecoration(
             helperText: 'End Time',
             focusColor: theme.primaryColor,
@@ -369,17 +372,24 @@ class BranchedCommandEditor extends StatelessWidget {
   Widget build(BuildContext context) {
     final robotProvider = Provider.of<RobotConfigProvider>(context);
     var robotConditions = robotProvider.robotConfig.conditions;
-    var conditionNames = [for (var condition in robotConditions) condition.name];
+    var conditionNames = [
+      for (var condition in robotConditions) condition.name
+    ];
     var theme = Theme.of(context);
-    if (!conditionNames.contains(command.condition)){
-      robotProvider.setRobotConfig(RobotConfig(
-        robotProvider.robotConfig.name,
-        robotProvider.robotConfig.length,
-        robotProvider.robotConfig.width,
-        robotProvider.robotConfig.commands,
-        [...robotProvider.robotConfig.conditions, IconCondition(command.condition, null)],
-      ));
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!conditionNames.contains(command.condition) && command.condition!= "") {
+        robotProvider.setRobotConfig(RobotConfig(
+          robotProvider.robotConfig.name,
+          robotProvider.robotConfig.length,
+          robotProvider.robotConfig.width,
+          robotProvider.robotConfig.commands,
+          [
+            ...robotProvider.robotConfig.conditions,
+            IconCondition(command.condition, null)
+          ],
+        ));
+      }
+    });
     return Column(
       children: [
         const Text("Condition"),
@@ -399,7 +409,10 @@ class BranchedCommandEditor extends StatelessWidget {
             );
           }).toList(),
         ),
-        Divider(height: 1, color: theme.primaryColor,),
+        Divider(
+          height: 1,
+          color: theme.primaryColor,
+        ),
         const Text("On True"),
         NormalCommandEditor(
           command: command.onTrue,
@@ -408,7 +421,10 @@ class BranchedCommandEditor extends StatelessWidget {
           },
           startTimeLocked: startTimeLocked,
         ),
-        Divider(height: 1, color: theme.primaryColor,),
+        Divider(
+          height: 1,
+          color: theme.primaryColor,
+        ),
         const Text("On False"),
         NormalCommandEditor(
           command: command.onFalse,
@@ -548,7 +564,6 @@ class _MultipleCommandEditorState extends State<MultipleCommandEditor> {
         focusNode: startTimeFocusNode,
         keyboardType: TextInputType.number,
         style: TextStyle(color: widget.startTimeLocked ? Colors.grey : null),
-        onSubmitted: (_) => updateStartTime(),
         decoration: InputDecoration(
           helperText: 'Start Time',
           hintText: 'Start Time',
@@ -564,8 +579,7 @@ class _MultipleCommandEditorState extends State<MultipleCommandEditor> {
         commands: widget.command.commands,
         onCommandSelected: (command) => {
           setState(() {
-            selectedCommand =
-                command != null ? widget.command.commands.indexOf(command) : -1;
+            selectedCommand = command;
           })
         },
         onAttributeChanged: (command) {

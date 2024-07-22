@@ -55,8 +55,8 @@ class PathEditor extends StatefulWidget {
 
 class _PathEditorState extends State<PathEditor>
     with SingleTickerProviderStateMixin {
-  List<(List<Waypoint>, bool)> undoStack = [];
-  List<(List<Waypoint>, bool)> redoStack = [];
+  List<(List<Waypoint>, List<Command>, bool)> undoStack = [];
+  List<(List<Waypoint>, List<Command>, bool)> redoStack = [];
   List<Waypoint> waypoints = [];
   List<Command> commands = [];
   Waypoint? playbackWaypoint;
@@ -142,7 +142,9 @@ class _PathEditorState extends State<PathEditor>
   @override
   Widget build(BuildContext context) {
     final focusScope = FocusScope.of(context);
-    if (focusScope.focusedChild?.ancestors.contains(_focusNode) ?? true) {
+    if (!(focusScope.focusedChild?.ancestors.contains(_focusNode) ?? false) || !(focusScope.focusedChild == _focusNode)) {
+      // print(focusScope.focusedChild?.ancestors.contains(_focusNode));
+      // print("requesting focus for PathEditor");
       focusScope.requestFocus(_focusNode);
     }
     _animationController.duration =
@@ -269,6 +271,7 @@ class _PathEditorState extends State<PathEditor>
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Path data saved to $path')));
     }
+
     return Shortcuts(
         shortcuts: <LogicalKeySet, Intent>{
           LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyZ):
@@ -277,17 +280,28 @@ class _PathEditorState extends State<PathEditor>
               RedoIntent(),
           LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyS):
               SaveIntent(),
+          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.tab): SwitchModeIntent(),
         },
         child: Actions(
             actions: <Type, Action<Intent>>{
               UndoIntent: UndoAction(_undo),
               RedoIntent: RedoAction(_redo),
               SaveIntent: SaveAction(() => savePathToFile()),
+              SwitchModeIntent: SwitchModeAction(() => setState((){
+                switch (editMode) {
+                  case 0:
+                    editMode = 1;
+                    break;
+                  case 1:
+                    editMode = 2;
+                    break;
+                  default:
+                    editMode = 0;
+                }
+              }))
             },
             child: Focus(
                 focusNode: _focusNode,
-                autofocus: true,
-                descendantsAreTraversable: false,
                 child: Scaffold(
                   persistentFooterButtons: [
                     ProgressBar(
@@ -342,7 +356,7 @@ class _PathEditorState extends State<PathEditor>
                                 child: const Icon(Icons.arrow_back)),
                           )
                         : null,
-                    title: //Row(children: [
+                    title:
                         TextField(
                       controller: TextEditingController(text: pathName),
                       onSubmitted: (value) {
@@ -361,11 +375,8 @@ class _PathEditorState extends State<PathEditor>
                       ),
                       cursorColor: theme.primaryColor,
                     ),
-                    // ]),
                     automaticallyImplyLeading: false,
                     actions: [
-                      // Text((_animationController.value * waypoints.last.t)
-                      //     .toStringAsFixed(2)),
                       Tooltip(
                         message: "Play Path",
                         waitDuration: const Duration(milliseconds: 500),
@@ -815,7 +826,7 @@ class _PathEditorState extends State<PathEditor>
                                       child: Column(children: [
                                     if (editMode != 2)
                                       EditWaypointMenu(
-                                        waypoints: waypoints,
+                                        waypoints: [for (var waypoint in waypoints) waypoint.copyWith()],
                                         onWaypointSelected: _onWaypointSelected,
                                         onAttributeChanged: _onAttributeChanged,
                                         selectedWaypoint: waypoints.length >=
@@ -826,12 +837,12 @@ class _PathEditorState extends State<PathEditor>
                                       )
                                     else
                                       EditCommandMenu(
-                                          commands: commands,
+                                          commands: [for (var command in commands) command.copyWith()],
                                           onCommandSelected: _onCommandSelected,
                                           onAttributeChanged:
                                               _onCommandAttributeChanged,
                                           selectedCommand: selectedCommand,
-                                          onCommandsChanged: _onCommandChanged),
+                                          onCommandsChanged: _onCommandsChanged),
                                   ])));
                             },
                           )),
@@ -844,7 +855,8 @@ class _PathEditorState extends State<PathEditor>
     if (selectedWaypoint != -1) {
       _saveState();
       setState(() {
-        waypoints[selectedWaypoint] = waypoint;
+        waypoints[selectedWaypoint] = waypoint.copyWith();
+        waypoint = waypoints[selectedWaypoint];
         waypoints.sort((a, b) => a.t.compareTo(b.t));
         selectedWaypoint = waypoints.indexOf(waypoint);
         smooth = false;
@@ -858,33 +870,36 @@ class _PathEditorState extends State<PathEditor>
     });
   }
 
-  _onCommandSelected(Command? command) {
+  _onCommandSelected(int index) {
     setState(() {
-      selectedCommand = command != null ? commands.indexOf(command) : -1;
+      selectedCommand = index;
     });
   }
 
   _onCommandAttributeChanged(Command command) {
+    print("command attribute changed");
     if (selectedCommand != -1) {
+      _saveState();
       setState(() {
         List<Command> newCommands = [];
         for (var existingCommand in commands) {
           if (commands[selectedCommand] == existingCommand) {
-            newCommands.add(command);
+            newCommands.add(command.copyWith());
           } else {
             newCommands.add(existingCommand);
           }
         }
-        commands = [...newCommands];
+        commands = [for (var command in newCommands) command.copyWith()];
       });
     }
   }
 
   _saveState() {
+    print("saving state");
     setState(() {
       undoStack = [
         ...undoStack,
-        ([...waypoints], smooth)
+        ([for (var waypoint in waypoints) waypoint.copyWith()], [for (var command in commands) command.copyWith()], smooth)
       ];
       redoStack.clear();
     });
@@ -895,13 +910,19 @@ class _PathEditorState extends State<PathEditor>
       setState(() {
         redoStack = [
           ...redoStack,
-          ([...this.waypoints], this.smooth)
+          ([...this.waypoints], [for (var command in this.commands) command.copyWith()], this.smooth)
         ];
-        var (waypoints, smooth) = undoStack.last;
+        var (waypoints, commands, smooth) = undoStack.last;
+        if (!(this.waypoints.length == waypoints.length)) {
+          selectedWaypoint = -1;
+        }
+        if (!(this.commands.length == commands.length)) {
+          selectedCommand = -1;
+        }
         this.waypoints = waypoints;
+        this.commands = commands;
         this.smooth = smooth;
         undoStack.removeLast();
-        selectedWaypoint = -1;
       });
     }
   }
@@ -909,9 +930,10 @@ class _PathEditorState extends State<PathEditor>
   _redo() {
     if (redoStack.isNotEmpty) {
       setState(() {
-        undoStack = [...undoStack, (this.waypoints, this.smooth)];
-        var (waypoints, smooth) = redoStack.removeLast();
+        undoStack = [...undoStack, ([...this.waypoints], [for (var command in this.commands) command.copyWith()], this.smooth)];
+        var (waypoints, commands, smooth) = redoStack.removeLast();
         this.waypoints = waypoints;
+        this.commands = commands;
         this.smooth = smooth;
       });
     }
@@ -926,10 +948,12 @@ class _PathEditorState extends State<PathEditor>
     });
   }
 
-  _onCommandChanged(List<Command> commands) {
+  _onCommandsChanged(List<Command> commands) {
+    // print("commands changed");
     _saveState();
     setState(() {
-      this.commands = [...commands];
+      this.selectedCommand = -1;
+      this.commands = [for (var command in commands) command.copyWith()];
     });
   }
 
@@ -1138,8 +1162,22 @@ class SaveAction extends Action<Intent> {
   }
 }
 
+class SwitchModeAction extends Action<Intent> {
+  final VoidCallback onCommands;
+
+  SwitchModeAction(this.onCommands);
+
+  @override
+  Object? invoke(covariant Intent intent) {
+    onCommands();
+    return null;
+  }
+}
+
 class UndoIntent extends Intent {}
 
 class RedoIntent extends Intent {}
 
 class SaveIntent extends Intent {}
+
+class SwitchModeIntent extends Intent {}
