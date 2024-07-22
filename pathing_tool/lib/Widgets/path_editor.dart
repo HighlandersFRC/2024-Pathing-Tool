@@ -350,6 +350,7 @@ class _PathEditorState extends State<PathEditor>
                 child: Scaffold(
                   persistentFooterButtons: [
                     ProgressBar(
+                      baseBarColor: theme.primaryColor.withOpacity(0.3),
                       thumbColor: theme.primaryColor,
                       thumbGlowColor: theme.primaryColor.withOpacity(0.2),
                       progress: Duration(
@@ -588,9 +589,10 @@ class _PathEditorState extends State<PathEditor>
                                           usedHeight,
                                           context,
                                           robotConfigProvider.robotConfig,
-                                          theme.brightness == Brightness.dark
+                                          editMode == 2 && selectedCommand != -1 && playbackWaypoint!.t > commands[selectedCommand].startTime && playbackWaypoint!.t < commands[selectedCommand].endTime ? 
+                                          theme.primaryColor: theme.brightness == Brightness.dark
                                               ? Colors.white
-                                              : Colors.grey,
+                                              : Colors.grey.shade700,
                                           255,
                                           constraints),
                                     )
@@ -659,8 +661,8 @@ class _PathEditorState extends State<PathEditor>
                                                     spots: commandSpline,
                                                     isCurved: true,
                                                     barWidth: 10,
-                                                    color: theme.primaryColor
-                                                        .withOpacity(0.5),
+                                                    color: theme.brightness == Brightness.dark? theme.primaryColor
+                                                        .withOpacity(0.5): theme.primaryColor.withOpacity(0.4),
                                                     dotData: const FlDotData(
                                                         show: false),
                                                   ),
