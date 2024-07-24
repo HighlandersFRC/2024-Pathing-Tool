@@ -6,6 +6,7 @@ import 'package:pathing_tool/Utils/Providers/image_data_provider.dart';
 import 'package:pathing_tool/Utils/Providers/robot_config_provider.dart';
 import 'package:pathing_tool/Utils/Structs/command.dart';
 import 'package:pathing_tool/Utils/Structs/waypoint.dart';
+import 'package:pathing_tool/Utils/spline.dart';
 import 'package:pathing_tool/Widgets/custom_app_bar.dart';
 import 'package:pathing_tool/Widgets/path_editor.dart';
 import 'package:provider/provider.dart';
@@ -16,7 +17,9 @@ class PathingPage extends StatelessWidget {
   final List<Command> commands;
   final String pathName;
   final String? robotName, fieldName;
-  const PathingPage(this.waypoints, this.commands, this.pathName, {super.key, this.robotName, this.fieldName});
+  final Function(Spline)? returnSpline;
+  final bool firstLocked;
+  const PathingPage(this.waypoints, this.commands, this.pathName, {super.key, this.robotName, this.fieldName, this.returnSpline, this.firstLocked = false});
   static PathingPage fromFile(File file) {
     String jsonString = file.readAsStringSync();
     var pathJson = json.decode(jsonString);
@@ -34,6 +37,10 @@ class PathingPage extends StatelessWidget {
     String pathName = pathJson["meta_data"]["path_name"];
     String? robotName = pathJson["meta_data"]["robot_name"], fieldName = pathJson["meta_data"]["field_name"];
     return PathingPage(waypoints, commands, pathName, robotName: robotName, fieldName: fieldName,);
+  }
+  
+  static PathingPage fromSpline(Spline spline, {Function(Spline)? returnSpline, bool firstLocked = false}) {
+    return PathingPage(spline.points, spline.commands, spline.name, returnSpline: returnSpline, firstLocked: firstLocked);
   }
 
   @override
@@ -61,7 +68,7 @@ class PathingPage extends StatelessWidget {
     return Scaffold(
       appBar: const CustomAppBar(),
       drawer: const AppDrawer(),
-      body: PathEditor(waypoints, pathName, commands,),
+      body: PathEditor(waypoints, pathName, commands, returnSpline: returnSpline, firstLocked: firstLocked,),
     );
   }
 }

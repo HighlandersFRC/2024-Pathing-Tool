@@ -35,11 +35,11 @@ class Command {
     return {
       "start": startTime,
       "end": endTime,
-        "command": {
-          "start": startTime,
-          "end": endTime,
-          "name": commandName,
-        }
+      "command": {
+        "start": startTime,
+        "end": endTime,
+        "name": commandName,
+      }
     };
   }
 
@@ -56,7 +56,7 @@ class Command {
   }) {
     if (!(startTime == null)) {
       if ((endTime ?? this.endTime) < startTime) {
-        endTime = startTime; 
+        endTime = startTime;
       }
     }
     return Command(
@@ -118,15 +118,12 @@ class BranchedCommand extends Command {
     if (startTime != null) {
       onTrue = (onTrue ?? this.onTrue).copyWith(startTime: startTime);
       onFalse = (onFalse ?? this.onFalse).copyWith(startTime: startTime);
-      if (onTrue.endTime < onTrue.startTime) {
-        onTrue = onTrue.copyWith(endTime: onTrue.startTime);
-      }
-      if (onFalse.endTime < onFalse.startTime) {
-        onFalse = onFalse.copyWith(endTime: onFalse.startTime);
-      }
+      double deltaStart = startTime - this.startTime;
+      onTrue = onTrue.copyWith(endTime: onTrue.endTime + deltaStart);
+      onFalse = onFalse.copyWith(endTime: onFalse.startTime + deltaStart);
     }
-    onTrue = (onTrue?? this.onTrue).copyWith();
-    onFalse = (onFalse?? this.onFalse).copyWith();
+    onTrue = (onTrue ?? this.onTrue).copyWith();
+    onFalse = (onFalse ?? this.onFalse).copyWith();
     return BranchedCommand(
       condition ?? this.condition,
       onTrue,
@@ -162,8 +159,8 @@ class ParallelCommandGroup extends MultipleCommand {
   ParallelCommandGroup(List<Command> commands, {double start = 0})
       : super(
           commands: commands,
-          startTime: _getFirstStartTime(commands, start),
-          endTime: _getLastEndTime(commands, start),
+          startTime: getFirstStartTime(commands, start),
+          endTime: getLastEndTime(commands, start),
           commandName: "Parallel Command Group",
         );
 
@@ -175,19 +172,21 @@ class ParallelCommandGroup extends MultipleCommand {
     String? commandName,
   }) {
     if (startTime != null) {
-      commands = [
-        ...(commands ?? this.commands).map((subCommand) {
-          if (subCommand.endTime < startTime) {
-            return subCommand.copyWith(
-                startTime: startTime, endTime: startTime);
-          }
-          return subCommand.copyWith(startTime: startTime);
-        })
-      ];
+      if ((commands ?? this.commands).isNotEmpty) {
+        double deltaStart =
+            startTime - (commands ?? this.commands)[0].startTime;
+        commands = [
+          for (var command in (commands ?? this.commands))
+            command.copyWith(
+                startTime: command.startTime + deltaStart,
+                endTime: command.endTime + deltaStart)
+        ];
+      }
     }
-    commands = [for (var command in (commands?? this.commands)) command.copyWith()];
-    return ParallelCommandGroup(commands,
-        start: startTime ?? 0);
+    commands = [
+      for (var command in (commands ?? this.commands)) command.copyWith()
+    ];
+    return ParallelCommandGroup(commands, start: startTime ?? 0);
   }
 
   @override
@@ -214,7 +213,7 @@ class ParallelDeadlineGroup extends MultipleCommand {
   ParallelDeadlineGroup(List<Command> commands, {double start = 0})
       : super(
           commands: commands,
-          startTime: _getFirstStartTime(commands, start),
+          startTime: getFirstStartTime(commands, start),
           endTime: commands.isNotEmpty ? commands[0].endTime : start,
           commandName: "Parallel Deadline Group",
         );
@@ -227,19 +226,21 @@ class ParallelDeadlineGroup extends MultipleCommand {
     String? commandName,
   }) {
     if (startTime != null) {
-      commands = [
-        ...(commands ?? this.commands).map((subCommand) {
-          if (subCommand.endTime < startTime) {
-            return subCommand.copyWith(
-                startTime: startTime, endTime: startTime);
-          }
-          return subCommand.copyWith(startTime: startTime);
-        })
-      ];
+      if ((commands ?? this.commands).isNotEmpty) {
+        double deltaStart =
+            startTime - (commands ?? this.commands)[0].startTime;
+        commands = [
+          for (var command in (commands ?? this.commands))
+            command.copyWith(
+                startTime: command.startTime + deltaStart,
+                endTime: command.endTime + deltaStart)
+        ];
+      }
     }
-    commands = [for (var command in (commands?? this.commands)) command.copyWith()];
-    return ParallelDeadlineGroup(commands,
-        start: startTime ?? 0);
+    commands = [
+      for (var command in (commands ?? this.commands)) command.copyWith()
+    ];
+    return ParallelDeadlineGroup(commands, start: startTime ?? 0);
   }
 
   static ParallelDeadlineGroup parallelDeadlineGroupFromJson(
@@ -266,8 +267,8 @@ class ParallelRaceGroup extends MultipleCommand {
   ParallelRaceGroup(List<Command> commands, {double start = 0})
       : super(
           commands: commands,
-          startTime: _getFirstStartTime(commands, start),
-          endTime: _getFirstEndTime(commands, start),
+          startTime: getFirstStartTime(commands, start),
+          endTime: getFirstEndTime(commands, start),
           commandName: "Parallel Race Group",
         );
 
@@ -279,17 +280,20 @@ class ParallelRaceGroup extends MultipleCommand {
     String? commandName,
   }) {
     if (startTime != null) {
-      commands = [
-        ...(commands ?? this.commands).map((subCommand) {
-          if (subCommand.endTime < startTime) {
-            return subCommand.copyWith(
-                startTime: startTime, endTime: startTime);
-          }
-          return subCommand.copyWith(startTime: startTime);
-        })
-      ];
+      if ((commands ?? this.commands).isNotEmpty) {
+        double deltaStart =
+            startTime - (commands ?? this.commands)[0].startTime;
+        commands = [
+          for (var command in (commands ?? this.commands))
+            command.copyWith(
+                startTime: command.startTime + deltaStart,
+                endTime: command.endTime + deltaStart)
+        ];
+      }
     }
-    commands = [for (var command in (commands?? this.commands)) command.copyWith()];
+    commands = [
+      for (var command in (commands ?? this.commands)) command.copyWith()
+    ];
     return ParallelRaceGroup(commands, start: startTime ?? 0);
   }
 
@@ -340,7 +344,13 @@ class SequentialCommandGroup extends MultipleCommand {
     ];
     if (startTime != null) {
       if (commands.isNotEmpty) {
-        commands.first = commands.first.copyWith(startTime: startTime);
+        double deltaStart = startTime - commands[0].startTime;
+        commands = [
+          for (var command in (commands))
+            command.copyWith(
+                startTime: command.startTime + deltaStart,
+                endTime: command.endTime + deltaStart)
+        ];
       }
     }
     commands = [
@@ -357,7 +367,7 @@ class SequentialCommandGroup extends MultipleCommand {
         var subCommand = value.value;
         var idx = value.key;
         if (idx > 0) {
-          return subCommand.copyWith(startTime: commands![idx-1].endTime);
+          return subCommand.copyWith(startTime: commands![idx - 1].endTime);
         } else {
           return subCommand;
         }
@@ -387,17 +397,17 @@ class SequentialCommandGroup extends MultipleCommand {
   }
 }
 
-double _getLastEndTime(List<Command> commands, double defaultNum) {
+double getLastEndTime(List<Command> commands, double defaultNum) {
   commands.sort((a, b) => a.endTime.compareTo(b.endTime));
   return commands.isNotEmpty ? commands.last.endTime : defaultNum;
 }
 
-double _getFirstEndTime(List<Command> commands, double defaultNum) {
+double getFirstEndTime(List<Command> commands, double defaultNum) {
   commands.sort((a, b) => a.endTime.compareTo(b.endTime));
   return commands.isNotEmpty ? commands.first.endTime : defaultNum;
 }
 
-double _getFirstStartTime(List<Command> commands, double defaultNum) {
+double getFirstStartTime(List<Command> commands, double defaultNum) {
   commands.sort((a, b) => a.startTime.compareTo(b.startTime));
   return commands.isNotEmpty ? commands.first.startTime : defaultNum;
 }

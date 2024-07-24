@@ -25,11 +25,11 @@ class Waypoint {
     required this.t,
   });
 
-  get time => t;
+  double get time => t;
 
-  get velocityMag => sqrt(pow(dx, 2) + pow(dy, 2));
+  double get velocityMag => sqrt(pow(dx, 2) + pow(dy, 2));
 
-  get accelerationMag => sqrt(pow(d2x, 2) + pow(d2y, 2));
+  double get accelerationMag => sqrt(pow(d2x, 2) + pow(d2y, 2));
 
   Vectors getXVectors() {
     return Vectors(position: x, velocity: dx, acceleration: d2x, time: t);
@@ -82,6 +82,18 @@ class Waypoint {
       d2theta: d2theta ?? this.d2theta,
       t: t ?? this.t,
     );
+  }
+  
+  bool equals(Waypoint other) {
+    return (x == other.x &&
+        y == other.y &&
+        theta == other.theta &&
+        dx == other.dx &&
+        dy == other.dy &&
+        dtheta == other.dtheta &&
+        d2x == other.d2x &&
+        d2y == other.d2y &&
+        d2theta == other.d2theta);
   }
 }
 

@@ -28,8 +28,9 @@ class PathEditor extends StatefulWidget {
   final List<Command> startingCommands;
   final String pathName;
   final Function(Spline)? returnSpline;
+  final bool firstLocked;
   const PathEditor(this.startingWaypoints, this.pathName, this.startingCommands,
-      {super.key, this.returnSpline});
+      {super.key, this.returnSpline, this.firstLocked = false});
   static PathEditor fromFile(File file, Function(Spline)? returnSpline) {
     String jsonString = file.readAsStringSync();
     var pathJson = json.decode(jsonString);
@@ -80,7 +81,7 @@ class _PathEditorState extends State<PathEditor>
     _animationController = AnimationController(
       vsync: this,
       duration:
-          Duration(seconds: waypoints.isNotEmpty ? waypoints.last.t.ceil() : 0),
+          Duration(microseconds: ((endTime - startTime)*1000000).round()),
     )..addListener(() {
         setState(() {
           playbackWaypoint = _getPlaybackWaypoint();
@@ -96,9 +97,9 @@ class _PathEditorState extends State<PathEditor>
   }
 
   Waypoint _getPlaybackWaypoint() {
-    var robot = Spline(waypoints);
+    var robot = Spline(waypoints, commands: commands);
     return robot
-        .getRobotWaypoint(_animationController.value * waypoints.last.t);
+        .getRobotWaypoint(_animationController.value * (endTime-startTime) + startTime);
   }
 
   void playPath() {
@@ -180,12 +181,10 @@ class _PathEditorState extends State<PathEditor>
     final focusScope = FocusScope.of(context);
     if (!(focusScope.focusedChild?.ancestors.contains(_focusNode) ?? false) &&
         !(focusScope.focusedChild.hashCode == _focusNode.hashCode)) {
-      // print(focusScope.focusedChild?.ancestors.contains(_focusNode));
-      // print("requesting focus for PathEditor");
       focusScope.requestFocus(_focusNode);
     }
     _animationController.duration =
-        Duration(seconds: waypoints.isNotEmpty ? waypoints.last.t.ceil() : 0);
+        Duration(microseconds: ((endTime - startTime)*1000000).round());
     ImageDataProvider imageDataProvider =
         Provider.of<ImageDataProvider>(context);
     ImageData fieldImageData = imageDataProvider.selectedImage;
@@ -197,7 +196,7 @@ class _PathEditorState extends State<PathEditor>
       Spline robot = Spline(waypoints);
       double timeStep = 0.01; // Adjust for desired granularity
       double endTime = robot.points.last.t;
-      for (double t = 0; t <= endTime; t += timeStep) {
+      for (double t = waypoints.first.t; t <= endTime; t += timeStep) {
         Waypoint point = robot.getRobotWaypoint(t);
         fullSpline.add(FlSpot(point.x, point.y));
       }
@@ -205,7 +204,7 @@ class _PathEditorState extends State<PathEditor>
     if (waypoints.length > 1 && selectedCommand != -1) {
       Spline robot = Spline(waypoints);
       double timeStep = 0.01; // Adjust for desired granularity
-      double start = commands[selectedCommand].startTime;
+      double start = max(commands[selectedCommand].startTime, robot.points.first.t);
       double endTime = commands[selectedCommand].endTime;
       for (double t = start;
           t <= endTime && t <= robot.points.last.t;
@@ -355,14 +354,14 @@ class _PathEditorState extends State<PathEditor>
                       thumbGlowColor: theme.primaryColor.withOpacity(0.2),
                       progress: Duration(
                           microseconds: waypoints.isNotEmpty
-                              ? (_animationController.value *
-                                      waypoints.last.t *
+                              ? ((_animationController.value *
+                                      (endTime-startTime))*
                                       1000000)
                                   .floor()
                               : 0),
                       total: Duration(
                           microseconds: waypoints.isNotEmpty
-                              ? (waypoints.last.t * 1000000).floor()
+                              ? ((endTime-startTime) * 1000000).floor()
                               : 0),
                       progressBarColor: theme.primaryColor,
                       onDragStart: (details) {
@@ -392,8 +391,7 @@ class _PathEditorState extends State<PathEditor>
                             waitDuration: const Duration(milliseconds: 500),
                             child: TextButton(
                                 onPressed: () {
-                                  savePathToFile();
-                                  widget.returnSpline!(Spline(waypoints));
+                                  widget.returnSpline!(Spline(waypoints, commands: commands, name: pathName));
                                   Navigator.pop(context);
                                 },
                                 style: ButtonStyle(
@@ -1049,8 +1047,14 @@ class _PathEditorState extends State<PathEditor>
       dx = deltaX / dt;
       dy = deltaY / dt;
     } else {
-      dy = 0;
-      dx = 0;
+      if (index == 0 && widget.firstLocked) {
+        Waypoint p1 = waypoints[index];
+        dy = p1.dy;
+        dx = p1.dx;
+      } else {
+        dy = 0;
+        dx = 0;
+      }
     }
     return (dy, dx);
   }
@@ -1066,8 +1070,14 @@ class _PathEditorState extends State<PathEditor>
       d2x = deltaX / pow(dt, 2);
       d2y = deltaY / pow(dt, 2);
     } else {
-      d2y = 0;
-      d2x = 0;
+      if (index == 0 && widget.firstLocked) {
+        Waypoint p1 = waypoints[index];
+        d2y = p1.d2y;
+        d2x = p1.d2x;
+      } else {
+        d2y = 0;
+        d2x = 0;
+      }
     }
     return (d2y, d2x);
   }
@@ -1098,7 +1108,12 @@ class _PathEditorState extends State<PathEditor>
         angVel = 0;
       }
     } else {
-      angVel = 0;
+      if (index == 0 && widget.firstLocked) {
+        Waypoint p1 = waypoints[index];
+        angVel = p1.dtheta;
+      } else {
+        angVel = 0;
+      }
     }
     return angVel;
   }
@@ -1112,7 +1127,12 @@ class _PathEditorState extends State<PathEditor>
       double d2a = p2.dtheta - p0.dtheta;
       angAcc = d2a / pow(dt, 2);
     } else {
-      angAcc = 0;
+      if (index == 0 && widget.firstLocked) {
+        Waypoint p1 = waypoints[index];
+        angAcc = p1.d2theta;
+      } else {
+        angAcc = 0;
+      }
     }
     return angAcc;
   }
@@ -1153,6 +1173,26 @@ class _PathEditorState extends State<PathEditor>
       op2 = (angle2 - angle1);
     }
     return op1 <= op2 ? -1 : 1;
+  }
+
+  double get startTime {
+    if (waypoints.isEmpty) {
+      if (commands.isEmpty) return 0.0;
+      return getFirstStartTime(commands, 0.0);
+    } else {
+      if (commands.isEmpty) return waypoints.first.time;
+      return min(getFirstStartTime(commands, 0.0), waypoints.first.time);
+    }
+  }
+
+  double get endTime {
+    if (waypoints.isEmpty) {
+      if (commands.isEmpty) return 0.0;
+      return getLastEndTime(commands, 0.0);
+    } else {
+      if (commands.isEmpty) return waypoints.last.time;
+      return max(getLastEndTime(commands, 0.0), waypoints.last.time);
+    }
   }
 }
 
