@@ -894,6 +894,7 @@ class _PathEditorState extends State<PathEditor>
                                             ? selectedWaypoint
                                             : -1,
                                         onWaypointsChanged: _onWaypointsChanged,
+                                        firstLocked: widget.firstLocked,
                                       )
                                     else
                                       EditCommandMenu(

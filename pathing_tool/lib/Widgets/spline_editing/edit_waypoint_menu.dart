@@ -9,6 +9,7 @@ class EditWaypointMenu extends StatefulWidget {
   final Function(int) onWaypointSelected;
   final Function(Waypoint) onAttributeChanged;
   final Function(List<Waypoint>) onWaypointsChanged;
+  final bool firstLocked;
 
   const EditWaypointMenu({
     super.key,
@@ -17,6 +18,7 @@ class EditWaypointMenu extends StatefulWidget {
     required this.onAttributeChanged,
     required this.selectedWaypoint,
     required this.onWaypointsChanged,
+    this.firstLocked = false,
   });
 
   @override
@@ -76,7 +78,7 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                       );
                     }).toList(),
                   ),
-                  if (widget.selectedWaypoint != -1)
+                  if (widget.selectedWaypoint != -1 && !(widget.selectedWaypoint == 0 && widget.firstLocked))
                     Tooltip(
                       message: "Delete Waypoint",
                       waitDuration: const Duration(milliseconds: 500),
@@ -108,13 +110,13 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                         },
                       ),
                     ),
-                  if (widget.selectedWaypoint != -1)
+                  if (widget.selectedWaypoint != -1 && !(widget.selectedWaypoint == 0 && widget.firstLocked))
                     Tooltip(
                       message: "Move Backward",
                       waitDuration: const Duration(milliseconds: 500),
                       child: IconButton(
                         icon: const Icon(Icons.chevron_left),
-                        onPressed: widget.selectedWaypoint != 0
+                        onPressed: widget.selectedWaypoint != 0 && !(widget.selectedWaypoint == 1 && widget.firstLocked)
                             ? () {
                                 List<Waypoint> newWaypoints = [
                                   ...widget.waypoints
@@ -134,12 +136,12 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                                 widget.onWaypointsChanged(newWaypoints);
                               }
                             : () {},
-                        color: widget.selectedWaypoint != 0
+                        color: widget.selectedWaypoint != 0 && !(widget.selectedWaypoint == 1 && widget.firstLocked)
                             ? theme.primaryColor
                             : Colors.grey,
                       ),
                     ),
-                  if (widget.selectedWaypoint != -1)
+                  if (widget.selectedWaypoint != -1 && !(widget.selectedWaypoint == 0 && widget.firstLocked))
                     Tooltip(
                       message: "Move Forward",
                       waitDuration: const Duration(milliseconds: 500),
@@ -174,7 +176,9 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                     ),
                 ]),
               ),
-              if (selectedWaypoint != null) ...[
+              if ((widget.selectedWaypoint == 0 && widget.firstLocked))
+                Text("Waypoint is Locked. Modify Preceding Path.", style: theme.textTheme.titleLarge?.copyWith(color: Colors.red)),
+              if (selectedWaypoint != null && !(widget.selectedWaypoint == 0 && widget.firstLocked)) ...[
                 AttributeEditor(
                   attributeName: 'Time',
                   currentValue: selectedWaypoint!.t,
