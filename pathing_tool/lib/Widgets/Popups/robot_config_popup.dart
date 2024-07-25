@@ -282,7 +282,7 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
             List<IconCondition> conditions =
                 _conditionControllers.asMap().entries.map((entry) {
               return IconCondition(
-                  entry.value.text, _conditionIcons[entry.key]!);
+                  entry.value.text, _conditionIcons[entry.key]);
             }).toList();
             RobotConfig robotConfig = RobotConfig(
               _robotNameController.text,
