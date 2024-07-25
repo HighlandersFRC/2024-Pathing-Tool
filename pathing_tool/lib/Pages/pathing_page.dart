@@ -18,8 +18,15 @@ class PathingPage extends StatelessWidget {
   final String pathName;
   final String? robotName, fieldName;
   final Function(Spline)? returnSpline;
-  final bool firstLocked;
-  const PathingPage(this.waypoints, this.commands, this.pathName, {super.key, this.robotName, this.fieldName, this.returnSpline, this.firstLocked = false});
+  final bool firstLocked, lastLocked;
+  const PathingPage(this.waypoints, this.commands, this.pathName,
+      {super.key,
+      this.robotName,
+      this.fieldName,
+      this.returnSpline,
+      this.firstLocked = false,
+      this.lastLocked = false});
+
   static PathingPage fromFile(File file) {
     String jsonString = file.readAsStringSync();
     var pathJson = json.decode(jsonString);
@@ -30,45 +37,73 @@ class PathingPage extends StatelessWidget {
     });
     List<Command> commands = [];
     var commandsJsonList = pathJson["commands"];
-    commandsJsonList.forEach((command){
+    commandsJsonList.forEach((command) {
       var newCommand = Command.fromJson(command);
       commands.add(newCommand);
     });
     String pathName = pathJson["meta_data"]["path_name"];
-    String? robotName = pathJson["meta_data"]["robot_name"], fieldName = pathJson["meta_data"]["field_name"];
-    return PathingPage(waypoints, commands, pathName, robotName: robotName, fieldName: fieldName,);
+    String? robotName = pathJson["meta_data"]["robot_name"],
+        fieldName = pathJson["meta_data"]["field_name"];
+    return PathingPage(
+      waypoints,
+      commands,
+      pathName,
+      robotName: robotName,
+      fieldName: fieldName,
+    );
   }
-  
-  static PathingPage fromSpline(Spline spline, {Function(Spline)? returnSpline, bool firstLocked = false}) {
-    return PathingPage(spline.points, spline.commands, spline.name, returnSpline: returnSpline, firstLocked: firstLocked);
+
+  static PathingPage fromSpline(Spline spline,
+      {Function(Spline)? returnSpline,
+      bool firstLocked = false,
+      bool lastLocked = false}) {
+    return PathingPage(spline.points, spline.commands, spline.name,
+        returnSpline: returnSpline,
+        firstLocked: firstLocked,
+        lastLocked: lastLocked);
   }
 
   @override
   Widget build(BuildContext context) {
     if (robotName != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        final robotProvider = Provider.of<RobotConfigProvider>(context, listen: false);
-        if (robotProvider.robotConfigs.any((config) => config.name == robotName)) {
-          robotProvider.setRobotConfig(robotProvider.robotConfigs.firstWhere((config) => config.name == robotName));
+        final robotProvider =
+            Provider.of<RobotConfigProvider>(context, listen: false);
+        if (robotProvider.robotConfigs
+            .any((config) => config.name == robotName)) {
+          robotProvider.setRobotConfig(robotProvider.robotConfigs
+              .firstWhere((config) => config.name == robotName));
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Robot "$robotName"not found')));
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Robot "$robotName"not found')));
         }
       });
     }
     if (fieldName != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        final fieldProvider = Provider.of<ImageDataProvider>(context, listen: false);
-        if (fieldProvider.images.any((config) => config.imageName == fieldName)) {
-          fieldProvider.selectImage(fieldProvider.images.firstWhere((config) => config.imageName == fieldName));
+        final fieldProvider =
+            Provider.of<ImageDataProvider>(context, listen: false);
+        if (fieldProvider.images
+            .any((config) => config.imageName == fieldName)) {
+          fieldProvider.selectImage(fieldProvider.images
+              .firstWhere((config) => config.imageName == fieldName));
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Field "$fieldName" not found')));
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Field "$fieldName" not found')));
         }
       });
     }
     return Scaffold(
       appBar: const CustomAppBar(),
       drawer: const AppDrawer(),
-      body: PathEditor(waypoints, pathName, commands, returnSpline: returnSpline, firstLocked: firstLocked,),
+      body: PathEditor(
+        waypoints,
+        pathName,
+        commands,
+        returnSpline: returnSpline,
+        firstLocked: firstLocked,
+        lastLocked: lastLocked,
+      ),
     );
   }
 }

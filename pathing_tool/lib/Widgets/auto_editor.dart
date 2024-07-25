@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:archive/archive_io.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -113,7 +115,7 @@ class _AutoEditorState extends State<AutoEditor>
             actions: <Type, Action<Intent>>{
               UndoIntent: UndoAction(_undo),
               RedoIntent: RedoAction(_redo),
-              SaveIntent: SaveAction(() => _savePathToFile()),
+              SaveIntent: SaveAction(() => _saveAutoToFile()),
               PlayIntent: PlayAction(() => _playPath()),
             },
             child: Focus(
@@ -245,10 +247,10 @@ class _AutoEditorState extends State<AutoEditor>
                         ),
                         Tooltip(
                           message: "Save Path to File",
-                          waitDuration: Duration(milliseconds: 500),
+                          waitDuration: const Duration(milliseconds: 500),
                           child: ElevatedButton(
-                              onPressed: _savePathToFile,
-                              child: Icon(Icons.save)),
+                              onPressed: _saveAutoToFile,
+                              child: const Icon(Icons.save)),
                         ),
                       ],
                     ),
@@ -370,14 +372,15 @@ class _AutoEditorState extends State<AutoEditor>
                             return SizedBox(
                                 height: constraints.maxHeight,
                                 child: SplineOrderer(
-                                  splines,
-                                  _onSplineSelected,
-                                  _onEdit,
-                                  _onDelete,
-                                  selectedSpline,
-                                  _onMoveForward,
-                                  _onMoveBackward,
-                                ));
+                                    splines,
+                                    _onSplineSelected,
+                                    _onEdit,
+                                    _onDelete,
+                                    selectedSpline,
+                                    _onMoveForward,
+                                    _onMoveBackward,
+                                    _onBranchedPathAdded,
+                                    _onChanged));
                           })),
                     ])))));
   }
@@ -388,15 +391,12 @@ class _AutoEditorState extends State<AutoEditor>
     });
   }
 
-  _onEdit() {
+  _onEdit(Spline? spline, bool lastLocked, {Function(Spline)? returnSpline}) {
     Navigator.push(context, MaterialPageRoute(builder: (context) {
-      if (selectedSpline != 0) {
-        return PathingPage.fromSpline(splines[selectedSpline],
-            returnSpline: _returnSpline, firstLocked: true);
-      } else {
-        return PathingPage.fromSpline(splines[selectedSpline],
-            returnSpline: _returnSpline);
-      }
+      return PathingPage.fromSpline(spline ?? splines[selectedSpline],
+          returnSpline: returnSpline ?? _returnSpline,
+          firstLocked: selectedSpline != 0 || returnSpline != null,
+          lastLocked: lastLocked);
     }));
   }
 
@@ -404,7 +404,8 @@ class _AutoEditorState extends State<AutoEditor>
     _saveState();
     setState(() {
       if (selectedSpline != splines.length - 1) {
-        if (splines[selectedSpline + 1].points.isNotEmpty) {
+        if (splines[selectedSpline + 1].points.isNotEmpty &&
+            splines[selectedSpline].points.isNotEmpty) {
           if (!splines[selectedSpline + 1]
               .points
               .first
@@ -415,7 +416,8 @@ class _AutoEditorState extends State<AutoEditor>
         }
       }
       if (selectedSpline != 0) {
-        if (splines[selectedSpline - 1].points.isNotEmpty) {
+        if (splines[selectedSpline - 1].points.isNotEmpty &&
+            splines[selectedSpline].points.isNotEmpty) {
           if (!splines[selectedSpline - 1]
               .points
               .last
@@ -429,9 +431,42 @@ class _AutoEditorState extends State<AutoEditor>
     });
   }
 
+  _onChanged(Spline spline, int index) {
+    setState(() {
+      _saveState();
+      splines[index] = spline;
+      selectedSpline = index;
+      if (selectedSpline != splines.length - 1) {
+        if (splines[selectedSpline + 1].points.isNotEmpty &&
+            splines[selectedSpline].points.isNotEmpty) {
+          if (!splines[selectedSpline + 1]
+              .points
+              .first
+              .equals(spline.points.last)) {
+            splines[selectedSpline + 1] = _handleFirstPoint(
+                splines[selectedSpline + 1], spline.points.last);
+          }
+        }
+      }
+      if (selectedSpline != 0) {
+        if (splines[selectedSpline - 1].points.isNotEmpty &&
+            splines[selectedSpline].points.isNotEmpty) {
+          if (!splines[selectedSpline - 1]
+              .points
+              .last
+              .equals(spline.points.first)) {
+            spline = _handleFirstPoint(
+                spline, splines[selectedSpline - 1].points.last);
+          }
+        }
+      }
+    });
+  }
+
   _onDelete() {
     setState(() {
       if (selectedSpline != -1) {
+        _saveState();
         splines.removeAt(selectedSpline);
         selectedSpline -= 1;
       }
@@ -447,13 +482,14 @@ class _AutoEditorState extends State<AutoEditor>
         splines.remove(spline);
         splines.insert(selectedSpline + 1, spline);
         // Handle connections with previous and next splines
-        for (var i = selectedSpline - 1; i <= selectedSpline+1; i++) {
+        for (var i = selectedSpline - 1; i <= selectedSpline + 1; i++) {
           if (i >= 0 && i < splines.length - 1) {
             var prevSpline = splines[i];
             var nextSpline = splines[i + 1];
             if (prevSpline.points.isNotEmpty && nextSpline.points.isNotEmpty) {
               if (!prevSpline.points.last.equals(nextSpline.points.first)) {
-                splines[i+1] = _handleFirstPoint(nextSpline, prevSpline.points.last);
+                splines[i + 1] =
+                    _handleFirstPoint(nextSpline, prevSpline.points.last);
               }
             }
           }
@@ -472,13 +508,14 @@ class _AutoEditorState extends State<AutoEditor>
         splines.remove(spline);
         splines.insert(selectedSpline - 1, spline);
         // Handle connections with previous and next splines
-        for (var i = selectedSpline - 1; i <= selectedSpline+1; i++) {
+        for (var i = selectedSpline - 1; i <= selectedSpline + 1; i++) {
           if (i >= 0 && i < splines.length - 1) {
             var prevSpline = splines[i];
             var nextSpline = splines[i + 1];
             if (prevSpline.points.isNotEmpty) {
               if (!prevSpline.points.last.equals(nextSpline.points.first)) {
-                splines[i+1] = _handleFirstPoint(nextSpline, prevSpline.points.last);
+                splines[i + 1] =
+                    _handleFirstPoint(nextSpline, prevSpline.points.last);
               }
             }
           }
@@ -503,11 +540,13 @@ class _AutoEditorState extends State<AutoEditor>
       setState(() {
         redoStack = [
           ...redoStack,
-          [...splines]
+          [for (var spline in splines) spline.copyWith()]
         ];
+        if (splines.length != undoStack.last.length) {
+          selectedSpline = -1;
+        }
         splines = undoStack.last;
         undoStack.removeLast();
-        selectedSpline = -1;
       });
     }
   }
@@ -603,6 +642,12 @@ class _AutoEditorState extends State<AutoEditor>
                 ),
               ),
               actions: [
+                ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _loadPath();
+                    },
+                    child: const Text("Load From File")),
                 TextButton(
                   onPressed: () {
                     Navigator.pop(context);
@@ -625,7 +670,56 @@ class _AutoEditorState extends State<AutoEditor>
     });
   }
 
-  _savePathToFile() {}
+  _onBranchedPathAdded() {
+    setState(() {
+      _saveState();
+      splines.add(BranchedSpline(
+        NullSpline(),
+        NullSpline(),
+        "",
+        isTrue: true,
+      ));
+      selectedSpline = splines.length - 1;
+    });
+  }
+
+  _saveAutoToFile() {
+    List<Map<String, dynamic>> schedule = [];
+    List<Map<String, dynamic>> paths = [];
+    int pathIndex = 0;
+    for (var spline in splines) {
+      var (scheduleItem, newIndex) = spline.scheduleItem(pathIndex);
+      pathIndex = newIndex;
+      schedule.add(scheduleItem);
+      if (spline is BranchedSpline) {
+        if (spline.onTrue is! NullSpline) {
+          paths.add(spline.onTrue.toJson());
+        }
+        if (spline.onFalse is! NullSpline) {
+          paths.add(spline.onFalse.toJson());
+        }
+      }
+    }
+    final robotConfigProvider = Provider.of<RobotConfigProvider>(context, listen: false);
+    final fieldConfigProvider = Provider.of<ImageDataProvider>(context, listen: false);
+    Map<String, dynamic> metaData = {
+      "auto_name": pathName,
+      "robot_name": robotConfigProvider.robotConfig.name,
+      "field_name": fieldConfigProvider.selectedImage.imageName,
+    };
+    Map<String, dynamic> jsonAuto = {
+      "meta_data": metaData,
+      "schedule": schedule,
+      "paths": paths,
+    };
+    String jsonString = json.encode(jsonAuto);
+    File savePathFile = File("C:\\Polar Pathing\\Saves\\$pathName.polarauto");
+    savePathFile.writeAsString(jsonString).then((value) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Auto saved to ${savePathFile.path}")),
+      );
+    });
+  }
 
   _playPath() {
     if (!playing) {
@@ -648,7 +742,7 @@ class _AutoEditorState extends State<AutoEditor>
         ...newSpline.points
       ]);
     }
-    return newSpline;
+    return newSpline.copyWith(points: [preferredPoint.copyWith(t: 0.0)]);
   }
 }
 

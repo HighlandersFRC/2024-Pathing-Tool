@@ -44,18 +44,33 @@ class Waypoint {
         position: theta, velocity: dtheta, acceleration: d2theta, time: t);
   }
 
-  static Waypoint fromJson(Map<String, dynamic> waypointJson){
+  static Waypoint fromJson(Map<String, dynamic> waypointJson) {
     return Waypoint(
-          x: waypointJson["x"],
-          y: waypointJson["y"],
-          theta: waypointJson["angle"],
-          dx: waypointJson["x_velocity"],
-          dy: waypointJson["y_velocity"],
-          dtheta: waypointJson["angular_velocity"],
-          d2x: waypointJson["x_acceleration"],
-          d2y: waypointJson["y_acceleration"],
-          d2theta: waypointJson["angular_acceleration"],
-          t: waypointJson["time"]);
+        x: waypointJson["x"],
+        y: waypointJson["y"],
+        theta: waypointJson["angle"],
+        dx: waypointJson["x_velocity"],
+        dy: waypointJson["y_velocity"],
+        dtheta: waypointJson["angular_velocity"],
+        d2x: waypointJson["x_acceleration"],
+        d2y: waypointJson["y_acceleration"],
+        d2theta: waypointJson["angular_acceleration"],
+        t: waypointJson["time"]);
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      "x": x,
+      "y": y,
+      "angle": theta,
+      "x_velocity": dx,
+      "y_velocity": dy,
+      "angular_velocity": dtheta,
+      "x_acceleration": d2x,
+      "y_acceleration": d2y,
+      "angular_acceleration": d2theta,
+      "time": t
+    };
   }
 
   Waypoint copyWith({
@@ -83,17 +98,22 @@ class Waypoint {
       t: t ?? this.t,
     );
   }
-  
+
   bool equals(Waypoint other) {
     return (x == other.x &&
         y == other.y &&
-        theta == other.theta &&
+        theta % (2 * pi) == other.theta % (2 * pi) &&
         dx == other.dx &&
         dy == other.dy &&
-        dtheta == other.dtheta &&
+        dtheta % (2 * pi) == other.dtheta % (2 * pi) &&
         d2x == other.d2x &&
         d2y == other.d2y &&
-        d2theta == other.d2theta);
+        d2theta % (2 * pi) == other.d2theta % (2 * pi));
+  }
+
+  @override
+  String toString() {
+    return 'Waypoint(x: $x, y: $y, theta: $theta, dx: $dx, dy: $dy, dtheta: $dtheta, d2x: $d2x, d2y: $d2y, d2theta: $d2theta, t: $t)';
   }
 }
 

@@ -28,9 +28,12 @@ class PathEditor extends StatefulWidget {
   final List<Command> startingCommands;
   final String pathName;
   final Function(Spline)? returnSpline;
-  final bool firstLocked;
+  final bool firstLocked, lastLocked;
   const PathEditor(this.startingWaypoints, this.pathName, this.startingCommands,
-      {super.key, this.returnSpline, this.firstLocked = false});
+      {super.key,
+      this.returnSpline,
+      this.firstLocked = false,
+      this.lastLocked = false});
   static PathEditor fromFile(File file, Function(Spline)? returnSpline) {
     String jsonString = file.readAsStringSync();
     var pathJson = json.decode(jsonString);
@@ -81,7 +84,7 @@ class _PathEditorState extends State<PathEditor>
     _animationController = AnimationController(
       vsync: this,
       duration:
-          Duration(microseconds: ((endTime - startTime)*1000000).round()),
+          Duration(microseconds: ((endTime - startTime) * 1000000).round()),
     )..addListener(() {
         setState(() {
           playbackWaypoint = _getPlaybackWaypoint();
@@ -98,8 +101,8 @@ class _PathEditorState extends State<PathEditor>
 
   Waypoint _getPlaybackWaypoint() {
     var robot = Spline(waypoints, commands: commands);
-    return robot
-        .getRobotWaypoint(_animationController.value * (endTime-startTime) + startTime);
+    return robot.getRobotWaypoint(
+        _animationController.value * (endTime - startTime) + startTime);
   }
 
   void playPath() {
@@ -184,7 +187,7 @@ class _PathEditorState extends State<PathEditor>
       focusScope.requestFocus(_focusNode);
     }
     _animationController.duration =
-        Duration(microseconds: ((endTime - startTime)*1000000).round());
+        Duration(microseconds: ((endTime - startTime) * 1000000).round());
     ImageDataProvider imageDataProvider =
         Provider.of<ImageDataProvider>(context);
     ImageData fieldImageData = imageDataProvider.selectedImage;
@@ -204,7 +207,8 @@ class _PathEditorState extends State<PathEditor>
     if (waypoints.length > 1 && selectedCommand != -1) {
       Spline robot = Spline(waypoints);
       double timeStep = 0.01; // Adjust for desired granularity
-      double start = max(commands[selectedCommand].startTime, robot.points.first.t);
+      double start =
+          max(commands[selectedCommand].startTime, robot.points.first.t);
       double endTime = commands[selectedCommand].endTime;
       for (double t = start;
           t <= endTime && t <= robot.points.last.t;
@@ -355,13 +359,13 @@ class _PathEditorState extends State<PathEditor>
                       progress: Duration(
                           microseconds: waypoints.isNotEmpty
                               ? ((_animationController.value *
-                                      (endTime-startTime))*
+                                          (endTime - startTime)) *
                                       1000000)
                                   .floor()
                               : 0),
                       total: Duration(
                           microseconds: waypoints.isNotEmpty
-                              ? ((endTime-startTime) * 1000000).floor()
+                              ? ((endTime - startTime) * 1000000).floor()
                               : 0),
                       progressBarColor: theme.primaryColor,
                       onDragStart: (details) {
@@ -391,7 +395,8 @@ class _PathEditorState extends State<PathEditor>
                             waitDuration: const Duration(milliseconds: 500),
                             child: TextButton(
                                 onPressed: () {
-                                  widget.returnSpline!(Spline(waypoints, commands: commands, name: pathName));
+                                  widget.returnSpline!(Spline(waypoints,
+                                      commands: commands, name: pathName));
                                   Navigator.pop(context);
                                 },
                                 style: ButtonStyle(
@@ -721,52 +726,77 @@ class _PathEditorState extends State<PathEditor>
                                         if (playbackPaint != null)
                                           playbackPaint,
                                         if (editMode == 1)
-                                          ...waypoints.map((Waypoint waypoint) {
-                                            double xPixels = waypoint.x /
-                                                fieldImageData
-                                                    .imageWidthInMeters *
-                                                usedWidth;
-                                            double yPixels = usedHeight -
-                                                (waypoint.y /
-                                                    fieldImageData
-                                                        .imageHeightInMeters *
-                                                    usedHeight);
-                                            double metersToPixelsRatio =
-                                                usedWidth /
-                                                    fieldImageData
-                                                        .imageWidthInMeters;
+                                          ...waypoints
+                                              .asMap()
+                                              .entries
+                                              .map((value) {
+                                            Waypoint waypoint = value.value;
+                                            int index = value.key;
+                                            if (!((widget.lastLocked &&
+                                                    index ==
+                                                        waypoints.length - 1) ||
+                                                (widget.firstLocked &&
+                                                    index == 0))) {
+                                              double xPixels = waypoint.x /
+                                                  fieldImageData
+                                                      .imageWidthInMeters *
+                                                  usedWidth;
+                                              double yPixels = usedHeight -
+                                                  (waypoint.y /
+                                                      fieldImageData
+                                                          .imageHeightInMeters *
+                                                      usedHeight);
+                                              double metersToPixelsRatio =
+                                                  usedWidth /
+                                                      fieldImageData
+                                                          .imageWidthInMeters;
 
-                                            Offset handlePosition = Offset(
-                                              metersToPixelsRatio * waypoint.dx,
-                                              -metersToPixelsRatio *
-                                                  waypoint.dy,
-                                            );
-                                            return CustomPaint(
-                                              size: Size(availableWidth,
-                                                  availableHeight),
-                                              painter: VelocityPainter(
-                                                opacity: waypoints.indexOf(
-                                                            waypoint) ==
-                                                        selectedWaypoint
-                                                    ? 255
-                                                    : 150,
-                                                start: Offset(
-                                                    xPixels + widthOffset,
-                                                    yPixels + heightOffset),
-                                                end: Offset(
-                                                    xPixels +
-                                                        handlePosition.dx +
-                                                        widthOffset,
-                                                    yPixels +
-                                                        handlePosition.dy +
-                                                        heightOffset),
-                                                color: theme.primaryColor,
-                                              ),
-                                            );
+                                              Offset handlePosition = Offset(
+                                                metersToPixelsRatio *
+                                                    waypoint.dx,
+                                                -metersToPixelsRatio *
+                                                    waypoint.dy,
+                                              );
+
+                                              return CustomPaint(
+                                                size: Size(availableWidth,
+                                                    availableHeight),
+                                                painter: VelocityPainter(
+                                                  opacity: waypoints.indexOf(
+                                                              waypoint) ==
+                                                          selectedWaypoint
+                                                      ? 255
+                                                      : 150,
+                                                  start: Offset(
+                                                      xPixels + widthOffset,
+                                                      yPixels + heightOffset),
+                                                  end: Offset(
+                                                      xPixels +
+                                                          handlePosition.dx +
+                                                          widthOffset,
+                                                      yPixels +
+                                                          handlePosition.dy +
+                                                          heightOffset),
+                                                  color: theme.primaryColor,
+                                                ),
+                                              );
+                                            } else {
+                                              return const SizedBox.shrink();
+                                            }
                                           }),
                                         if (editMode == 1)
-                                          ...waypoints.map((waypoint) =>
-                                              DraggableHandleTheta(
+                                          ...waypoints
+                                              .asMap()
+                                              .entries
+                                              .map((value) {
+                                            Waypoint waypoint = value.value;
+                                            int index = value.key;
+                                            if (!((widget.lastLocked &&
+                                                    index ==
+                                                        waypoints.length - 1) ||
+                                                (widget.firstLocked &&
+                                                    index == 0))) {
+                                              return DraggableHandleTheta(
                                                 constraints: constraints,
                                                 waypoint: waypoint,
                                                 fieldImageData: fieldImageData,
@@ -796,10 +826,24 @@ class _PathEditorState extends State<PathEditor>
                                                     smooth = false;
                                                   });
                                                 },
-                                              )),
+                                              );
+                                            } else {
+                                              return const SizedBox.shrink();
+                                            }
+                                          }),
                                         if (editMode == 1)
-                                          ...waypoints.map((waypoint) =>
-                                              DraggableHandlePosition(
+                                          ...waypoints
+                                              .asMap()
+                                              .entries
+                                              .map((value) {
+                                            Waypoint waypoint = value.value;
+                                            int index = value.key;
+                                            if (!((widget.lastLocked &&
+                                                    index ==
+                                                        waypoints.length - 1) ||
+                                                (widget.firstLocked &&
+                                                    index == 0))) {
+                                              return DraggableHandlePosition(
                                                 constraints: constraints,
                                                 waypoint: waypoint,
                                                 fieldImageData: fieldImageData,
@@ -829,10 +873,24 @@ class _PathEditorState extends State<PathEditor>
                                                     smooth = false;
                                                   });
                                                 },
-                                              )),
+                                              );
+                                            } else {
+                                              return const SizedBox.shrink();
+                                            }
+                                          }),
                                         if (editMode == 1)
-                                          ...waypoints.map((waypoint) =>
-                                              VelocityHandle(
+                                          ...waypoints
+                                              .asMap()
+                                              .entries
+                                              .map((value) {
+                                            Waypoint waypoint = value.value;
+                                            int index = value.key;
+                                            if (!((widget.lastLocked &&
+                                                    index ==
+                                                        waypoints.length - 1) ||
+                                                (widget.firstLocked &&
+                                                    index == 0))) {
+                                              return VelocityHandle(
                                                 constraints: constraints,
                                                 waypoint: waypoint,
                                                 fieldImageData: fieldImageData,
@@ -862,7 +920,11 @@ class _PathEditorState extends State<PathEditor>
                                                     smooth = false;
                                                   });
                                                 },
-                                              )),
+                                              );
+                                            } else {
+                                              return const SizedBox.shrink();
+                                            }
+                                          }),
                                       ],
                                     ),
                                   ]),
@@ -1048,7 +1110,8 @@ class _PathEditorState extends State<PathEditor>
       dx = deltaX / dt;
       dy = deltaY / dt;
     } else {
-      if (index == 0 && widget.firstLocked) {
+      if (index == 0 && widget.firstLocked ||
+          index == waypoints.length - 1 && widget.lastLocked) {
         Waypoint p1 = waypoints[index];
         dy = p1.dy;
         dx = p1.dx;
@@ -1060,7 +1123,8 @@ class _PathEditorState extends State<PathEditor>
     return (dy, dx);
   }
 
-  (double, double) _averageLinearAcceleration(int index, List<Waypoint> waypoints) {
+  (double, double) _averageLinearAcceleration(
+      int index, List<Waypoint> waypoints) {
     double d2y = 0, d2x = 0;
     if (index != 0 && index != waypoints.length - 1) {
       Waypoint p0 = waypoints[index - 1];
@@ -1071,7 +1135,8 @@ class _PathEditorState extends State<PathEditor>
       d2x = deltaX / pow(dt, 2);
       d2y = deltaY / pow(dt, 2);
     } else {
-      if (index == 0 && widget.firstLocked) {
+      if (index == 0 && widget.firstLocked ||
+          index == waypoints.length - 1 && widget.lastLocked) {
         Waypoint p1 = waypoints[index];
         d2y = p1.d2y;
         d2x = p1.d2x;
@@ -1109,7 +1174,8 @@ class _PathEditorState extends State<PathEditor>
         angVel = 0;
       }
     } else {
-      if (index == 0 && widget.firstLocked) {
+      if (index == 0 && widget.firstLocked ||
+          index == waypoints.length - 1 && widget.lastLocked) {
         Waypoint p1 = waypoints[index];
         angVel = p1.dtheta;
       } else {
@@ -1128,7 +1194,8 @@ class _PathEditorState extends State<PathEditor>
       double d2a = p2.dtheta - p0.dtheta;
       angAcc = d2a / pow(dt, 2);
     } else {
-      if (index == 0 && widget.firstLocked) {
+      if (index == 0 && widget.firstLocked ||
+          index == waypoints.length - 1 && widget.lastLocked) {
         Waypoint p1 = waypoints[index];
         angAcc = p1.d2theta;
       } else {
@@ -1148,11 +1215,8 @@ class _PathEditorState extends State<PathEditor>
     for (int i = 0; i < newWaypoints.length; i++) {
       var (d2y, d2x) = _averageLinearAcceleration(i, newWaypoints);
       var d2theta = _averageAngularAcceleration(i, newWaypoints);
-      newWaypoints[i] = newWaypoints[i].copyWith(
-        d2y: d2y,
-        d2x: d2x,
-        d2theta: d2theta
-      );
+      newWaypoints[i] =
+          newWaypoints[i].copyWith(d2y: d2y, d2x: d2x, d2theta: d2theta);
     }
     _onWaypointsChanged(newWaypoints);
     setState(() {

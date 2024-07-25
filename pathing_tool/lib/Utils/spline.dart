@@ -119,27 +119,206 @@ class Spline {
       return max(getLastEndTime(commands, 0.0), points.last.time);
     }
   }
+
+  bool get isNull => false;
+
+  Map<String, dynamic> toJson() {
+    var json = {
+      "meta_data": {"path_name": name},
+      "key_points":
+          points.map((Waypoint waypoint) => waypoint.toJson()).toList(),
+      "commands": commands.map((Command command) => command.toJson()).toList(),
+      if (points.length > 1)
+        "sampled_points": [
+          for (double t = points.first.t; t <= points.last.t; t += 0.01)
+            getRobotWaypoint(t)
+        ]
+    };
+    return json;
+  }
+
+  (Map<String, dynamic>, int) scheduleItem(int pathIndex) {
+    return (
+      {
+        "branched": false,
+        "path": pathIndex,
+      },
+      pathIndex + 1
+    );
+  }
 }
 
 class BranchedSpline extends Spline {
   final Spline onTrue, onFalse;
   final String condition;
   late bool _isTrue;
-  BranchedSpline(this.onTrue, this.onFalse, this.condition, {isTrue = true})
-      : super([onTrue.points.first, onTrue.points.last],
+  BranchedSpline(this.onTrue, this.onFalse, this.condition,
+      {bool isTrue = true})
+      : super(isTrue ? onTrue.points : onFalse.points,
             name: "Branched Spline") {
     _isTrue = isTrue;
   }
 
-  set isTrue(bool isTrue) {
-    _isTrue = isTrue;
-    super.points = _isTrue ? onTrue.points : onFalse.points;
-    super.commands = _isTrue ? onTrue.commands : onFalse.commands;
+  bool get isTrue => _isTrue;
+
+  @override
+  BranchedSpline copyWith(
+      {List<Command>? commands,
+      String? name,
+      List<Waypoint>? points,
+      Spline? onTrue,
+      Spline? onFalse,
+      String? condition,
+      bool? isTrue}) {
+    if (points != null) {
+      if (this.isTrue) {
+        onTrue = (onTrue ?? this.onTrue).copyWith(points: points);
+        if (onTrue.points.isNotEmpty) {
+          if ((onFalse ?? this.onFalse).points.isNotEmpty) {
+            if (!(onFalse ?? this.onFalse)
+                .points
+                .first
+                .equals(onTrue.points.first)) {
+              onFalse = _handleFirstPoint(
+                  (onFalse ?? this.onFalse), onTrue.points.first);
+            }
+            if (!(onFalse ?? this.onFalse)
+                .points
+                .last
+                .equals(onTrue.points.last)) {
+              onFalse = _handleLastPoint(
+                  (onFalse ?? this.onFalse), onTrue.points.last);
+            }
+          } else {
+            onFalse =
+                _handleLastPoint((onFalse ?? this.onFalse), onTrue.points.last);
+            onFalse = _handleFirstPoint((onFalse), onTrue.points.first);
+          }
+        } else {
+          onFalse = (onFalse ?? this.onFalse).copyWith(points: []);
+        }
+      } else {
+        onFalse = (onFalse ?? this.onFalse).copyWith(points: points);
+        if (onFalse.points.isNotEmpty) {
+          if (!(onTrue ?? this.onTrue).points.isNotEmpty) {
+            onTrue = _handleFirstPoint(
+                (onTrue ?? this.onTrue), onFalse.points.first);
+            if (!(onTrue).points.last.equals(onFalse.points.last)) {
+              onTrue = _handleLastPoint((onTrue), onFalse.points.last);
+            }
+          } else {
+            onTrue =
+                _handleLastPoint((onTrue ?? this.onTrue), onFalse.points.last);
+            onTrue = _handleFirstPoint((onTrue), onFalse.points.first);
+          }
+        } else {
+          onTrue = (onTrue ?? this.onTrue).copyWith(points: []);
+        }
+      }
+    }
+    if (onTrue != null || onFalse != null) {
+      onTrue = onTrue ?? this.onTrue;
+      onFalse = onFalse ?? this.onFalse;
+      if (onTrue.points.isNotEmpty && (onFalse).points.isNotEmpty) {
+        if (!onFalse.points.first.equals(onTrue.points.first)) {
+          onFalse = _handleFirstPoint(onFalse, onTrue.points.first);
+        } else {
+          onFalse = _handleLastPoint(onFalse, onTrue.points.last);
+        }
+      } else {
+        if (onTrue.points.isEmpty && onFalse.points.isNotEmpty) {
+          onTrue = _handleFirstPoint(onTrue, onFalse.points.first);
+          onTrue = _handleLastPoint(onTrue, onFalse.points.last);
+        } else if (onFalse.points.isEmpty && onTrue.points.isNotEmpty) {
+          onFalse = _handleFirstPoint(onFalse, onTrue.points.first);
+          onFalse = _handleLastPoint(onFalse, onTrue.points.last);
+        }
+      }
+    }
+    onTrue = (onTrue ?? this.onTrue).copyWith();
+    onFalse = (onFalse ?? this.onFalse).copyWith();
+    return BranchedSpline(onTrue, onFalse, condition ?? this.condition,
+        isTrue: isTrue ?? this.isTrue);
   }
 
-  bool get isTrue => _isTrue;
+  Spline _handleFirstPoint(Spline newSpline, Waypoint preferredPoint) {
+    if (newSpline.points.isNotEmpty) {
+      return newSpline.copyWith(points: [
+        preferredPoint.copyWith(t: newSpline.points.first.time - 1),
+        ...newSpline.points
+      ]);
+    } else {
+      return newSpline.copyWith(points: [
+        preferredPoint.copyWith(t: 0.0),
+      ]);
+    }
+  }
+
+  Spline _handleLastPoint(Spline newSpline, Waypoint preferredPoint) {
+    if (newSpline.points.isNotEmpty) {
+      return newSpline.copyWith(points: [
+        ...newSpline.points,
+        preferredPoint.copyWith(t: newSpline.points.last.time + 1),
+      ]);
+    } else {
+      return newSpline.copyWith(points: [
+        preferredPoint.copyWith(t: 0.0),
+      ]);
+    }
+  }
+
+  @override
+  Map<String, dynamic> toJson() {
+    throw UnimplementedError();
+  }
+
+  @override
+  (Map<String, dynamic>, int) scheduleItem(int pathIndex) {
+    return (
+      {
+        "branched": true,
+        "condition": condition,
+        "branched_path": {
+          "on_true": onTrue is NullSpline ? -1 : pathIndex,
+          "on_false": onTrue is NullSpline
+              ? onFalse is NullSpline
+                  ? -1
+                  : pathIndex
+              : onFalse is NullSpline
+                  ? -1
+                  : pathIndex + 1,
+        }
+      },
+      pathIndex +
+          (onTrue is NullSpline
+              ? onFalse is NullSpline
+                  ? 0
+                  : 1
+              : onFalse is NullSpline
+                  ? 1
+                  : 2)
+    );
+  }
 }
 
 class NullSpline extends Spline {
   NullSpline() : super([], commands: [], name: "Null Spline");
+
+  @override
+  bool get isNull => true;
+
+  @override
+  Spline copyWith(
+      {List<Command>? commands, String? name, List<Waypoint>? points}) {
+    if (points == null && commands == null && name == null) {
+      return NullSpline();
+    } else {
+      return super.copyWith(commands: commands, name: name, points: points);
+    }
+  }
+
+  @override
+  Map<String, dynamic> toJson() {
+    throw UnimplementedError();
+  }
 }
