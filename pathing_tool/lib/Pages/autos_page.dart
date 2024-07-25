@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:pathing_tool/Utils/Structs/waypoint.dart';
 import 'package:pathing_tool/Utils/spline.dart';
 import 'package:pathing_tool/Widgets/auto_editor.dart';
 import 'package:pathing_tool/Widgets/custom_app_bar.dart';
@@ -15,28 +14,28 @@ class AutosPage extends StatelessWidget {
   static AutosPage fromFile(File file) {
     String jsonString = file.readAsStringSync();
     var autoJson = json.decode(jsonString);
-    var splineList = autoJson["paths"];
+    return fromJson(autoJson);
+  }
+
+  static AutosPage fromJson(Map<String, dynamic> json) {
+    String autoName = json['meta_data']['auto_name'];
     List<Spline> splines = [];
-    splineList.forEach((spline) {
-      List<Waypoint> waypoints = [];
-      var pointsList = spline["key_points"];
-      for (var point in pointsList) {
-        waypoints.add(Waypoint(
-          x: point["x"],
-          y: point["y"],
-          theta: point["angle"],
-          dx: point["x_velocity"],
-          dy: point["y_velocity"],
-          dtheta: point["angular_velocity"],
-          d2x: point["x_acceleration"],
-          d2y: point["y_acceleration"],
-          d2theta: point["angular_acceleration"],
-          t: point["time"]));
+    var paths = json['paths'];
+    for (var scheduleItem in json['schedule']) {
+      if (scheduleItem['branched']) {
+        var onTrue = scheduleItem["branched_path"]["on_true"] == -1
+            ? NullSpline()
+            : Spline.fromJson(paths[scheduleItem["branched_path"]["on_true"]]);
+        var onFalse = scheduleItem["branched_path"]["on_false"] == -1
+            ? NullSpline()
+            : Spline.fromJson(paths[scheduleItem["branched_path"]["on_false"]]);
+        var condition = scheduleItem["condition"];
+        splines.add(BranchedSpline(onTrue, onFalse, condition));
+      } else {
+        splines.add(Spline.fromJson(paths[scheduleItem['path']]));
       }
-      splines.add(Spline(waypoints));
-    });
-    String pathName = autoJson["meta_data"]["path_name"];
-    return AutosPage(splines, pathName);
+    }
+    return AutosPage(splines, autoName);
   }
 
   @override

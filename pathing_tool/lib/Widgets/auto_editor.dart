@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:archive/archive_io.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -28,7 +27,34 @@ class AutoEditor extends StatefulWidget {
 
   @override
   State<StatefulWidget> createState() {
-    return _AutoEditorState(splines);
+    return _AutoEditorState(splines, autoName);
+  }
+
+  static AutoEditor fromFile(File file) {
+    String jsonString = file.readAsStringSync();
+    var pathJson = json.decode(jsonString);
+    return fromJson(pathJson);
+  }
+
+  static AutoEditor fromJson(Map<String, dynamic> json) {
+    String autoName = json['meta_data']['auto_name'];
+    List<Spline> splines = [];
+    var paths = json['paths'];
+    for (var scheduleItem in json['schedule']) {
+      if (scheduleItem['branched']) {
+        var onTrue = scheduleItem["branched_path"]["on_true"] == -1
+            ? NullSpline()
+            : Spline.fromJson(paths[scheduleItem["branched_path"]["on_true"]]);
+        var onFalse = scheduleItem["branched_path"]["on_false"] == -1
+            ? NullSpline()
+            : Spline.fromJson(paths[scheduleItem["branched_path"]["on_false"]]);
+        var condition = scheduleItem["condition"];
+        splines.add(BranchedSpline(onTrue, onFalse, condition));
+      } else {
+        splines.add(Spline.fromJson(paths[scheduleItem['path']]));
+      }
+    }
+    return AutoEditor(splines, autoName);
   }
 }
 
@@ -39,13 +65,14 @@ class _AutoEditorState extends State<AutoEditor>
   List<Spline> splines = [];
   int selectedSpline = -1;
   late FocusNode _focusNode;
-  String pathName = "";
+  String autoName = "";
   Waypoint? playbackWaypoint;
   double duration = 0;
   bool playing = false;
   late AnimationController _animationController;
-  _AutoEditorState(List<Spline> splines) {
+  _AutoEditorState(List<Spline> splines, String autoName) {
     this.splines = [...splines];
+    this.autoName = autoName;
   }
   Waypoint? _getPlaybackWaypoint() {
     double wantedTime = _animationController.value * duration;
@@ -156,10 +183,10 @@ class _AutoEditorState extends State<AutoEditor>
                     appBar: AppBar(
                       automaticallyImplyLeading: false,
                       title: TextField(
-                        controller: TextEditingController(text: pathName),
+                        controller: TextEditingController(text: autoName),
                         onSubmitted: (value) {
                           setState(() {
-                            pathName = value;
+                            autoName = value;
                           });
                         },
                         decoration: InputDecoration(
@@ -698,12 +725,16 @@ class _AutoEditorState extends State<AutoEditor>
         if (spline.onFalse is! NullSpline) {
           paths.add(spline.onFalse.toJson());
         }
+      } else {
+        paths.add(spline.toJson());
       }
     }
-    final robotConfigProvider = Provider.of<RobotConfigProvider>(context, listen: false);
-    final fieldConfigProvider = Provider.of<ImageDataProvider>(context, listen: false);
+    final robotConfigProvider =
+        Provider.of<RobotConfigProvider>(context, listen: false);
+    final fieldConfigProvider =
+        Provider.of<ImageDataProvider>(context, listen: false);
     Map<String, dynamic> metaData = {
-      "auto_name": pathName,
+      "auto_name": autoName,
       "robot_name": robotConfigProvider.robotConfig.name,
       "field_name": fieldConfigProvider.selectedImage.imageName,
     };
@@ -713,7 +744,7 @@ class _AutoEditorState extends State<AutoEditor>
       "paths": paths,
     };
     String jsonString = json.encode(jsonAuto);
-    File savePathFile = File("C:\\Polar Pathing\\Saves\\$pathName.polarauto");
+    File savePathFile = File("C:\\Polar Pathing\\Saves\\$autoName.polarauto");
     savePathFile.writeAsString(jsonString).then((value) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Auto saved to ${savePathFile.path}")),
