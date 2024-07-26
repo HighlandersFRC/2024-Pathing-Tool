@@ -8,11 +8,14 @@ environment:
 
 dependencies:
   archive: ^3.6.1
+  audio_video_progress_bar: ^2.0.3
   file_picker: ^8.0.5
   fl_chart: ^0.68.0
   flutter:
     sdk: flutter
   flutter_colorpicker: ^1.0.3
+  flutter_flow_chart: ^3.1.1
+  flutter_iconpicker: ^3.3.3
   flutter_image_converter: ^0.3.3
   image: ^4.2.0
   matrices: ^1.2.7
@@ -34,3 +37,4 @@ flutter:
         - asset: fonts/OpenSans-VariableFont_wdth,wght.ttf
   assets:
     - Images/game_field.png
+    - Images/PolarBearHead.png

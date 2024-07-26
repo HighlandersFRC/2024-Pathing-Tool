@@ -13,8 +13,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       title: Row(
         children: [
-          Image.network(
-            'https://student.polarforecastfrc.com/static/media/PolarbearHead.ec128d026b435e983504.png',
+          Image.asset(
+            'Images/PolarBearHead.png',
             height: 80,
             width: 80,
           ),

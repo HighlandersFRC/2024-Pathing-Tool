@@ -1,3 +1,5 @@
+import 'dart:math';
+
 class Waypoint {
   final double x;
   final double y;
@@ -23,6 +25,12 @@ class Waypoint {
     required this.t,
   });
 
+  double get time => t;
+
+  double get velocityMag => sqrt(pow(dx, 2) + pow(dy, 2));
+
+  double get accelerationMag => sqrt(pow(d2x, 2) + pow(d2y, 2));
+
   Vectors getXVectors() {
     return Vectors(position: x, velocity: dx, acceleration: d2x, time: t);
   }
@@ -34,6 +42,35 @@ class Waypoint {
   Vectors getThetaVectors() {
     return Vectors(
         position: theta, velocity: dtheta, acceleration: d2theta, time: t);
+  }
+
+  static Waypoint fromJson(Map<String, dynamic> waypointJson) {
+    return Waypoint(
+        x: waypointJson["x"],
+        y: waypointJson["y"],
+        theta: waypointJson["angle"],
+        dx: waypointJson["x_velocity"],
+        dy: waypointJson["y_velocity"],
+        dtheta: waypointJson["angular_velocity"],
+        d2x: waypointJson["x_acceleration"],
+        d2y: waypointJson["y_acceleration"],
+        d2theta: waypointJson["angular_acceleration"],
+        t: waypointJson["time"]);
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      "x": x,
+      "y": y,
+      "angle": theta,
+      "x_velocity": dx,
+      "y_velocity": dy,
+      "angular_velocity": dtheta,
+      "x_acceleration": d2x,
+      "y_acceleration": d2y,
+      "angular_acceleration": d2theta,
+      "time": t
+    };
   }
 
   Waypoint copyWith({
@@ -60,6 +97,23 @@ class Waypoint {
       d2theta: d2theta ?? this.d2theta,
       t: t ?? this.t,
     );
+  }
+
+  bool equals(Waypoint other) {
+    return (x == other.x &&
+        y == other.y &&
+        theta % (2 * pi) == other.theta % (2 * pi) &&
+        dx == other.dx &&
+        dy == other.dy &&
+        dtheta % (2 * pi) == other.dtheta % (2 * pi) &&
+        d2x == other.d2x &&
+        d2y == other.d2y &&
+        d2theta % (2 * pi) == other.d2theta % (2 * pi));
+  }
+
+  @override
+  String toString() {
+    return 'Waypoint(x: $x, y: $y, theta: $theta, dx: $dx, dy: $dy, dtheta: $dtheta, d2x: $d2x, d2y: $d2y, d2theta: $d2theta, t: $t)';
   }
 }
 

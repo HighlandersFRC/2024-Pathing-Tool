@@ -10,6 +10,7 @@ class DraggableHandlePosition extends StatefulWidget {
   final ValueChanged<Waypoint> onUpdate;
   final void Function() saveState;
   final int opacity;
+  final BoxConstraints constraints;
 
   const DraggableHandlePosition(
       {super.key,
@@ -19,7 +20,9 @@ class DraggableHandlePosition extends StatefulWidget {
       required this.usedHeight,
       required this.onUpdate,
       required this.opacity,
-      required this.saveState});
+      required this.saveState,
+       required this.constraints
+       });
 
   @override
   _DraggableHandlePositionState createState() =>
@@ -40,10 +43,14 @@ class _DraggableHandlePositionState extends State<DraggableHandlePosition> {
             widget.usedHeight);
     double metersToPixelsRatio =
         widget.usedWidth / widget.fieldImageData.imageWidthInMeters;
+    var widthOffset =
+        (widget.constraints.maxWidth - widget.usedWidth) / 2;
+    var heightOffset =
+        (widget.constraints.maxHeight - widget.usedHeight) / 2;
     return Positioned(
       key: _positionedKey,
-      left: xPixels,
-      top: yPixels,
+      left: xPixels + widthOffset,
+      top: yPixels + heightOffset,
       child: Container(
         transform: Matrix4.translationValues(-12, -12, 20),
         width: 24,

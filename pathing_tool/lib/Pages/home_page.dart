@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:pathing_tool/Pages/autos_page.dart';
 import 'package:pathing_tool/Pages/pathing_page.dart';
 import 'package:pathing_tool/Widgets/custom_app_bar.dart';
 import 'package:simple_snowfall/snows/snowfall_widget.dart';
@@ -15,14 +16,14 @@ class HomePage extends StatelessWidget {
     Navigator.push(
         context,
         MaterialPageRoute(
-            builder: (BuildContext context) => const PathingPage([], "")));
+            builder: (BuildContext context) => const AutosPage([], "")));
   }
 
   void _loadPath(BuildContext context) async {
     // Allow the user to pick a file
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['polarpath'],
+      allowedExtensions: ['polarauto'],
     );
 
     if (result != null && result.files.single.path != null) {
@@ -32,13 +33,12 @@ class HomePage extends StatelessWidget {
           context,
           MaterialPageRoute(
               builder: (BuildContext context) =>
-                  PathingPage.fromFile(pathFile)));
+                  AutosPage.fromFile(pathFile)));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
       appBar: const CustomAppBar(),
       drawer: const AppDrawer(),
@@ -63,7 +63,7 @@ class HomePage extends StatelessWidget {
                         const SizedBox(height: 16.0),
                         ElevatedButton(
                           onPressed: () => _newPath(context),
-                          child: const Text('Create New Path'),
+                          child: const Text('Create New Auto'),
                         ),
                       ],
                     ),
@@ -74,7 +74,7 @@ class HomePage extends StatelessWidget {
                         const SizedBox(height: 16.0),
                         ElevatedButton(
                           onPressed: () => _loadPath(context),
-                          child: const Text('Load Path'),
+                          child: const Text('Load Auto'),
                         ),
                       ],
                     ),

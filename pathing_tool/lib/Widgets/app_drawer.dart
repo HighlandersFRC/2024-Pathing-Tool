@@ -42,16 +42,6 @@ class AppDrawer extends StatelessWidget {
                 padding: const EdgeInsets.all(8.0),
                 child: ElevatedButton(
                   onPressed: () {
-                    // Handle button press
-                  },
-                  style: theme.elevatedButtonTheme.style,
-                  child: const Text('Button 1'),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: ElevatedButton(
-                  onPressed: () {
                     showDialog(
                       context: context,
                       builder: (BuildContext context) {

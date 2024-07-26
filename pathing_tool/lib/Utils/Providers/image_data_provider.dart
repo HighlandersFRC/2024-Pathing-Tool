@@ -85,6 +85,7 @@ class ImageDataProvider extends ChangeNotifier {
 
   Future<void> addImage(ImageData imageData) async {
     _images.add(imageData);
+    _selectedImage = imageData;
     notifyListeners();
     Map<String, dynamic> imageDataJson = <String, dynamic>{
       'name': imageData.imageName,
@@ -133,6 +134,12 @@ class ImageDataProvider extends ChangeNotifier {
 
   void removeImage(ImageData imageData)   {
     _images.remove(imageData);
+    var imageDir = Directory("C:/Polar Pathing/Images");
+    for (var imageFile in imageDir.listSync()) {
+      if (imageFile is File && imageFile.path.endsWith("${imageData.imageName}.polarimg")) {
+        imageFile.deleteSync();
+      }
+    }
     notifyListeners();
   }
 }
