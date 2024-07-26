@@ -188,6 +188,10 @@ class _PathEditorState extends State<PathEditor>
     }
     _animationController.duration =
         Duration(microseconds: ((endTime - startTime) * 1000000).round());
+    _animationController.stop();
+    if (playing) {
+      _animationController.repeat();
+    }
     ImageDataProvider imageDataProvider =
         Provider.of<ImageDataProvider>(context);
     ImageData fieldImageData = imageDataProvider.selectedImage;

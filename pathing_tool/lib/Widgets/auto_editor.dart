@@ -116,6 +116,10 @@ class _AutoEditorState extends State<AutoEditor>
     // print('duration: $duration');
     _animationController.duration =
         Duration(microseconds: (duration * 1000000).round());
+    _animationController.stop();
+    if (playing) {
+      _animationController.repeat();
+    }
     // print(_animationController.duration);
     var theme = Theme.of(context);
     final focusScope = FocusScope.of(context);
