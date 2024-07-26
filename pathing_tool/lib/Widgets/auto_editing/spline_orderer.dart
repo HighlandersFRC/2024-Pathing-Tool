@@ -315,7 +315,7 @@ class _BranchedSplineEditorState extends State<BranchedSplineEditor> {
                 (onFalse, lastLocked, {Function(Spline)? returnSpline}) {
                   widget.onEdit(onFalse, true,
                         returnSpline: (Spline? newSpline) {
-                      widget._returnSpline(true,
+                      widget._returnSpline(false,
                           returnSpline: returnSpline, spline: newSpline);
                     });
                 },

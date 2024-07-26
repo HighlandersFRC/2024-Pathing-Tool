@@ -170,73 +170,49 @@ class BranchedSpline extends Spline {
       Spline? onFalse,
       String? condition,
       bool? isTrue}) {
+    onTrue = onTrue ?? this.onTrue;
+    onFalse = onFalse ?? this.onFalse;
     if (points != null) {
       if (this.isTrue) {
-        onTrue = (onTrue ?? this.onTrue).copyWith(points: points);
-        if (onTrue.points.isNotEmpty) {
-          if ((onFalse ?? this.onFalse).points.isNotEmpty) {
-            if (!(onFalse ?? this.onFalse)
-                .points
-                .first
-                .equals(onTrue.points.first)) {
-              onFalse = _handleFirstPoint(
-                  (onFalse ?? this.onFalse), onTrue.points.first);
-            }
-            if (!(onFalse ?? this.onFalse)
-                .points
-                .last
-                .equals(onTrue.points.last)) {
-              onFalse = _handleLastPoint(
-                  (onFalse ?? this.onFalse), onTrue.points.last);
-            }
-          } else {
-            onFalse =
-                _handleLastPoint((onFalse ?? this.onFalse), onTrue.points.last);
-            onFalse = _handleFirstPoint((onFalse), onTrue.points.first);
+        onTrue = onTrue.copyWith(points: points);
+        if (onTrue.points.isNotEmpty && (onFalse).points.isNotEmpty) {
+          if (!onFalse.points.first.equals(onTrue.points.first)) {
+            onFalse = _handleFirstPoint(onFalse, onTrue.points.first);
+          }
+          if (!onTrue.points.last.equals(onFalse.points.last)) {
+            onFalse = _handleLastPoint(onFalse, onTrue.points.last);
           }
         } else {
-          onFalse = (onFalse ?? this.onFalse).copyWith(points: []);
+          if (onTrue.points.isEmpty && onFalse.points.isNotEmpty) {
+            onTrue = _handleFirstPoint(onTrue, onFalse.points.first);
+            onTrue = _handleLastPoint(onTrue, onFalse.points.last);
+          } else if (onFalse.points.isEmpty && onTrue.points.isNotEmpty) {
+            onFalse = _handleFirstPoint(onFalse, onTrue.points.first);
+            onFalse = _handleLastPoint(onFalse, onTrue.points.last);
+          }
         }
       } else {
-        onFalse = (onFalse ?? this.onFalse).copyWith(points: points);
-        if (onFalse.points.isNotEmpty) {
-          if (!(onTrue ?? this.onTrue).points.isNotEmpty) {
-            onTrue = _handleFirstPoint(
-                (onTrue ?? this.onTrue), onFalse.points.first);
-            if (!(onTrue).points.last.equals(onFalse.points.last)) {
-              onTrue = _handleLastPoint((onTrue), onFalse.points.last);
-            }
-          } else {
-            onTrue =
-                _handleLastPoint((onTrue ?? this.onTrue), onFalse.points.last);
-            onTrue = _handleFirstPoint((onTrue), onFalse.points.first);
+        onFalse = (onFalse).copyWith(points: points);
+        if (onTrue.points.isNotEmpty && (onFalse).points.isNotEmpty) {
+          if (!onTrue.points.first.equals(onFalse.points.first)) {
+            onTrue = _handleFirstPoint(onTrue, onFalse.points.first);
+          }
+          if (!onTrue.points.last.equals(onFalse.points.last)) {
+            onTrue = _handleLastPoint(onTrue, onFalse.points.last);
           }
         } else {
-          onTrue = (onTrue ?? this.onTrue).copyWith(points: []);
+          if (onTrue.points.isEmpty && onFalse.points.isNotEmpty) {
+            onTrue = _handleFirstPoint(onTrue, onFalse.points.first);
+            onTrue = _handleLastPoint(onTrue, onFalse.points.last);
+          } else if (onFalse.points.isEmpty && onTrue.points.isNotEmpty) {
+            onFalse = _handleFirstPoint(onFalse, onTrue.points.first);
+            onFalse = _handleLastPoint(onFalse, onTrue.points.last);
+          }
         }
       }
-    }
-    if (onTrue != null || onFalse != null) {
-      onTrue = onTrue ?? this.onTrue;
-      onFalse = onFalse ?? this.onFalse;
-      if (onTrue.points.isNotEmpty && (onFalse).points.isNotEmpty) {
-        if (!onFalse.points.first.equals(onTrue.points.first)) {
-          onFalse = _handleFirstPoint(onFalse, onTrue.points.first);
-        } else {
-          onFalse = _handleLastPoint(onFalse, onTrue.points.last);
-        }
-      } else {
-        if (onTrue.points.isEmpty && onFalse.points.isNotEmpty) {
-          onTrue = _handleFirstPoint(onTrue, onFalse.points.first);
-          onTrue = _handleLastPoint(onTrue, onFalse.points.last);
-        } else if (onFalse.points.isEmpty && onTrue.points.isNotEmpty) {
-          onFalse = _handleFirstPoint(onFalse, onTrue.points.first);
-          onFalse = _handleLastPoint(onFalse, onTrue.points.last);
-        }
-      }
-    }
-    onTrue = (onTrue ?? this.onTrue).copyWith();
-    onFalse = (onFalse ?? this.onFalse).copyWith();
+    } 
+    onTrue = (onTrue).copyWith();
+    onFalse = (onFalse).copyWith();
     return BranchedSpline(onTrue, onFalse, condition ?? this.condition,
         isTrue: isTrue ?? this.isTrue);
   }

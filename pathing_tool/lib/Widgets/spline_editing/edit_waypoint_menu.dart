@@ -9,7 +9,7 @@ class EditWaypointMenu extends StatefulWidget {
   final Function(int) onWaypointSelected;
   final Function(Waypoint) onAttributeChanged;
   final Function(List<Waypoint>) onWaypointsChanged;
-  final bool firstLocked;
+  final bool firstLocked, lastLocked;
 
   const EditWaypointMenu({
     super.key,
@@ -19,6 +19,7 @@ class EditWaypointMenu extends StatefulWidget {
     required this.selectedWaypoint,
     required this.onWaypointsChanged,
     this.firstLocked = false,
+    this.lastLocked = false,
   });
 
   @override
@@ -78,7 +79,12 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                       );
                     }).toList(),
                   ),
-                  if (widget.selectedWaypoint != -1 && !(widget.selectedWaypoint == 0 && widget.firstLocked))
+                  if (widget.selectedWaypoint != -1 &&
+                      !(widget.selectedWaypoint == 0 &&
+                          (widget.firstLocked || widget.lastLocked)) &&
+                      !(widget.selectedWaypoint ==
+                              widget.waypoints.length - 1 &&
+                          widget.lastLocked))
                     Tooltip(
                       message: "Delete Waypoint",
                       waitDuration: const Duration(milliseconds: 500),
@@ -110,13 +116,20 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                         },
                       ),
                     ),
-                  if (widget.selectedWaypoint != -1 && !(widget.selectedWaypoint == 0 && widget.firstLocked))
+                  if (widget.selectedWaypoint != -1 &&
+                      !(widget.selectedWaypoint == 0 &&
+                          (widget.firstLocked || widget.lastLocked)) &&
+                      !(widget.selectedWaypoint ==
+                              widget.waypoints.length - 1 &&
+                          widget.lastLocked))
                     Tooltip(
                       message: "Move Backward",
                       waitDuration: const Duration(milliseconds: 500),
                       child: IconButton(
                         icon: const Icon(Icons.chevron_left),
-                        onPressed: widget.selectedWaypoint != 0 && !(widget.selectedWaypoint == 1 && widget.firstLocked)
+                        onPressed: widget.selectedWaypoint != 0 &&
+                                !(widget.selectedWaypoint == 1 &&
+                                    widget.firstLocked)
                             ? () {
                                 List<Waypoint> newWaypoints = [
                                   ...widget.waypoints
@@ -132,16 +145,24 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                                         t: newWaypoints[
                                                 widget.selectedWaypoint - 1]
                                             .t);
-                                widget.onWaypointSelected(widget.selectedWaypoint - 1);
+                                widget.onWaypointSelected(
+                                    widget.selectedWaypoint - 1);
                                 widget.onWaypointsChanged(newWaypoints);
                               }
                             : () {},
-                        color: widget.selectedWaypoint != 0 && !(widget.selectedWaypoint == 1 && widget.firstLocked)
+                        color: widget.selectedWaypoint != 0 &&
+                                !(widget.selectedWaypoint == 1 &&
+                                    widget.firstLocked)
                             ? theme.primaryColor
                             : Colors.grey,
                       ),
                     ),
-                  if (widget.selectedWaypoint != -1 && !(widget.selectedWaypoint == 0 && widget.firstLocked))
+                  if (widget.selectedWaypoint != -1 &&
+                      !(widget.selectedWaypoint == 0 &&
+                          (widget.firstLocked || widget.lastLocked)) &&
+                      !(widget.selectedWaypoint ==
+                              widget.waypoints.length - 1 &&
+                          widget.lastLocked))
                     Tooltip(
                       message: "Move Forward",
                       waitDuration: const Duration(milliseconds: 500),
@@ -164,7 +185,8 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                                         t: newWaypoints[
                                                 widget.selectedWaypoint + 1]
                                             .t);
-                                widget.onWaypointSelected(widget.selectedWaypoint + 1);
+                                widget.onWaypointSelected(
+                                    widget.selectedWaypoint + 1);
                                 widget.onWaypointsChanged(newWaypoints);
                               }
                             : () {},
@@ -176,9 +198,19 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                     ),
                 ]),
               ),
-              if ((widget.selectedWaypoint == 0 && widget.firstLocked))
-                Text("Waypoint is Locked. Modify Preceding Path.", style: theme.textTheme.titleLarge?.copyWith(color: Colors.red)),
-              if (selectedWaypoint != null && !(widget.selectedWaypoint == 0 && widget.firstLocked)) ...[
+              if (widget.selectedWaypoint != -1 &&
+                  ((widget.selectedWaypoint == 0 &&
+                          (widget.firstLocked || widget.lastLocked)) ||
+                      (widget.selectedWaypoint == widget.waypoints.length - 1 &&
+                          widget.lastLocked)))
+                Text("Waypoint is Locked. Modify Preceding Path.",
+                    style: theme.textTheme.titleLarge
+                        ?.copyWith(color: Colors.red)),
+              if (widget.selectedWaypoint != -1 &&
+                  !(widget.selectedWaypoint == 0 &&
+                      (widget.firstLocked || widget.lastLocked)) &&
+                  !(widget.selectedWaypoint == widget.waypoints.length - 1 &&
+                      widget.lastLocked)) ...[
                 AttributeEditor(
                   attributeName: 'Time',
                   currentValue: selectedWaypoint!.t,
@@ -204,7 +236,8 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                   attributeName: 'Heading',
                   currentValue: selectedWaypoint!.theta * (180 / pi),
                   onChanged: (value) {
-                    updateWaypoint(selectedWaypoint!.copyWith(theta: value * pi / 180));
+                    updateWaypoint(
+                        selectedWaypoint!.copyWith(theta: value * pi / 180));
                   },
                 ),
                 AttributeEditor(
@@ -225,7 +258,8 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                   attributeName: 'Ang-Vel',
                   currentValue: selectedWaypoint!.dtheta * (180 / pi),
                   onChanged: (value) {
-                    updateWaypoint(selectedWaypoint!.copyWith(dtheta: value * pi / 180));
+                    updateWaypoint(
+                        selectedWaypoint!.copyWith(dtheta: value * pi / 180));
                   },
                 ),
                 AttributeEditor(
@@ -246,7 +280,8 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                   attributeName: 'Ang-Acc',
                   currentValue: selectedWaypoint!.d2theta * (180 / pi),
                   onChanged: (value) {
-                    updateWaypoint(selectedWaypoint!.copyWith(d2theta: value * pi / 180));
+                    updateWaypoint(
+                        selectedWaypoint!.copyWith(d2theta: value * pi / 180));
                   },
                 ),
               ],
@@ -340,7 +375,7 @@ class _AttributeEditorState extends State<AttributeEditor> {
                     focusedBorder: UnderlineInputBorder(
                         borderSide: BorderSide(color: theme.primaryColor)),
                   ),
-                  onSubmitted: (value){
+                  onSubmitted: (value) {
                     widget.onChanged(double.parse(value));
                   },
                   cursorColor: theme.primaryColor,

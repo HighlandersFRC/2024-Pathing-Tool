@@ -735,7 +735,7 @@ class _PathEditorState extends State<PathEditor>
                                             if (!((widget.lastLocked &&
                                                     index ==
                                                         waypoints.length - 1) ||
-                                                (widget.firstLocked &&
+                                                ((widget.firstLocked || widget.lastLocked) &&
                                                     index == 0))) {
                                               double xPixels = waypoint.x /
                                                   fieldImageData
@@ -794,7 +794,7 @@ class _PathEditorState extends State<PathEditor>
                                             if (!((widget.lastLocked &&
                                                     index ==
                                                         waypoints.length - 1) ||
-                                                (widget.firstLocked &&
+                                                ((widget.firstLocked || widget.lastLocked) &&
                                                     index == 0))) {
                                               return DraggableHandleTheta(
                                                 constraints: constraints,
@@ -841,7 +841,7 @@ class _PathEditorState extends State<PathEditor>
                                             if (!((widget.lastLocked &&
                                                     index ==
                                                         waypoints.length - 1) ||
-                                                (widget.firstLocked &&
+                                                ((widget.firstLocked || widget.lastLocked) &&
                                                     index == 0))) {
                                               return DraggableHandlePosition(
                                                 constraints: constraints,
@@ -888,7 +888,7 @@ class _PathEditorState extends State<PathEditor>
                                             if (!((widget.lastLocked &&
                                                     index ==
                                                         waypoints.length - 1) ||
-                                                (widget.firstLocked &&
+                                                ((widget.firstLocked || widget.lastLocked) &&
                                                     index == 0))) {
                                               return VelocityHandle(
                                                 constraints: constraints,
@@ -956,7 +956,8 @@ class _PathEditorState extends State<PathEditor>
                                             ? selectedWaypoint
                                             : -1,
                                         onWaypointsChanged: _onWaypointsChanged,
-                                        firstLocked: widget.firstLocked,
+                                        firstLocked: (widget.firstLocked || widget.lastLocked),
+                                        lastLocked: widget.lastLocked,
                                       )
                                     else
                                       EditCommandMenu(
@@ -1110,7 +1111,7 @@ class _PathEditorState extends State<PathEditor>
       dx = deltaX / dt;
       dy = deltaY / dt;
     } else {
-      if (index == 0 && widget.firstLocked ||
+      if (index == 0 && (widget.firstLocked || widget.lastLocked) ||
           index == waypoints.length - 1 && widget.lastLocked) {
         Waypoint p1 = waypoints[index];
         dy = p1.dy;
@@ -1135,7 +1136,7 @@ class _PathEditorState extends State<PathEditor>
       d2x = deltaX / pow(dt, 2);
       d2y = deltaY / pow(dt, 2);
     } else {
-      if (index == 0 && widget.firstLocked ||
+      if (index == 0 && (widget.firstLocked || widget.lastLocked) ||
           index == waypoints.length - 1 && widget.lastLocked) {
         Waypoint p1 = waypoints[index];
         d2y = p1.d2y;
@@ -1174,7 +1175,7 @@ class _PathEditorState extends State<PathEditor>
         angVel = 0;
       }
     } else {
-      if (index == 0 && widget.firstLocked ||
+      if (index == 0 && (widget.firstLocked || widget.lastLocked) ||
           index == waypoints.length - 1 && widget.lastLocked) {
         Waypoint p1 = waypoints[index];
         angVel = p1.dtheta;
@@ -1194,7 +1195,7 @@ class _PathEditorState extends State<PathEditor>
       double d2a = p2.dtheta - p0.dtheta;
       angAcc = d2a / pow(dt, 2);
     } else {
-      if (index == 0 && widget.firstLocked ||
+      if (index == 0 && (widget.firstLocked || widget.lastLocked) ||
           index == waypoints.length - 1 && widget.lastLocked) {
         Waypoint p1 = waypoints[index];
         angAcc = p1.d2theta;
