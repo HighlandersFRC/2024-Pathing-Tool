@@ -442,7 +442,6 @@ class _AutoEditorState extends State<AutoEditor>
               .points
               .last
               .equals(spline.points.first)) {
-            print("hi");
             splines[selectedSpline] = _handleFirstPoint(
                 spline, splines[selectedSpline - 1].points.last);
           }
@@ -460,7 +459,6 @@ class _AutoEditorState extends State<AutoEditor>
               .points
               .first
               .equals(spline.points.last)) {
-            print("hi");
             splines[selectedSpline + 1] = _handleFirstPoint(
                 splines[selectedSpline + 1], spline.points.last);
           }
