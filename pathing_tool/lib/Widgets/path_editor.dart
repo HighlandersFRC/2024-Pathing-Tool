@@ -28,12 +28,13 @@ class PathEditor extends StatefulWidget {
   final List<Command> startingCommands;
   final String pathName;
   final Function(Spline)? returnSpline;
-  final bool firstLocked, lastLocked;
-  const PathEditor(this.startingWaypoints, this.pathName, this.startingCommands,
-      {super.key,
-      this.returnSpline,
-      this.firstLocked = false,
-      this.lastLocked = false});
+  const PathEditor(
+    this.startingWaypoints,
+    this.pathName,
+    this.startingCommands, {
+    super.key,
+    this.returnSpline,
+  });
   static PathEditor fromFile(File file, Function(Spline)? returnSpline) {
     String jsonString = file.readAsStringSync();
     var pathJson = json.decode(jsonString);
@@ -735,59 +736,86 @@ class _PathEditorState extends State<PathEditor>
                                               .entries
                                               .map((value) {
                                             Waypoint waypoint = value.value;
-                                            int index = value.key;
-                                            if (!((widget.lastLocked &&
-                                                    index ==
-                                                        waypoints.length - 1) ||
-                                                ((widget.firstLocked ||
-                                                        widget.lastLocked) &&
-                                                    index == 0))) {
-                                              double xPixels = waypoint.x /
-                                                  fieldImageData
-                                                      .imageWidthInMeters *
-                                                  usedWidth;
-                                              double yPixels = usedHeight -
-                                                  (waypoint.y /
-                                                      fieldImageData
-                                                          .imageHeightInMeters *
-                                                      usedHeight);
-                                              double metersToPixelsRatio =
-                                                  usedWidth /
-                                                      fieldImageData
-                                                          .imageWidthInMeters;
+                                            double xPixels = waypoint.x /
+                                                fieldImageData
+                                                    .imageWidthInMeters *
+                                                usedWidth;
+                                            double yPixels = usedHeight -
+                                                (waypoint.y /
+                                                    fieldImageData
+                                                        .imageHeightInMeters *
+                                                    usedHeight);
+                                            double metersToPixelsRatio =
+                                                usedWidth /
+                                                    fieldImageData
+                                                        .imageWidthInMeters;
 
-                                              Offset handlePosition = Offset(
-                                                metersToPixelsRatio *
-                                                    waypoint.dx,
-                                                -metersToPixelsRatio *
-                                                    waypoint.dy,
-                                              );
+                                            Offset handlePosition = Offset(
+                                              metersToPixelsRatio * waypoint.dx,
+                                              -metersToPixelsRatio *
+                                                  waypoint.dy,
+                                            );
 
-                                              return CustomPaint(
-                                                size: Size(availableWidth,
-                                                    availableHeight),
-                                                painter: VelocityPainter(
-                                                  opacity: waypoints.indexOf(
-                                                              waypoint) ==
+                                            return CustomPaint(
+                                              size: Size(availableWidth,
+                                                  availableHeight),
+                                              painter: VelocityPainter(
+                                                opacity: waypoints.indexOf(
+                                                            waypoint) ==
+                                                        selectedWaypoint
+                                                    ? 255
+                                                    : 150,
+                                                start: Offset(
+                                                    xPixels + widthOffset,
+                                                    yPixels + heightOffset),
+                                                end: Offset(
+                                                    xPixels +
+                                                        handlePosition.dx +
+                                                        widthOffset,
+                                                    yPixels +
+                                                        handlePosition.dy +
+                                                        heightOffset),
+                                                color: theme.primaryColor,
+                                              ),
+                                            );
+                                          }),
+                                        if (editMode == 1)
+                                          ...waypoints
+                                              .asMap()
+                                              .entries
+                                              .map((value) {
+                                            Waypoint waypoint = value.value;
+                                            return DraggableHandleTheta(
+                                              constraints: constraints,
+                                              waypoint: waypoint,
+                                              fieldImageData: fieldImageData,
+                                              usedWidth: usedWidth,
+                                              usedHeight: usedHeight,
+                                              onUpdate: (updatedWaypoint) {
+                                                setState(() {
+                                                  int index = waypoints
+                                                      .indexOf(waypoint);
+                                                  if (index != -1) {
+                                                    waypoints[index] =
+                                                        updatedWaypoint;
+                                                    waypoints = waypoints;
+                                                    editMode = 1;
+                                                    selectedWaypoint = index;
+                                                  }
+                                                });
+                                              },
+                                              opacity:
+                                                  waypoints.indexOf(waypoint) ==
                                                           selectedWaypoint
                                                       ? 255
                                                       : 150,
-                                                  start: Offset(
-                                                      xPixels + widthOffset,
-                                                      yPixels + heightOffset),
-                                                  end: Offset(
-                                                      xPixels +
-                                                          handlePosition.dx +
-                                                          widthOffset,
-                                                      yPixels +
-                                                          handlePosition.dy +
-                                                          heightOffset),
-                                                  color: theme.primaryColor,
-                                                ),
-                                              );
-                                            } else {
-                                              return const SizedBox.shrink();
-                                            }
+                                              saveState: () {
+                                                _saveState();
+                                                setState(() {
+                                                  smooth = false;
+                                                });
+                                              },
+                                            );
                                           }),
                                         if (editMode == 1)
                                           ...waypoints
@@ -795,47 +823,37 @@ class _PathEditorState extends State<PathEditor>
                                               .entries
                                               .map((value) {
                                             Waypoint waypoint = value.value;
-                                            int index = value.key;
-                                            if (!((widget.lastLocked &&
-                                                    index ==
-                                                        waypoints.length - 1) ||
-                                                ((widget.firstLocked ||
-                                                        widget.lastLocked) &&
-                                                    index == 0))) {
-                                              return DraggableHandleTheta(
-                                                constraints: constraints,
-                                                waypoint: waypoint,
-                                                fieldImageData: fieldImageData,
-                                                usedWidth: usedWidth,
-                                                usedHeight: usedHeight,
-                                                onUpdate: (updatedWaypoint) {
-                                                  setState(() {
-                                                    int index = waypoints
-                                                        .indexOf(waypoint);
-                                                    if (index != -1) {
-                                                      waypoints[index] =
-                                                          updatedWaypoint;
-                                                      waypoints = waypoints;
-                                                      editMode = 1;
-                                                      selectedWaypoint = index;
-                                                    }
-                                                  });
-                                                },
-                                                opacity: waypoints.indexOf(
-                                                            waypoint) ==
-                                                        selectedWaypoint
-                                                    ? 255
-                                                    : 150,
-                                                saveState: () {
-                                                  _saveState();
-                                                  setState(() {
-                                                    smooth = false;
-                                                  });
-                                                },
-                                              );
-                                            } else {
-                                              return const SizedBox.shrink();
-                                            }
+                                            return DraggableHandlePosition(
+                                              constraints: constraints,
+                                              waypoint: waypoint,
+                                              fieldImageData: fieldImageData,
+                                              usedWidth: usedWidth,
+                                              usedHeight: usedHeight,
+                                              onUpdate: (updatedWaypoint) {
+                                                setState(() {
+                                                  int index = waypoints
+                                                      .indexOf(waypoint);
+                                                  if (index != -1) {
+                                                    waypoints[index] =
+                                                        updatedWaypoint;
+                                                    waypoints = waypoints;
+                                                    editMode = 1;
+                                                    selectedWaypoint = index;
+                                                  }
+                                                });
+                                              },
+                                              opacity:
+                                                  waypoints.indexOf(waypoint) ==
+                                                          selectedWaypoint
+                                                      ? 255
+                                                      : 150,
+                                              saveState: () {
+                                                _saveState();
+                                                setState(() {
+                                                  smooth = false;
+                                                });
+                                              },
+                                            );
                                           }),
                                         if (editMode == 1)
                                           ...waypoints
@@ -843,95 +861,37 @@ class _PathEditorState extends State<PathEditor>
                                               .entries
                                               .map((value) {
                                             Waypoint waypoint = value.value;
-                                            int index = value.key;
-                                            if (!((widget.lastLocked &&
-                                                    index ==
-                                                        waypoints.length - 1) ||
-                                                ((widget.firstLocked ||
-                                                        widget.lastLocked) &&
-                                                    index == 0))) {
-                                              return DraggableHandlePosition(
-                                                constraints: constraints,
-                                                waypoint: waypoint,
-                                                fieldImageData: fieldImageData,
-                                                usedWidth: usedWidth,
-                                                usedHeight: usedHeight,
-                                                onUpdate: (updatedWaypoint) {
-                                                  setState(() {
-                                                    int index = waypoints
-                                                        .indexOf(waypoint);
-                                                    if (index != -1) {
-                                                      waypoints[index] =
-                                                          updatedWaypoint;
-                                                      waypoints = waypoints;
-                                                      editMode = 1;
-                                                      selectedWaypoint = index;
-                                                    }
-                                                  });
-                                                },
-                                                opacity: waypoints.indexOf(
-                                                            waypoint) ==
-                                                        selectedWaypoint
-                                                    ? 255
-                                                    : 150,
-                                                saveState: () {
-                                                  _saveState();
-                                                  setState(() {
-                                                    smooth = false;
-                                                  });
-                                                },
-                                              );
-                                            } else {
-                                              return const SizedBox.shrink();
-                                            }
-                                          }),
-                                        if (editMode == 1)
-                                          ...waypoints
-                                              .asMap()
-                                              .entries
-                                              .map((value) {
-                                            Waypoint waypoint = value.value;
-                                            int index = value.key;
-                                            if (!((widget.lastLocked &&
-                                                    index ==
-                                                        waypoints.length - 1) ||
-                                                ((widget.firstLocked ||
-                                                        widget.lastLocked) &&
-                                                    index == 0))) {
-                                              return VelocityHandle(
-                                                constraints: constraints,
-                                                waypoint: waypoint,
-                                                fieldImageData: fieldImageData,
-                                                usedWidth: usedWidth,
-                                                usedHeight: usedHeight,
-                                                onUpdate: (updatedWaypoint) {
-                                                  setState(() {
-                                                    int index = waypoints
-                                                        .indexOf(waypoint);
-                                                    if (index != -1) {
-                                                      waypoints[index] =
-                                                          updatedWaypoint;
-                                                      waypoints = waypoints;
-                                                      editMode = 1;
-                                                      selectedWaypoint = index;
-                                                    }
-                                                  });
-                                                },
-                                                opacity: waypoints.indexOf(
-                                                            waypoint) ==
-                                                        selectedWaypoint
-                                                    ? 255
-                                                    : 150,
-                                                saveState: () {
-                                                  _saveState();
-                                                  setState(() {
-                                                    smooth = false;
-                                                  });
-                                                },
-                                              );
-                                            } else {
-                                              return const SizedBox.shrink();
-                                            }
+                                            return VelocityHandle(
+                                              constraints: constraints,
+                                              waypoint: waypoint,
+                                              fieldImageData: fieldImageData,
+                                              usedWidth: usedWidth,
+                                              usedHeight: usedHeight,
+                                              onUpdate: (updatedWaypoint) {
+                                                setState(() {
+                                                  int index = waypoints
+                                                      .indexOf(waypoint);
+                                                  if (index != -1) {
+                                                    waypoints[index] =
+                                                        updatedWaypoint;
+                                                    waypoints = waypoints;
+                                                    editMode = 1;
+                                                    selectedWaypoint = index;
+                                                  }
+                                                });
+                                              },
+                                              opacity:
+                                                  waypoints.indexOf(waypoint) ==
+                                                          selectedWaypoint
+                                                      ? 255
+                                                      : 150,
+                                              saveState: () {
+                                                _saveState();
+                                                setState(() {
+                                                  smooth = false;
+                                                });
+                                              },
+                                            );
                                           }),
                                       ],
                                     ),
@@ -964,9 +924,6 @@ class _PathEditorState extends State<PathEditor>
                                             ? selectedWaypoint
                                             : -1,
                                         onWaypointsChanged: _onWaypointsChanged,
-                                        firstLocked: (widget.firstLocked ||
-                                            widget.lastLocked),
-                                        lastLocked: widget.lastLocked,
                                       )
                                     else
                                       EditCommandMenu(
@@ -1143,15 +1100,8 @@ class _PathEditorState extends State<PathEditor>
       dx = deltaX / dt;
       dy = deltaY / dt;
     } else {
-      if (index == 0 && (widget.firstLocked || widget.lastLocked) ||
-          index == waypoints.length - 1 && widget.lastLocked) {
-        Waypoint p1 = waypoints[index];
-        dy = p1.dy;
-        dx = p1.dx;
-      } else {
-        dy = 0;
-        dx = 0;
-      }
+      dy = 0;
+      dx = 0;
     }
     return (dy, dx);
   }
@@ -1182,13 +1132,7 @@ class _PathEditorState extends State<PathEditor>
         angVel = 0;
       }
     } else {
-      if (index == 0 && (widget.firstLocked || widget.lastLocked) ||
-          index == waypoints.length - 1 && widget.lastLocked) {
-        Waypoint p1 = waypoints[index];
-        angVel = p1.dtheta;
-      } else {
-        angVel = 0;
-      }
+      angVel = 0;
     }
     return angVel;
   }

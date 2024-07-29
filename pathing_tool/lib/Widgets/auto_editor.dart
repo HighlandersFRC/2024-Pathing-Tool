@@ -434,18 +434,7 @@ class _AutoEditorState extends State<AutoEditor>
   _returnSpline(Spline spline) {
     _saveState();
     setState(() {
-      if (selectedSpline != splines.length - 1) {
-        if (splines[selectedSpline + 1].points.isNotEmpty &&
-            splines[selectedSpline].points.isNotEmpty) {
-          if (!splines[selectedSpline + 1]
-              .points
-              .first
-              .equals(spline.points.last)) {
-            splines[selectedSpline + 1] = _handleFirstPoint(
-                splines[selectedSpline + 1], spline.points.last);
-          }
-        }
-      }
+      splines[selectedSpline] = spline;
       if (selectedSpline != 0) {
         if (splines[selectedSpline - 1].points.isNotEmpty &&
             splines[selectedSpline].points.isNotEmpty) {
@@ -453,12 +442,35 @@ class _AutoEditorState extends State<AutoEditor>
               .points
               .last
               .equals(spline.points.first)) {
+            print("hi");
             splines[selectedSpline] = _handleFirstPoint(
                 spline, splines[selectedSpline - 1].points.last);
           }
+        } else {
+          if (splines[selectedSpline - 1].points.isNotEmpty) {
+            splines[selectedSpline] = _handleFirstPoint(splines[selectedSpline],
+                splines[selectedSpline - 1].points.last);
+          }
         }
       }
-      splines[selectedSpline] = spline;
+      if (selectedSpline != splines.length - 1) {
+        if (splines[selectedSpline + 1].points.isNotEmpty &&
+            splines[selectedSpline].points.isNotEmpty) {
+          if (!splines[selectedSpline + 1]
+              .points
+              .first
+              .equals(spline.points.last)) {
+            print("hi");
+            splines[selectedSpline + 1] = _handleFirstPoint(
+                splines[selectedSpline + 1], spline.points.last);
+          }
+        } else {
+          if (splines[selectedSpline].points.isNotEmpty) {
+            splines[selectedSpline + 1] = _handleFirstPoint(
+                splines[selectedSpline + 1], spline.points.last);
+          }
+        }
+      }
     });
   }
 

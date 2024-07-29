@@ -18,14 +18,15 @@ class PathingPage extends StatelessWidget {
   final String pathName;
   final String? robotName, fieldName;
   final Function(Spline)? returnSpline;
-  final bool firstLocked, lastLocked;
-  const PathingPage(this.waypoints, this.commands, this.pathName,
-      {super.key,
-      this.robotName,
-      this.fieldName,
-      this.returnSpline,
-      this.firstLocked = false,
-      this.lastLocked = false});
+  const PathingPage(
+    this.waypoints,
+    this.commands,
+    this.pathName, {
+    super.key,
+    this.robotName,
+    this.fieldName,
+    this.returnSpline,
+  });
 
   static PathingPage fromFile(File file) {
     String jsonString = file.readAsStringSync();
@@ -57,10 +58,12 @@ class PathingPage extends StatelessWidget {
       {Function(Spline)? returnSpline,
       bool firstLocked = false,
       bool lastLocked = false}) {
-    return PathingPage(spline.points, spline.commands, spline.name,
-        returnSpline: returnSpline,
-        firstLocked: firstLocked,
-        lastLocked: lastLocked);
+    return PathingPage(
+      spline.points,
+      spline.commands,
+      spline.name,
+      returnSpline: returnSpline,
+    );
   }
 
   @override
@@ -101,8 +104,6 @@ class PathingPage extends StatelessWidget {
         pathName,
         commands,
         returnSpline: returnSpline,
-        firstLocked: firstLocked,
-        lastLocked: lastLocked,
       ),
     );
   }
