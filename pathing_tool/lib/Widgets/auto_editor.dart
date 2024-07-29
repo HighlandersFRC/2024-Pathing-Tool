@@ -117,7 +117,7 @@ class _AutoEditorState extends State<AutoEditor>
     _animationController.duration =
         Duration(microseconds: (duration * 1000000).round());
     _animationController.stop();
-    if (playing) {
+    if (playing && splines.length > 0) {
       _animationController.repeat();
     }
     // print(_animationController.duration);

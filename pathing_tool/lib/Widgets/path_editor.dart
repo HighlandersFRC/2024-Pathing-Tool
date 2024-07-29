@@ -189,7 +189,7 @@ class _PathEditorState extends State<PathEditor>
     _animationController.duration =
         Duration(microseconds: ((endTime - startTime) * 1000000).round());
     _animationController.stop();
-    if (playing) {
+    if (playing && waypoints.length > 1) {
       _animationController.repeat();
     }
     ImageDataProvider imageDataProvider =
