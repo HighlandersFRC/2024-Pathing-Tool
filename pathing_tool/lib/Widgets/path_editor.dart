@@ -739,7 +739,8 @@ class _PathEditorState extends State<PathEditor>
                                             if (!((widget.lastLocked &&
                                                     index ==
                                                         waypoints.length - 1) ||
-                                                ((widget.firstLocked || widget.lastLocked) &&
+                                                ((widget.firstLocked ||
+                                                        widget.lastLocked) &&
                                                     index == 0))) {
                                               double xPixels = waypoint.x /
                                                   fieldImageData
@@ -798,7 +799,8 @@ class _PathEditorState extends State<PathEditor>
                                             if (!((widget.lastLocked &&
                                                     index ==
                                                         waypoints.length - 1) ||
-                                                ((widget.firstLocked || widget.lastLocked) &&
+                                                ((widget.firstLocked ||
+                                                        widget.lastLocked) &&
                                                     index == 0))) {
                                               return DraggableHandleTheta(
                                                 constraints: constraints,
@@ -845,7 +847,8 @@ class _PathEditorState extends State<PathEditor>
                                             if (!((widget.lastLocked &&
                                                     index ==
                                                         waypoints.length - 1) ||
-                                                ((widget.firstLocked || widget.lastLocked) &&
+                                                ((widget.firstLocked ||
+                                                        widget.lastLocked) &&
                                                     index == 0))) {
                                               return DraggableHandlePosition(
                                                 constraints: constraints,
@@ -892,7 +895,8 @@ class _PathEditorState extends State<PathEditor>
                                             if (!((widget.lastLocked &&
                                                     index ==
                                                         waypoints.length - 1) ||
-                                                ((widget.firstLocked || widget.lastLocked) &&
+                                                ((widget.firstLocked ||
+                                                        widget.lastLocked) &&
                                                     index == 0))) {
                                               return VelocityHandle(
                                                 constraints: constraints,
@@ -960,7 +964,8 @@ class _PathEditorState extends State<PathEditor>
                                             ? selectedWaypoint
                                             : -1,
                                         onWaypointsChanged: _onWaypointsChanged,
-                                        firstLocked: (widget.firstLocked || widget.lastLocked),
+                                        firstLocked: (widget.firstLocked ||
+                                            widget.lastLocked),
                                         lastLocked: widget.lastLocked,
                                       )
                                     else
@@ -991,9 +996,31 @@ class _PathEditorState extends State<PathEditor>
         waypoint = waypoints[selectedWaypoint];
         waypoints.sort((a, b) => a.t.compareTo(b.t));
         selectedWaypoint = waypoints.indexOf(waypoint);
+        _optimizeRotation();
         smooth = false;
       });
     }
+  }
+
+  _optimizeRotation() {
+    setState(() {
+      for (int i = 1; i < waypoints.length; i++) {
+        var p1 = waypoints[i - 1];
+        waypoints[i] =
+            waypoints[i].copyWith(theta: waypoints[i].theta % (2 * pi));
+        while (true) {
+          if (waypoints[i].theta - p1.theta > pi) {
+            waypoints[i] =
+                waypoints[i].copyWith(theta: waypoints[i].theta - 2 * pi);
+          } else if (waypoints[i].theta - p1.theta < -pi) {
+            waypoints[i] =
+                waypoints[i].copyWith(theta: waypoints[i].theta + 2 * pi);
+          } else {
+            break;
+          }
+        }
+      }
+    });
   }
 
   _onWaypointSelected(int index) {
@@ -1092,6 +1119,7 @@ class _PathEditorState extends State<PathEditor>
       waypoints.sort((a, b) => a.t.compareTo(b.t));
       this.waypoints = [...waypoints];
       smooth = false;
+      _optimizeRotation();
     });
   }
 
@@ -1128,31 +1156,6 @@ class _PathEditorState extends State<PathEditor>
     return (dy, dx);
   }
 
-  (double, double) _averageLinearAcceleration(
-      int index, List<Waypoint> waypoints) {
-    double d2y = 0, d2x = 0;
-    if (index != 0 && index != waypoints.length - 1) {
-      Waypoint p0 = waypoints[index - 1];
-      Waypoint p2 = waypoints[index + 1];
-      double dt = p2.time - p0.time;
-      double deltaX = p2.dx - p0.dx;
-      double deltaY = p2.dy - p0.dy;
-      d2x = deltaX / pow(dt, 2);
-      d2y = deltaY / pow(dt, 2);
-    } else {
-      if (index == 0 && (widget.firstLocked || widget.lastLocked) ||
-          index == waypoints.length - 1 && widget.lastLocked) {
-        Waypoint p1 = waypoints[index];
-        d2y = p1.d2y;
-        d2x = p1.d2x;
-      } else {
-        d2y = 0;
-        d2x = 0;
-      }
-    }
-    return (d2y, d2x);
-  }
-
   double _averageAngularVelocity(int index) {
     double angVel;
     if (index != 0 && index != waypoints.length - 1) {
@@ -1171,7 +1174,7 @@ class _PathEditorState extends State<PathEditor>
       if (sine1 != sine2) {
         angVel = 0;
       } else {
-        angVel = da / dt;
+        angVel = da / dt * sine1;
       }
       if ((p0.theta - p1.theta).abs() < pi / 8) {
         angVel = 0;
@@ -1190,38 +1193,12 @@ class _PathEditorState extends State<PathEditor>
     return angVel;
   }
 
-  double _averageAngularAcceleration(int index, List<Waypoint> waypoints) {
-    double angAcc;
-    if (index != 0 && index != waypoints.length - 1) {
-      Waypoint p0 = waypoints[index - 1];
-      Waypoint p2 = waypoints[index + 1];
-      double dt = p2.time - p0.time;
-      double d2a = p2.dtheta - p0.dtheta;
-      angAcc = d2a / pow(dt, 2);
-    } else {
-      if (index == 0 && (widget.firstLocked || widget.lastLocked) ||
-          index == waypoints.length - 1 && widget.lastLocked) {
-        Waypoint p1 = waypoints[index];
-        angAcc = p1.d2theta;
-      } else {
-        angAcc = 0;
-      }
-    }
-    return angAcc;
-  }
-
   _averageAll() {
     List<Waypoint> newWaypoints = [];
     for (int i = 0; i < waypoints.length; i++) {
       var (dy, dx) = _averageLinearVelocity(i);
       var dtheta = _averageAngularVelocity(i);
       newWaypoints.add(waypoints[i].copyWith(dy: dy, dx: dx, dtheta: dtheta));
-    }
-    for (int i = 0; i < newWaypoints.length; i++) {
-      var (d2y, d2x) = _averageLinearAcceleration(i, newWaypoints);
-      var d2theta = _averageAngularAcceleration(i, newWaypoints);
-      newWaypoints[i] =
-          newWaypoints[i].copyWith(d2y: d2y, d2x: d2x, d2theta: d2theta);
     }
     _onWaypointsChanged(newWaypoints);
     setState(() {
