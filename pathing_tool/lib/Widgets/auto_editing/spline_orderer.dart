@@ -12,7 +12,8 @@ class SplineOrderer extends StatefulWidget {
   final Function() onDelete,
       onMoveForward,
       onMoveBackward,
-      onBranchedSplineAdded;
+      onBranchedSplineAdded,
+      onSplineAdded;
   final Function(Spline?, bool, {Function(Spline)? returnSpline}) onEdit;
   final Function(Spline, int) onChanged;
   final int splineIndex;
@@ -25,6 +26,7 @@ class SplineOrderer extends StatefulWidget {
     this.onMoveForward,
     this.onMoveBackward,
     this.onBranchedSplineAdded,
+    this.onSplineAdded,
     this.onChanged, {
     super.key,
   });
@@ -80,6 +82,9 @@ class _SplineOrdererState extends State<SplineOrderer> {
       ElevatedButton(
           onPressed: widget.onBranchedSplineAdded,
           child: const Text('Add Branched Path')),
+      ElevatedButton(
+          onPressed: widget.onSplineAdded,
+          child: const Text('Add Path')),
     ]));
   }
 }
@@ -111,10 +116,7 @@ class SplineEditor extends StatelessWidget {
     return spline is BranchedSpline
         ? BranchedSplineEditor(spline as BranchedSpline, splineIndex,
             onMoveForward, onMoveBackward, onEdit, onDelete, length, onChanged)
-        : spline.isNull
-            ? NullSplineEditor(spline as NullSpline, splineIndex, onEdit,
-                onDelete, length, onChanged)
-            : Column(
+        : Column(
                 children: [
                   Text(
                     spline.name,
@@ -181,12 +183,33 @@ class BranchedSplineEditor extends StatefulWidget {
       {super.key,
       this.lastLocked = false});
 
-  _returnSpline(bool isTrue, {Function(Spline)? returnSpline, Spline? spline}) {
+  _returnSpline(bool isTrue, int index,
+      {Function(Spline)? returnSpline, Spline? spline}) {
     if (spline != null) {
       if (isTrue) {
-        onChanged(this.spline.copyWith(onTrue: spline));
+        var splineList = [
+          for (var spline in this
+              .spline
+              .onTrue
+              .splines
+              .indexed
+              .where((spline) => spline.$1 != index))
+            spline.$2
+        ];
+        splineList.insert(index, spline);
+        onChanged(this.spline.copyWith(onTrue: SplineSet(splineList)));
       } else {
-        onChanged(this.spline.copyWith(onFalse: spline));
+        var splineList = [
+          for (var spline in this
+              .spline
+              .onFalse
+              .splines
+              .indexed
+              .where((spline) => spline.$1 != index))
+            spline.$2
+        ];
+        splineList.insert(index, spline);
+        onChanged(this.spline.copyWith(onFalse: SplineSet(splineList)));
       }
     }
   }
@@ -197,6 +220,132 @@ class BranchedSplineEditor extends StatefulWidget {
 
 class _BranchedSplineEditorState extends State<BranchedSplineEditor> {
   BranchedSpline get spline => widget.spline;
+  int selectedOnTrue = -1, selectedOnFalse = -1;
+  _loadPath(bool isTrue) async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['polarpath'],
+    );
+    setState(() {
+      var splines = spline.onTrue.splines;
+      if (result != null && result.files.single.path != null) {
+        String path = result.files.single.path!;
+        File pathFile = File(path);
+        Spline newSpline = Spline.fromPolarPathFile(pathFile);
+        widget.onChanged(
+          isTrue
+              ? spline.copyWith(onTrue: spline.onTrue.addSpline(newSpline))
+              : spline.copyWith(onFalse: spline.onFalse.addSpline(newSpline)),
+        );
+        setState(() {
+          if (isTrue) {
+            selectedOnTrue = splines.length - 1;
+          } else {
+            selectedOnFalse = splines.length - 1;
+          }
+        });
+      }
+    });
+  }
+
+  _newPath(bool isTrue) {
+    bool pathAdded = false;
+    TextEditingController controller = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        final theme = Theme.of(context);
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text("New Path", style: theme.textTheme.titleLarge),
+              content: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: controller,
+                      onChanged: (value) {
+                        setState(() {
+                          pathAdded = value.trim().isNotEmpty;
+                        });
+                      },
+                      decoration: InputDecoration(
+                        labelText: 'Path Name',
+                        focusColor: theme.primaryColor,
+                        hoverColor: theme.primaryColor,
+                        floatingLabelStyle:
+                            TextStyle(color: theme.primaryColor),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: theme.primaryColor),
+                        ),
+                      ),
+                      cursorColor: theme.primaryColor,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: pathAdded
+                          ? () {
+                              isTrue
+                                  ? widget.onChanged(spline.copyWith(
+                                      onTrue: spline.onTrue.addSpline(Spline(
+                                      [],
+                                      name: controller.text,
+                                    ))))
+                                  : widget.onChanged(spline.copyWith(
+                                      onFalse: spline.onFalse.addSpline(Spline(
+                                      [],
+                                      name: controller.text,
+                                    ))));
+                              Navigator.pop(context);
+                            }
+                          : null,
+                      child: Text(
+                        "Add Path",
+                        style: TextStyle(
+                          color: pathAdded
+                              ? null
+                              : Colors.grey.shade500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _loadPath(isTrue);
+                    },
+                    child: const Text("Load From File")),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: Text(
+                    "Cancel",
+                    style: TextStyle(color: theme.primaryColor),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    setState(() {
+      if (pathAdded) {
+        if (isTrue) {
+          selectedOnTrue = spline.onTrue.splines.length - 1;
+        } else {
+          selectedOnFalse = spline.onFalse.splines.length - 1;
+        }
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -274,26 +423,56 @@ class _BranchedSplineEditorState extends State<BranchedSplineEditor> {
                   );
                 },
                 isExpanded: spline.isTrue,
-                body: SplineEditor(
-                  spline.onTrue,
-                  0,
-                  widget.onMoveForward,
-                  widget.onMoveBackward,
-                  (onTrue, isLocked, {Function(Spline)? returnSpline}) {
-                    widget.onEdit(onTrue, isLocked,
-                        returnSpline: (Spline? newSpline) {
-                      widget._returnSpline(true,
-                          returnSpline: returnSpline, spline: newSpline);
-                    });
-                  },
-                  () {
-                    widget.onChanged(spline.copyWith(onTrue: NullSpline()));
-                  },
-                  1,
-                  (Spline newSpline) =>
-                      widget.onChanged(spline.copyWith(onTrue: newSpline)),
-                  isBranch: true,
-                )),
+                body: SplineOrderer(
+                    spline.onTrue.splines,
+                    (int index) {
+                      setState(() {
+                        selectedOnTrue = index;
+                      });
+                    },
+                    (spline, lastLocked, {Function(Spline)? returnSpline}) {
+                      widget.onEdit(spline, true,
+                          returnSpline: (Spline? newSpline) {
+                        widget._returnSpline(true, selectedOnTrue,
+                            returnSpline: returnSpline, spline: newSpline);
+                      });
+                    },
+                    () {
+                      widget.onChanged(spline.copyWith(
+                          onTrue: spline.onTrue.removeSpline(selectedOnTrue)));
+                    },
+                    selectedOnTrue,
+                    () {
+                      widget.onChanged(spline.copyWith(
+                          onTrue:
+                              spline.onTrue.moveSplineForward(selectedOnTrue)));
+                    },
+                    () {
+                      widget.onChanged(spline.copyWith(
+                          onTrue: spline.onTrue
+                              .moveSplineBackward(selectedOnTrue)));
+                    },
+                    () {
+                      var newSplines = spline.onTrue.splines;
+                      newSplines.add(BranchedSpline(
+                        SplineSet([]),
+                        SplineSet([]),
+                        "",
+                        isTrue: true,
+                      ));
+                      widget.onChanged(
+                          spline.copyWith(onTrue: SplineSet(newSplines)));
+                    },
+                    () {
+                      _newPath(true);
+                    },
+                    (spline, index) {
+                      widget.onChanged(this.spline.copyWith(
+                          onTrue: this
+                              .spline
+                              .onTrue
+                              .onSplineChanged(index, spline)));
+                    })),
             ExpansionPanel(
               canTapOnHeader: true,
               backgroundColor: theme.primaryColor.withOpacity(0.2),
@@ -307,173 +486,60 @@ class _BranchedSplineEditorState extends State<BranchedSplineEditor> {
                 );
               },
               isExpanded: !spline.isTrue,
-              body: SplineEditor(
-                spline.onFalse,
-                0,
-                widget.onMoveForward,
-                widget.onMoveBackward,
-                (onFalse, lastLocked, {Function(Spline)? returnSpline}) {
-                  widget.onEdit(onFalse, true,
-                        returnSpline: (Spline? newSpline) {
-                      widget._returnSpline(false,
-                          returnSpline: returnSpline, spline: newSpline);
-                    });
-                },
-                () {
-                  widget.onChanged(spline.copyWith(onFalse: NullSpline()));
-                },
-                1,
-                (Spline newSpline) =>
-                    widget.onChanged(spline.copyWith(onFalse: newSpline)),
-                isBranch: true,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class NullSplineEditor extends StatelessWidget {
-  final NullSpline spline;
-  final int splineIndex;
-  final int length;
-  final Function() onDelete;
-  final Function(Spline?, bool, {Function(Spline)? returnSpline}) onEdit;
-  final Function(Spline) onChanged;
-  final bool isBranch;
-  const NullSplineEditor(
-    this.spline,
-    this.splineIndex,
-    this.onEdit,
-    this.onDelete,
-    this.length,
-    this.onChanged, {
-    super.key,
-    this.isBranch = false,
-  });
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      children: [
-        Text(
-          spline.name,
-          style: theme.textTheme.headlineLarge,
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            IconButton(
-              onPressed: onDelete,
-              icon: const Icon(Icons.delete),
-              color: theme.brightness == Brightness.dark
-                  ? Colors.white
-                  : Colors.black,
-            ),
-            ElevatedButton(
-              onPressed: () => _newPath(context),
-              child: const Text('To Path'),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  _loadPath() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['polarpath'],
-    );
-    if (result != null && result.files.single.path != null) {
-      String path = result.files.single.path!;
-      File pathFile = File(path);
-      Spline newSpline = Spline.fromPolarPathFile(pathFile);
-      onChanged(newSpline);
-    }
-  }
-
-  _newPath(context) {
-    bool pathAdded = false;
-    TextEditingController controller = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        final theme = Theme.of(context);
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text("New Path", style: theme.textTheme.titleLarge),
-              content: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: controller,
-                      onChanged: (value) {
-                        setState(() {
-                          pathAdded = value.trim().isNotEmpty;
-                        });
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Path Name',
-                        focusColor: theme.primaryColor,
-                        hoverColor: theme.primaryColor,
-                        floatingLabelStyle:
-                            TextStyle(color: theme.primaryColor),
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: theme.primaryColor),
-                        ),
-                      ),
-                      cursorColor: theme.primaryColor,
-                    ),
-                    const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: pathAdded
-                          ? () {
-                              onChanged(Spline(
-                                [],
-                                commands: [],
-                                name: controller.text,
-                              ));
-                              Navigator.pop(context);
-                            }
-                          : null,
-                      child: Text(
-                        "Add Path",
-                        style: TextStyle(
-                          color: pathAdded
-                              ? theme.primaryColor
-                              : Colors.grey.shade500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _loadPath();
+              body: SplineOrderer(
+                    spline.onFalse.splines,
+                    (int index) {
+                      setState(() {
+                        selectedOnFalse = index;
+                      });
                     },
-                    child: const Text("Load From File")),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  child: Text(
-                    "Cancel",
-                    style: TextStyle(color: theme.primaryColor),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
+                    (spline, lastLocked, {Function(Spline)? returnSpline}) {
+                      widget.onEdit(spline, false,
+                          returnSpline: (Spline? newSpline) {
+                        widget._returnSpline(false, selectedOnFalse,
+                            returnSpline: returnSpline, spline: newSpline);
+                      });
+                    },
+                    () {
+                      widget.onChanged(spline.copyWith(
+                          onFalse: spline.onFalse.removeSpline(selectedOnFalse)));
+                    },
+                    selectedOnFalse,
+                    () {
+                      widget.onChanged(spline.copyWith(
+                          onFalse:
+                              spline.onFalse.moveSplineForward(selectedOnFalse)));
+                    },
+                    () {
+                      widget.onChanged(spline.copyWith(
+                          onFalse: spline.onFalse
+                              .moveSplineBackward(selectedOnFalse)));
+                    },
+                    () {
+                      var newSplines = spline.onFalse.splines;
+                      newSplines.add(BranchedSpline(
+                        SplineSet([]),
+                        SplineSet([]),
+                        "",
+                        isTrue: false,
+                      ));
+                      widget.onChanged(
+                          spline.copyWith(onFalse: SplineSet(newSplines)));
+                    },
+                    () {
+                      _newPath(false);
+                    },
+                    (spline, index) {
+                      widget.onChanged(this.spline.copyWith(
+                          onFalse: this
+                              .spline
+                              .onFalse
+                              .onSplineChanged(index, spline)));
+                    }),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

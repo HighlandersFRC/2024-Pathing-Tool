@@ -120,8 +120,6 @@ class Spline {
     }
   }
 
-  bool get isNull => false;
-
   Map<String, dynamic> toJson() {
     var json = {
       "meta_data": {"path_name": name},
@@ -149,7 +147,7 @@ class Spline {
 }
 
 class BranchedSpline extends Spline {
-  final Spline onTrue, onFalse;
+  final SplineSet onTrue, onFalse;
   final String condition;
   late bool _isTrue;
   BranchedSpline(this.onTrue, this.onFalse, this.condition,
@@ -166,81 +164,118 @@ class BranchedSpline extends Spline {
       {List<Command>? commands,
       String? name,
       List<Waypoint>? points,
-      Spline? onTrue,
-      Spline? onFalse,
+      SplineSet? onTrue,
+      SplineSet? onFalse,
       String? condition,
       bool? isTrue}) {
     onTrue = onTrue ?? this.onTrue;
     onFalse = onFalse ?? this.onFalse;
-    if (points != null) {
-      if (this.isTrue) {
-        onTrue = onTrue.copyWith(points: points);
-        if (onTrue.points.isNotEmpty && (onFalse).points.isNotEmpty) {
-          if (!onFalse.points.first.equals(onTrue.points.first)) {
-            onFalse = _handleFirstPoint(onFalse, onTrue.points.first);
-          }
-          if (!onTrue.points.last.equals(onFalse.points.last)) {
-            onFalse = _handleLastPoint(onFalse, onTrue.points.last);
-          }
-        } else {
-          if (onTrue.points.isEmpty && onFalse.points.isNotEmpty) {
-            onTrue = _handleFirstPoint(onTrue, onFalse.points.first);
-            onTrue = _handleLastPoint(onTrue, onFalse.points.last);
-          } else if (onFalse.points.isEmpty && onTrue.points.isNotEmpty) {
-            onFalse = _handleFirstPoint(onFalse, onTrue.points.first);
-            onFalse = _handleLastPoint(onFalse, onTrue.points.last);
-          }
+    print("hi");
+    if (this.isTrue) {
+      if (points != null) onTrue = _handleFirstPoint(onTrue, points.first);
+      print("hi2");
+      if (onTrue.points.isNotEmpty && (onFalse).points.isNotEmpty) {
+        if (!onFalse.points.first.equals(onTrue.points.first)) {
+          onFalse = _handleFirstPoint(onFalse, onTrue.points.first);
+          print("hi3");
+        }
+        print("hi4");
+        if (!onTrue.points.last.equals(onFalse.points.last)) {
+          onFalse = _handleLastPoint(onFalse, onTrue.points.last);
+          print("hi5");
         }
       } else {
-        onFalse = (onFalse).copyWith(points: points);
-        if (onTrue.points.isNotEmpty && (onFalse).points.isNotEmpty) {
-          if (!onTrue.points.first.equals(onFalse.points.first)) {
-            onTrue = _handleFirstPoint(onTrue, onFalse.points.first);
-          }
-          if (!onTrue.points.last.equals(onFalse.points.last)) {
-            onTrue = _handleLastPoint(onTrue, onFalse.points.last);
-          }
-        } else {
-          if (onTrue.points.isEmpty && onFalse.points.isNotEmpty) {
-            onTrue = _handleFirstPoint(onTrue, onFalse.points.first);
-            onTrue = _handleLastPoint(onTrue, onFalse.points.last);
-          } else if (onFalse.points.isEmpty && onTrue.points.isNotEmpty) {
-            onFalse = _handleFirstPoint(onFalse, onTrue.points.first);
-            onFalse = _handleLastPoint(onFalse, onTrue.points.last);
-          }
+        print("hi6");
+        if (onTrue.points.isEmpty && onFalse.points.isNotEmpty) {
+          onTrue = _handleFirstPoint(onTrue, onFalse.points.first);
+          onTrue = _handleLastPoint(onTrue, onFalse.points.last);
+          print("hi7");
+        } else if (onFalse.points.isEmpty && onTrue.points.isNotEmpty) {
+          onFalse = _handleFirstPoint(onFalse, onTrue.points.first);
+          onFalse = _handleLastPoint(onFalse, onTrue.points.last);
+          print("hi8");
         }
       }
-    } 
-    onTrue = (onTrue).copyWith();
-    onFalse = (onFalse).copyWith();
+    } else {
+      if (points != null) onFalse = _handleFirstPoint(onFalse, points.first);
+      if (onTrue.points.isNotEmpty && (onFalse).points.isNotEmpty) {
+        if (!onTrue.points.first.equals(onFalse.points.first)) {
+          onTrue = _handleFirstPoint(onTrue, onFalse.points.first);
+        }
+        if (!onTrue.points.last.equals(onFalse.points.last)) {
+          onTrue = _handleLastPoint(onTrue, onFalse.points.last);
+        }
+      } else {
+        if (onTrue.points.isEmpty && onFalse.points.isNotEmpty) {
+          onTrue = _handleFirstPoint(onTrue, onFalse.points.first);
+          onTrue = _handleLastPoint(onTrue, onFalse.points.last);
+        } else if (onFalse.points.isEmpty && onTrue.points.isNotEmpty) {
+          onFalse = _handleFirstPoint(onFalse, onTrue.points.first);
+          onFalse = _handleLastPoint(onFalse, onTrue.points.last);
+        }
+      }
+    }
     return BranchedSpline(onTrue, onFalse, condition ?? this.condition,
         isTrue: isTrue ?? this.isTrue);
   }
 
-  Spline _handleFirstPoint(Spline newSpline, Waypoint preferredPoint) {
-    if (newSpline.points.isNotEmpty) {
-      return newSpline.copyWith(points: [
-        preferredPoint.copyWith(t: newSpline.points.first.time - 1),
-        ...newSpline.points
-      ]);
-    } else {
-      return newSpline.copyWith(points: [
-        preferredPoint.copyWith(t: 0.0),
+  SplineSet _handleFirstPoint(SplineSet newSpline, Waypoint preferredPoint) {
+    print("hi");
+    if (newSpline.splines.isEmpty) {
+      return SplineSet([
+        Spline([preferredPoint.copyWith(t: 0)])
       ]);
     }
+    if (newSpline.splines.first.points.isEmpty) {
+      return SplineSet([
+        Spline(([preferredPoint.copyWith(t: 0)])),
+        ...[
+          for (var spline
+              in newSpline.splines.indexed.where((spline) => spline.$1 != 0))
+            spline.$2
+        ],
+      ]);
+    }
+    return SplineSet([
+      newSpline.splines.first.copyWith(points: [
+        preferredPoint.copyWith(t: newSpline.points.first.t - 1),
+        ...newSpline.splines.first.points
+      ]),
+      ...[
+        for (var spline
+            in newSpline.splines.indexed.where((spline) => spline.$1 != 0))
+          spline.$2
+      ],
+    ]);
   }
 
-  Spline _handleLastPoint(Spline newSpline, Waypoint preferredPoint) {
-    if (newSpline.points.isNotEmpty) {
-      return newSpline.copyWith(points: [
-        ...newSpline.points,
-        preferredPoint.copyWith(t: newSpline.points.last.time + 1),
-      ]);
-    } else {
-      return newSpline.copyWith(points: [
-        preferredPoint.copyWith(t: 0.0),
+  SplineSet _handleLastPoint(SplineSet newSpline, Waypoint preferredPoint) {
+    if (newSpline.splines.isEmpty) {
+      return SplineSet([
+        Spline([preferredPoint.copyWith(t: 0)])
       ]);
     }
+    if (newSpline.splines.last.points.isEmpty) {
+      return SplineSet([
+        ...[
+          for (var spline in newSpline.splines.indexed
+              .where((spline) => spline.$1 != newSpline.splines.length - 1))
+            spline.$2
+        ],
+        Spline(([preferredPoint.copyWith(t: 0)])),
+      ]);
+    }
+    return SplineSet([
+      ...[
+        for (var spline in newSpline.splines.indexed
+            .where((spline) => spline.$1 != newSpline.splines.length - 1))
+          spline.$2
+      ],
+      newSpline.splines.last.copyWith(points: [
+        ...newSpline.splines.first.points,
+        preferredPoint.copyWith(t: newSpline.points.last.t + 1),
+      ]),
+    ]);
   }
 
   @override
@@ -250,51 +285,194 @@ class BranchedSpline extends Spline {
 
   @override
   (Map<String, dynamic>, int) scheduleItem(int pathIndex) {
+    var (onTrueSchedule, onTruePathIndex) = onTrue.scheduleItems(pathIndex);
+    var (onFalseSchedule, onFalsePathIndex) =
+        onFalse.scheduleItems(onTruePathIndex);
+    pathIndex = onFalsePathIndex;
     return (
       {
         "branched": true,
         "condition": condition,
         "branched_path": {
-          "on_true": onTrue is NullSpline ? -1 : pathIndex,
-          "on_false": onTrue is NullSpline
-              ? onFalse is NullSpline
-                  ? -1
-                  : pathIndex
-              : onFalse is NullSpline
-                  ? -1
-                  : pathIndex + 1,
+          "on_true": onTrueSchedule,
+          "on_false": onFalseSchedule,
         }
       },
-      pathIndex +
-          (onTrue is NullSpline
-              ? onFalse is NullSpline
-                  ? 0
-                  : 1
-              : onFalse is NullSpline
-                  ? 1
-                  : 2)
+      pathIndex
     );
   }
 }
 
-class NullSpline extends Spline {
-  NullSpline() : super([], commands: [], name: "Null Spline");
-
+class SplineSet extends Spline {
+  final List<Spline> splines;
+  SplineSet(this.splines)
+      : super(_getWaypointsFromSplineList(splines),
+            commands: _getCommandsFromSplineList(splines), name: "Spline Set");
   @override
-  bool get isNull => true;
-
+  List<Waypoint> get points => _getWaypointsFromSplineList(splines);
   @override
-  Spline copyWith(
+  List<Command> get commands => _getCommandsFromSplineList(splines);
+  @override
+  SplineSet copyWith(
       {List<Command>? commands, String? name, List<Waypoint>? points}) {
-    if (points == null && commands == null && name == null) {
-      return NullSpline();
-    } else {
-      return super.copyWith(commands: commands, name: name, points: points);
+    List<Spline> newSplines = List<Spline>.empty(growable: true);
+    for (var spline in splines) {
+      newSplines.add(spline.copyWith());
     }
+    return SplineSet(newSplines);
+  }
+
+  SplineSet changeSpline(int index, Spline newSpline) {
+    return SplineSet([
+      ...splines.indexed
+          .map((spline) => spline.$1 == index ? newSpline : spline.$2)
+    ]);
+  }
+
+  SplineSet moveSplineForward(int index) {
+    Spline movedSpline = splines[index];
+    splines[index] = splines[index + 1];
+    splines[index + 1] = movedSpline;
+    if (index != 0) {
+      _handleFirstPoint(splines[index], splines[index - 1].points.last);
+    }
+    _handleFirstPoint(splines[index + 1], splines[index].points.last);
+    if (index != splines.length - 2) {
+      _handleFirstPoint(splines[index + 2], splines[index + 1].points.last);
+    }
+    return SplineSet(splines);
+  }
+
+  SplineSet moveSplineBackward(int index) {
+    Spline movedSpline = splines[index];
+    splines[index] = splines[index - 1];
+    splines[index - 1] = movedSpline;
+    if (index != 1) {
+      splines[index - 1] =
+          _handleFirstPoint(splines[index - 1], splines[index - 2].points.last);
+    }
+    splines[index] =
+        _handleFirstPoint(splines[index], splines[index - 1].points.last);
+    if (index != splines.length - 1) {
+      splines[index + 1] =
+          _handleFirstPoint(splines[index + 1], splines[index].points.last);
+    }
+    return SplineSet(splines);
+  }
+
+  SplineSet onSplineChanged(int index, Spline newSpline) {
+    Spline updatedSpline = splines[index].copyWith(points: newSpline.points);
+    splines[index] = updatedSpline;
+    if (index != 0) {
+      splines[index] =
+          _handleFirstPoint(splines[index], splines[index - 1].points.last);
+    }
+    if (index != splines.length - 1) {
+      splines[index + 1] =
+          _handleFirstPoint(splines[index + 1], splines[index].points.last);
+    }
+    return SplineSet(splines);
+  }
+
+  SplineSet addSpline(Spline newSpline) {
+    if (splines.isEmpty) {
+      return SplineSet([newSpline]);
+    }
+    newSpline = _handleFirstPoint(newSpline, splines.last.points.last);
+    return SplineSet([...splines, newSpline]);
+  }
+
+  SplineSet removeSpline(int index) {
+    if (index == 0) {
+      return SplineSet(splines.sublist(1));
+    }
+    if (index == splines.length - 1) {
+      return SplineSet(splines.sublist(0, splines.length - 1));
+    }
+    splines.removeAt(index);
+    if (index != splines.length - 1) {
+      splines[index + 1] =
+          _handleFirstPoint(splines[index + 1], splines[index].points.last);
+    }
+    if (index != 0) {
+      splines[index] =
+          _handleFirstPoint(splines[index], splines[index - 1].points.last);
+    }
+    return SplineSet(splines);
+  }
+
+  Spline _handleFirstPoint(Spline newSpline, Waypoint preferredPoint) {
+    if (newSpline.points.isEmpty) {
+      return Spline(([preferredPoint]));
+    }
+    if (newSpline.points.first.equals(preferredPoint)) {
+      return newSpline;
+    }
+    return newSpline.copyWith(points: [preferredPoint, ...newSpline.points]);
+  }
+
+  (List<Map<String, dynamic>>, int) scheduleItems(int pathIndex) {
+    List<Map<String, dynamic>> scheduleItems = [];
+    for (var spline in splines) {
+      var (splineScheduleItems, newPathIndex) = spline.scheduleItem(pathIndex);
+      scheduleItems.add(splineScheduleItems);
+      pathIndex = newPathIndex;
+    }
+    return (scheduleItems, pathIndex);
+  }
+
+  List<Map<String, dynamic>> toJsonList() {
+    List<Map<String, dynamic>> jsonList = [];
+    for (var spline in splines) {
+      jsonList.add(spline.toJson());
+    }
+    return jsonList;
   }
 
   @override
   Map<String, dynamic> toJson() {
     throw UnimplementedError();
   }
+
+  static SplineSet fromJsonList(List<Map<String, dynamic>> scheduleList,
+      List<Map<String, dynamic>> paths) {
+    List<Spline> splines = [];
+    for (var scheduleItem in scheduleList) {
+      if (scheduleItem['branched']) {
+        var onTrue = SplineSet.fromJsonList(
+            scheduleItem["branched_path"]["on_true"], paths);
+        var onFalse = SplineSet.fromJsonList(
+            scheduleItem["branched_path"]["on_false"], paths);
+        var condition = scheduleItem["condition"];
+        splines.add(BranchedSpline(onTrue, onFalse, condition));
+      } else {
+        splines.add(Spline.fromJson(paths[scheduleItem['path']]));
+      }
+    }
+    return SplineSet(splines);
+  }
+}
+
+List<Waypoint> _getWaypointsFromSplineList(List<Spline> splines) {
+  double duration = 0;
+  List<Waypoint> waypoints = [];
+  for (var spline in splines) {
+    for (var point in spline.points) {
+      waypoints.add(point.copyWith(t: duration + point.t));
+    }
+    duration += spline.duration;
+  }
+  return waypoints;
+}
+
+List<Command> _getCommandsFromSplineList(List<Spline> splines) {
+  double duration = 0;
+  List<Command> commands = [];
+  for (var spline in splines) {
+    for (var command in spline.commands) {
+      commands.add(command.copyWith(startTime: duration + command.startTime));
+      commands.add(command.copyWith(endTime: duration + command.endTime));
+    }
+  }
+  return commands;
 }

@@ -23,12 +23,8 @@ class AutosPage extends StatelessWidget {
     var paths = json['paths'];
     for (var scheduleItem in json['schedule']) {
       if (scheduleItem['branched']) {
-        var onTrue = scheduleItem["branched_path"]["on_true"] == -1
-            ? NullSpline()
-            : Spline.fromJson(paths[scheduleItem["branched_path"]["on_true"]]);
-        var onFalse = scheduleItem["branched_path"]["on_false"] == -1
-            ? NullSpline()
-            : Spline.fromJson(paths[scheduleItem["branched_path"]["on_false"]]);
+        var onTrue = SplineSet.fromJsonList(scheduleItem["branched_path"]["on_true"], paths);
+        var onFalse = SplineSet.fromJsonList(scheduleItem["branched_path"]["on_false"], paths);
         var condition = scheduleItem["condition"];
         splines.add(BranchedSpline(onTrue, onFalse, condition));
       } else {

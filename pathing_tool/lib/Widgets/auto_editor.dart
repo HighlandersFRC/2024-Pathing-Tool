@@ -42,12 +42,8 @@ class AutoEditor extends StatefulWidget {
     var paths = json['paths'];
     for (var scheduleItem in json['schedule']) {
       if (scheduleItem['branched']) {
-        var onTrue = scheduleItem["branched_path"]["on_true"] == -1
-            ? NullSpline()
-            : Spline.fromJson(paths[scheduleItem["branched_path"]["on_true"]]);
-        var onFalse = scheduleItem["branched_path"]["on_false"] == -1
-            ? NullSpline()
-            : Spline.fromJson(paths[scheduleItem["branched_path"]["on_false"]]);
+        var onTrue = SplineSet.fromJsonList(scheduleItem["branched_path"]["on_true"], paths);
+        var onFalse = SplineSet.fromJsonList(scheduleItem["branched_path"]["on_false"], paths);
         var condition = scheduleItem["condition"];
         splines.add(BranchedSpline(onTrue, onFalse, condition));
       } else {
@@ -411,6 +407,7 @@ class _AutoEditorState extends State<AutoEditor>
                                     _onMoveForward,
                                     _onMoveBackward,
                                     _onBranchedPathAdded,
+                                    _newPath,
                                     _onChanged));
                           })),
                     ])))));
@@ -659,7 +656,7 @@ class _AutoEditorState extends State<AutoEditor>
                       cursorColor: theme.primaryColor,
                     ),
                     const SizedBox(height: 16),
-                    TextButton(
+                    ElevatedButton(
                       onPressed: pathAdded
                           ? () {
                               splines.add(Spline(
@@ -674,7 +671,7 @@ class _AutoEditorState extends State<AutoEditor>
                         "Add Path",
                         style: TextStyle(
                           color: pathAdded
-                              ? theme.primaryColor
+                              ? null
                               : Colors.grey.shade500,
                         ),
                       ),
@@ -715,8 +712,8 @@ class _AutoEditorState extends State<AutoEditor>
     setState(() {
       _saveState();
       splines.add(BranchedSpline(
-        NullSpline(),
-        NullSpline(),
+        SplineSet([]),
+        SplineSet([]),
         "",
         isTrue: true,
       ));
@@ -733,12 +730,8 @@ class _AutoEditorState extends State<AutoEditor>
       pathIndex = newIndex;
       schedule.add(scheduleItem);
       if (spline is BranchedSpline) {
-        if (spline.onTrue is! NullSpline) {
-          paths.add(spline.onTrue.toJson());
-        }
-        if (spline.onFalse is! NullSpline) {
-          paths.add(spline.onFalse.toJson());
-        }
+        paths.add(spline.onTrue.toJson());
+        paths.add(spline.onFalse.toJson());
       } else {
         paths.add(spline.toJson());
       }
@@ -781,12 +774,15 @@ class _AutoEditorState extends State<AutoEditor>
   }
 
   Spline _handleFirstPoint(Spline newSpline, Waypoint preferredPoint) {
+    print("hi, I'm handling the first point");
     if (newSpline.points.isNotEmpty) {
+      print(newSpline.points.first.time);
       return newSpline.copyWith(points: [
         preferredPoint.copyWith(t: newSpline.points.first.time - 1),
         ...newSpline.points
       ]);
     }
+    print("Returning new spline with first point at 0.0");
     return newSpline.copyWith(points: [preferredPoint.copyWith(t: 0.0)]);
   }
 }

@@ -1100,8 +1100,8 @@ class _PathEditorState extends State<PathEditor>
       dx = deltaX / dt;
       dy = deltaY / dt;
     } else {
-      dy = 0;
-      dx = 0;
+      dy = waypoints[index].dy;
+      dx = waypoints[index].dx;
     }
     return (dy, dx);
   }
@@ -1132,7 +1132,7 @@ class _PathEditorState extends State<PathEditor>
         angVel = 0;
       }
     } else {
-      angVel = 0;
+      angVel = waypoints[index].dtheta;
     }
     return angVel;
   }
@@ -1149,8 +1149,8 @@ class _PathEditorState extends State<PathEditor>
       d2x = deltaX / pow(dt, 2);
       d2y = deltaY / pow(dt, 2);
     } else {
-      d2y = 0;
-      d2x = 0;
+      d2y = waypoints[index].d2y;
+      d2x = waypoints[index].d2x;
     }
     return (d2y, d2x);
   }
@@ -1164,7 +1164,7 @@ class _PathEditorState extends State<PathEditor>
       double d2a = p2.dtheta - p0.dtheta;
       angAcc = d2a / pow(dt, 2);
     } else {
-      angAcc = 0;
+      angAcc = waypoints[index].d2theta;
     }
     return angAcc;
   }
