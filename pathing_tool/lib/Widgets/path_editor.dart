@@ -159,12 +159,8 @@ class _PathEditorState extends State<PathEditor>
   void _addWaypoint(double x, double y) {
     setState(() {
       double t = waypoints.isNotEmpty ? waypoints.last.t + 1 : 0;
-      double dx = waypoints.isNotEmpty
-          ? (x - waypoints.last.x) / (t - waypoints.last.t)
-          : 0;
-      double dy = waypoints.isNotEmpty
-          ? (y - waypoints.last.y) / (t - waypoints.last.t)
-          : 0;
+      double dx = 0;
+      double dy = 0;
       waypoints.add(Waypoint(
           x: x,
           y: y,

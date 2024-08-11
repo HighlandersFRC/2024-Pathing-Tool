@@ -730,8 +730,8 @@ class _AutoEditorState extends State<AutoEditor>
       pathIndex = newIndex;
       schedule.add(scheduleItem);
       if (spline is BranchedSpline) {
-        paths.add(spline.onTrue.toJson());
-        paths.add(spline.onFalse.toJson());
+        paths.addAll(spline.onTrue.toJsonList());
+        paths.addAll(spline.onFalse.toJsonList());
       } else {
         paths.add(spline.toJson());
       }
@@ -774,15 +774,15 @@ class _AutoEditorState extends State<AutoEditor>
   }
 
   Spline _handleFirstPoint(Spline newSpline, Waypoint preferredPoint) {
-    print("hi, I'm handling the first point");
+    // print("hi, I'm handling the first point");
     if (newSpline.points.isNotEmpty) {
-      print(newSpline.points.first.time);
+      // print(newSpline.points.first.time);
       return newSpline.copyWith(points: [
         preferredPoint.copyWith(t: newSpline.points.first.time - 1),
         ...newSpline.points
       ]);
     }
-    print("Returning new spline with first point at 0.0");
+    // print("Returning new spline with first point at 0.0");
     return newSpline.copyWith(points: [preferredPoint.copyWith(t: 0.0)]);
   }
 }

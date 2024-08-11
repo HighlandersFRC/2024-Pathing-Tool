@@ -170,30 +170,30 @@ class BranchedSpline extends Spline {
       bool? isTrue}) {
     onTrue = onTrue ?? this.onTrue;
     onFalse = onFalse ?? this.onFalse;
-    print("hi");
+    // print("hi");
     if (this.isTrue) {
       if (points != null) onTrue = _handleFirstPoint(onTrue, points.first);
-      print("hi2");
+      // print("hi2");
       if (onTrue.points.isNotEmpty && (onFalse).points.isNotEmpty) {
         if (!onFalse.points.first.equals(onTrue.points.first)) {
           onFalse = _handleFirstPoint(onFalse, onTrue.points.first);
-          print("hi3");
+          // print("hi3");
         }
-        print("hi4");
+        // print("hi4");
         if (!onTrue.points.last.equals(onFalse.points.last)) {
           onFalse = _handleLastPoint(onFalse, onTrue.points.last);
-          print("hi5");
+          // print("hi5");
         }
       } else {
-        print("hi6");
+        // print("hi6");
         if (onTrue.points.isEmpty && onFalse.points.isNotEmpty) {
           onTrue = _handleFirstPoint(onTrue, onFalse.points.first);
           onTrue = _handleLastPoint(onTrue, onFalse.points.last);
-          print("hi7");
+          // print("hi7");
         } else if (onFalse.points.isEmpty && onTrue.points.isNotEmpty) {
           onFalse = _handleFirstPoint(onFalse, onTrue.points.first);
           onFalse = _handleLastPoint(onFalse, onTrue.points.last);
-          print("hi8");
+          // print("hi8");
         }
       }
     } else {
@@ -434,8 +434,7 @@ class SplineSet extends Spline {
     throw UnimplementedError();
   }
 
-  static SplineSet fromJsonList(List<Map<String, dynamic>> scheduleList,
-      List<Map<String, dynamic>> paths) {
+  static SplineSet fromJsonList(List scheduleList, List paths) {
     List<Spline> splines = [];
     for (var scheduleItem in scheduleList) {
       if (scheduleItem['branched']) {
