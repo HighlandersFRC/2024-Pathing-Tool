@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
+import 'package:dartssh2/dartssh2.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -42,8 +43,10 @@ class AutoEditor extends StatefulWidget {
     var paths = json['paths'];
     for (var scheduleItem in json['schedule']) {
       if (scheduleItem['branched']) {
-        var onTrue = SplineSet.fromJsonList(scheduleItem["branched_path"]["on_true"], paths);
-        var onFalse = SplineSet.fromJsonList(scheduleItem["branched_path"]["on_false"], paths);
+        var onTrue = SplineSet.fromJsonList(
+            scheduleItem["branched_path"]["on_true"], paths);
+        var onFalse = SplineSet.fromJsonList(
+            scheduleItem["branched_path"]["on_false"], paths);
         var condition = scheduleItem["condition"];
         splines.add(BranchedSpline(onTrue, onFalse, condition));
       } else {
@@ -257,20 +260,12 @@ class _AutoEditorState extends State<AutoEditor>
                           ),
                         ),
                         Tooltip(
-                          message: "Load Path",
+                          message: "Send to Robot",
                           waitDuration: const Duration(milliseconds: 500),
                           child: IconButton(
-                              onPressed: _loadPath,
+                              onPressed: _sendFileToRobotFRC,
                               color: theme.primaryColor,
                               icon: const Icon(Icons.folder_open)),
-                        ),
-                        Tooltip(
-                          message: "New Path",
-                          waitDuration: const Duration(milliseconds: 500),
-                          child: IconButton(
-                              onPressed: _newPath,
-                              color: theme.primaryColor,
-                              icon: const Icon(Icons.add_rounded)),
                         ),
                         Tooltip(
                           message: "Save Path to File",
@@ -670,9 +665,7 @@ class _AutoEditorState extends State<AutoEditor>
                       child: Text(
                         "Add Path",
                         style: TextStyle(
-                          color: pathAdded
-                              ? null
-                              : Colors.grey.shade500,
+                          color: pathAdded ? null : Colors.grey.shade500,
                         ),
                       ),
                     ),
@@ -721,7 +714,7 @@ class _AutoEditorState extends State<AutoEditor>
     });
   }
 
-  _saveAutoToFile() {
+  String _toJSON() {
     List<Map<String, dynamic>> schedule = [];
     List<Map<String, dynamic>> paths = [];
     int pathIndex = 0;
@@ -751,8 +744,12 @@ class _AutoEditorState extends State<AutoEditor>
       "paths": paths,
     };
     String jsonString = json.encode(jsonAuto);
+    return jsonString;
+  }
+
+  _saveAutoToFile() {
     File savePathFile = File("C:\\Polar Pathing\\Saves\\$autoName.polarauto");
-    savePathFile.writeAsString(jsonString).then((value) {
+    savePathFile.writeAsString(_toJSON()).then((value) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Auto saved to ${savePathFile.path}")),
       );
@@ -784,6 +781,49 @@ class _AutoEditorState extends State<AutoEditor>
     }
     // print("Returning new spline with first point at 0.0");
     return newSpline.copyWith(points: [preferredPoint.copyWith(t: 0.0)]);
+  }
+
+  _sendFileToRobotFRC() async {
+    List<String> robotIPs = ["10.44.99.2", "172.22.11.2", "42.42.42.42"];
+    SSHClient? robotClient;
+    for (String robotIP in robotIPs) {
+      try {
+        robotClient =
+            SSHClient(await SSHSocket.connect(robotIP, 22), username: "lvuser");
+        break;
+      } catch (error) {}
+    }
+    if (robotClient == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Failed to connect to any robot")),
+      );
+      return;
+    }
+    var robotSFTP = await robotClient.sftp();
+    var file;
+    try {
+      await robotSFTP.open(
+        './deploy/$autoName.polarauto',
+        mode: SftpFileOpenMode.create,
+      );
+      file = await robotSFTP.open('./deploy/$autoName.polarauto',
+          mode: SftpFileOpenMode.write);
+    } catch (e) {
+      await robotSFTP.remove(
+        './deploy/$autoName.polarauto',
+      );
+      await robotSFTP.open(
+        './deploy/$autoName.polarauto',
+        mode: SftpFileOpenMode.create,
+      );
+      file = await robotSFTP.open('./deploy/$autoName.polarauto',
+          mode: SftpFileOpenMode.write);
+    }
+    await file.writeBytes(utf8.encode(_toJSON()));
+    robotClient.close();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Auto saved to robot")),
+    );
   }
 }
 

@@ -126,7 +126,7 @@ class Spline {
       "key_points":
           points.map((Waypoint waypoint) => waypoint.toJson()).toList(),
       "commands": commands.map((Command command) => command.toJson()).toList(),
-      if (points.length > 1)
+      if (points.isNotEmpty)
         "sampled_points": [
           for (double t = points.first.t; t <= points.last.t; t += 0.01)
             getRobotWaypoint(t)
