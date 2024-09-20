@@ -64,6 +64,7 @@ class HomePage extends StatelessWidget {
   }
 
   void _loadPathFromFiles(BuildContext context) async {
+    final navigator = Navigator.of(context);
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['polarauto'],
@@ -72,8 +73,7 @@ class HomePage extends StatelessWidget {
     if (result != null && result.files.single.path != null) {
       String path = result.files.single.path!;
       File pathFile = File(path);
-      Navigator.push(
-          context,
+      navigator.push(
           MaterialPageRoute(
               builder: (BuildContext context) => AutosPage.fromFile(pathFile)));
     }
