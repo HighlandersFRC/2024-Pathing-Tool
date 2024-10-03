@@ -16,6 +16,7 @@ import 'package:pathing_tool/Utils/spline.dart';
 import 'package:pathing_tool/Widgets/auto_editing/spline_orderer.dart';
 import 'package:pathing_tool/Widgets/path_editor.dart';
 import 'package:provider/provider.dart';
+import 'package:path/path.dart' as p;
 
 class AutoEditor extends StatefulWidget {
   final List<Spline> splines;
@@ -747,8 +748,18 @@ class _AutoEditorState extends State<AutoEditor>
     return jsonString;
   }
 
-  _saveAutoToFile() {
-    File savePathFile = File("C:\\Polar Pathing\\Saves\\$autoName.polarauto");
+  _saveAutoToFile() async {
+    String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: "Save to which folder?",
+        initialDirectory: "C:\\Polar Pathing\\Saves");
+    if (selectedDirectory == null) {
+      // User canceled the picker
+      return;
+    }
+    // Define the file path
+    final String path = p.join(selectedDirectory, '$autoName.polarpath');
+    // Write the JSON object to a file
+    File savePathFile = File(path);
     savePathFile.writeAsString(_toJSON()).then((value) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Auto saved to ${savePathFile.path}")),

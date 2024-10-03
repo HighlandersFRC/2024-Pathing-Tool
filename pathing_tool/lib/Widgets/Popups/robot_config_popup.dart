@@ -299,6 +299,7 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
               robotConfigProvider.removeRobot(widget.startingConfig);
               robotConfigProvider.addRobot(robotConfig);
             }
+            robotConfigProvider.setRobotConfig(robotConfig);
             // Clear input fields
             _robotLengthController.clear();
             _robotWidthController.clear();
