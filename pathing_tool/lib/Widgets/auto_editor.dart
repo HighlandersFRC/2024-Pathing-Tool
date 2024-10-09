@@ -757,7 +757,7 @@ class _AutoEditorState extends State<AutoEditor>
       return;
     }
     // Define the file path
-    final String path = p.join(selectedDirectory, '$autoName.polarpath');
+    final String path = p.join(selectedDirectory, '$autoName.polarauto');
     // Write the JSON object to a file
     File savePathFile = File(path);
     savePathFile.writeAsString(_toJSON()).then((value) {
