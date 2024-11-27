@@ -1,7 +1,9 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:pathing_tool/Utils/Providers/robot_config_provider.dart';
 import 'package:pathing_tool/Utils/Structs/waypoint.dart';
+import 'package:provider/provider.dart';
 
 class EditWaypointMenu extends StatefulWidget {
   final List<Waypoint> waypoints;
@@ -43,6 +45,7 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final robotConfig = Provider.of<RobotConfigProvider>(context);
     return SizedBox(
         width: 350, // Adjust as needed
         child: SingleChildScrollView(
@@ -212,14 +215,15 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                     updateWaypoint(selectedWaypoint!.copyWith(dy: value));
                   },
                 ),
-                AttributeEditor(
-                  attributeName: 'Ang-Vel',
-                  currentValue: selectedWaypoint!.dtheta * (180 / pi),
-                  onChanged: (value) {
-                    updateWaypoint(
-                        selectedWaypoint!.copyWith(dtheta: value * pi / 180));
-                  },
-                ),
+                if (!robotConfig.robotConfig.tank)
+                  AttributeEditor(
+                    attributeName: 'Ang-Vel',
+                    currentValue: selectedWaypoint!.dtheta * (180 / pi),
+                    onChanged: (value) {
+                      updateWaypoint(
+                          selectedWaypoint!.copyWith(dtheta: value * pi / 180));
+                    },
+                  ),
                 AttributeEditor(
                   attributeName: 'X-Acc',
                   currentValue: selectedWaypoint!.d2x,
@@ -234,14 +238,15 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                     updateWaypoint(selectedWaypoint!.copyWith(d2y: value));
                   },
                 ),
-                AttributeEditor(
-                  attributeName: 'Ang-Acc',
-                  currentValue: selectedWaypoint!.d2theta * (180 / pi),
-                  onChanged: (value) {
-                    updateWaypoint(
-                        selectedWaypoint!.copyWith(d2theta: value * pi / 180));
-                  },
-                ),
+                if (!robotConfig.robotConfig.tank)
+                  AttributeEditor(
+                    attributeName: 'Ang-Acc',
+                    currentValue: selectedWaypoint!.d2theta * (180 / pi),
+                    onChanged: (value) {
+                      updateWaypoint(selectedWaypoint!
+                          .copyWith(d2theta: value * pi / 180));
+                    },
+                  ),
               ],
             ],
           ),

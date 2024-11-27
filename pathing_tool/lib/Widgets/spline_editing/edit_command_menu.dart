@@ -251,7 +251,8 @@ class NormalCommandEditor extends StatelessWidget {
               ...robotProvider.robotConfig.commands,
               IconCommand(selectedCommandName, null)
             ],
-            robotProvider.robotConfig.conditions));
+            robotProvider.robotConfig.conditions,
+            robotProvider.robotConfig.tank));
       }
     });
 
@@ -377,7 +378,8 @@ class BranchedCommandEditor extends StatelessWidget {
     ];
     var theme = Theme.of(context);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!conditionNames.contains(command.condition) && command.condition!= "") {
+      if (!conditionNames.contains(command.condition) &&
+          command.condition != "") {
         robotProvider.setRobotConfig(RobotConfig(
           robotProvider.robotConfig.name,
           robotProvider.robotConfig.length,
@@ -387,6 +389,7 @@ class BranchedCommandEditor extends StatelessWidget {
             ...robotProvider.robotConfig.conditions,
             IconCondition(command.condition, null)
           ],
+          robotProvider.robotConfig.tank,
         ));
       }
     });

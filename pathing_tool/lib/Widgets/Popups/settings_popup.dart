@@ -140,7 +140,8 @@ class SettingsPopup extends StatelessWidget {
                               trailing: ElevatedButton(
                                 onPressed: () {
                                   Navigator.pop(context);
-                                  _openRobotConfigPopup(context, robotConfig, newRobot: false);
+                                  _openRobotConfigPopup(context, robotConfig,
+                                      newRobot: false);
                                 },
                                 child: const Text("Edit"),
                               ),
@@ -153,7 +154,16 @@ class SettingsPopup extends StatelessWidget {
                           TextButton(
                             onPressed: () {
                               Navigator.pop(context);
-                              _openRobotConfigPopup(context, RobotConfig("", 1, 1, List<IconCommand>.empty(), List<IconCondition>.empty()), newRobot: true);
+                              _openRobotConfigPopup(
+                                  context,
+                                  RobotConfig(
+                                      "",
+                                      1,
+                                      1,
+                                      List<IconCommand>.empty(),
+                                      List<IconCondition>.empty(),
+                                      false),
+                                  newRobot: true);
                             },
                             child: Text(
                               "Add a Robot",
@@ -167,7 +177,11 @@ class SettingsPopup extends StatelessWidget {
                         TextButton(
                           onPressed: () {
                             Navigator.pop(context);
-                            _openRobotConfigPopup(context, RobotConfig("", 1, 1, List<IconCommand>.empty(), List<IconCondition>.empty()), newRobot: true);
+                            _openRobotConfigPopup(
+                                context,
+                                RobotConfig("", 1, 1, List<IconCommand>.empty(),
+                                    List<IconCondition>.empty(), false),
+                                newRobot: true);
                           },
                           child: Text(
                             "Add a Robot",
@@ -236,7 +250,8 @@ class SettingsPopup extends StatelessWidget {
     );
   }
 
-  void _openRobotConfigPopup(BuildContext context, RobotConfig startingConfig, {bool newRobot = true}) {
+  void _openRobotConfigPopup(BuildContext context, RobotConfig startingConfig,
+      {bool newRobot = true}) {
     showDialog(
       context: context,
       builder: (context) => RobotConfigPopup(

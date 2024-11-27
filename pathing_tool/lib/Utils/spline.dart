@@ -87,6 +87,23 @@ class Spline {
         x.getVectors(time), y.getVectors(time), theta.getVectors(time));
   }
 
+  Waypoint getTankWaypoint(double time) {
+    if (time < startTime) {
+      return getTankWaypoint(startTime);
+    } else if (time > endTime) {
+      return getTankWaypoint(endTime);
+    }
+    if (points.isNotEmpty) {
+      if (time < points.first.time) {
+        return tankifyWaypoint(points.first.copyWith());
+      } else if (time > points.last.time) {
+        return tankifyWaypoint(points.last.copyWith());
+      }
+    }
+    return vectorsToTankWaypoint(
+        x.getVectors(time), y.getVectors(time), theta.getVectors(time));
+  }
+
   Spline copyWith(
       {List<Command>? commands, String? name, List<Waypoint>? points}) {
     points = [for (var point in (points ?? this.points)) point.copyWith()];
@@ -130,6 +147,21 @@ class Spline {
         "sampled_points": [
           for (double t = points.first.t; t <= points.last.t; t += 0.01)
             getRobotWaypoint(t)
+        ]
+    };
+    return json;
+  }
+
+  Map<String, dynamic> toTankJson() {
+    var json = {
+      "meta_data": {"path_name": name},
+      "key_points":
+          points.map((Waypoint waypoint) => waypoint.toJson()).toList(),
+      "commands": commands.map((Command command) => command.toJson()).toList(),
+      if (points.isNotEmpty)
+        "sampled_points": [
+          for (double t = points.first.t; t <= points.last.t; t += 0.01)
+            getTankWaypoint(t)
         ]
     };
     return json;

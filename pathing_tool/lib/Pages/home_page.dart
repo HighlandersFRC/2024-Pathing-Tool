@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:dartssh2/dartssh2.dart';
 import 'package:file_picker/file_picker.dart';
@@ -73,9 +72,8 @@ class HomePage extends StatelessWidget {
     if (result != null && result.files.single.path != null) {
       String path = result.files.single.path!;
       File pathFile = File(path);
-      navigator.push(
-          MaterialPageRoute(
-              builder: (BuildContext context) => AutosPage.fromFile(pathFile)));
+      navigator.push(MaterialPageRoute(
+          builder: (BuildContext context) => AutosPage.fromFile(pathFile)));
     }
   }
 
@@ -90,7 +88,9 @@ class HomePage extends StatelessWidget {
           SSHClient? robotClient;
           for (String robotIP in robotIPs) {
             try {
-              robotClient = SSHClient(await SSHSocket.connect(robotIP, 22),
+              robotClient = SSHClient(
+                  await SSHSocket.connect(robotIP, 22,
+                      timeout: Duration(seconds: 5)),
                   username: "lvuser");
               break;
             } catch (error) {
@@ -120,7 +120,7 @@ class HomePage extends StatelessWidget {
             return [];
           }
         }
-        
+
         return FutureBuilder<List<SftpName>>(
           future: _getClientAndListFiles(),
           builder: (context, snapshot) {
@@ -187,8 +187,10 @@ class HomePage extends StatelessWidget {
     navigator.push(
       MaterialPageRoute(
         builder: (context) => AutosPage.fromJson(fileContentJSON),
-      ),);
+      ),
+    );
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

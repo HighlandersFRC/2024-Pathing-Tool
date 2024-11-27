@@ -46,7 +46,7 @@ class RobotConfigProvider extends ChangeNotifier {
         }
       });
     } on Exception {
-      _robotConfig = RobotConfig("Default Robot", 1, 1, [], []);
+      _robotConfig = RobotConfig("Default Robot", 1, 1, [], [], false);
       _robotConfigs.add(_robotConfig);
       _saveConfig();
     }

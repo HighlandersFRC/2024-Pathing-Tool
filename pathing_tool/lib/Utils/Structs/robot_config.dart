@@ -5,21 +5,24 @@ class RobotConfig {
   List<IconCommand> commands;
   List<IconCondition> conditions;
   String name;
+  bool tank;
 
-  RobotConfig(this.name, this.length, this.width, this.commands, this.conditions);
+  RobotConfig(this.name, this.length, this.width, this.commands,
+      this.conditions, this.tank);
 
   factory RobotConfig.fromJson(Map<String, dynamic> json) {
     var commandsJson = json['commands'] as List;
     var conditionsJson = json['conditions'] as List;
-    List<IconCommand> commandsList = commandsJson.map((e) => IconCommand.fromJson(e)).toList();
-    List<IconCondition> conditionsList = conditionsJson.map((e) => IconCondition.fromJson(e)).toList();
-    return RobotConfig(
-      json['name'],
-      json['length'],
-      json['width'],
-      commandsList,
-      conditionsList,
-    );
+    List<IconCommand> commandsList =
+        commandsJson.map((e) => IconCommand.fromJson(e)).toList();
+    List<IconCondition> conditionsList =
+        conditionsJson.map((e) => IconCondition.fromJson(e)).toList();
+    bool tank = false;
+    try {
+      tank = json['tank'] as bool;
+    } catch (e) {}
+    return RobotConfig(json['name'], json['length'], json['width'],
+        commandsList, conditionsList, tank);
   }
 
   Map<String, dynamic> toJson() {
@@ -29,6 +32,7 @@ class RobotConfig {
       'width': width,
       'commands': commands.map((e) => e.toJson()).toList(),
       'conditions': conditions.map((e) => e.toJson()).toList(),
+      'tank': tank,
     };
   }
 }
@@ -42,7 +46,9 @@ class IconCommand {
   factory IconCommand.fromJson(Map<String, dynamic> json) {
     return IconCommand(
       json['name'],
-      json['icon'] != null ? IconData(json['icon'], fontFamily: 'MaterialIcons'): null,
+      json['icon'] != null
+          ? IconData(json['icon'], fontFamily: 'MaterialIcons')
+          : null,
     );
   }
 
@@ -63,7 +69,9 @@ class IconCondition {
   factory IconCondition.fromJson(Map<String, dynamic> json) {
     return IconCondition(
       json['name'],
-      json['icon'] != null ? IconData(json['icon'], fontFamily: 'MaterialIcons'): null,
+      json['icon'] != null
+          ? IconData(json['icon'], fontFamily: 'MaterialIcons')
+          : null,
     );
   }
 

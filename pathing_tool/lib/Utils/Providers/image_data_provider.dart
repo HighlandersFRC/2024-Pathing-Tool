@@ -1,4 +1,3 @@
-import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 import 'package:archive/archive_io.dart';
@@ -26,8 +25,7 @@ class ImageDataProvider extends ChangeNotifier {
     ZipDecoder decoder = ZipDecoder();
     for (var imageFile in imageFiles) {
       if (imageFile is File) {
-        if (imageFile.path.split('.').last ==
-            "polarimgprefs") {
+        if (imageFile.path.split('.').last == "polarimgprefs") {
           final bytes = imageFile.readAsBytesSync();
           final archive = decoder.decodeBytes(bytes);
           String name = '2024 FRC Game Field';
@@ -47,7 +45,13 @@ class ImageDataProvider extends ChangeNotifier {
               image = Image.memory(file.content);
             }
           }
-          _selectedImage = ImageData(image: image, imageName: name, imageWidthInMeters: wm, imageHeightInMeters: hm, imageWidthInPixels: wp, imageHeightInPixels: hp);
+          _selectedImage = ImageData(
+              image: image,
+              imageName: name,
+              imageWidthInMeters: wm,
+              imageHeightInMeters: hm,
+              imageWidthInPixels: wp,
+              imageHeightInPixels: hp);
         } else {
           final bytes = imageFile.readAsBytesSync();
           final archive = decoder.decodeBytes(bytes);
@@ -80,7 +84,7 @@ class ImageDataProvider extends ChangeNotifier {
     }
   }
 
-  UnmodifiableListView<ImageData> get images => UnmodifiableListView(_images);
+  List<ImageData> get images => _images;
   ImageData get selectedImage => _selectedImage;
 
   Future<void> addImage(ImageData imageData) async {
@@ -132,11 +136,12 @@ class ImageDataProvider extends ChangeNotifier {
     outputFile.writeAsBytesSync(zippedArchive!);
   }
 
-  void removeImage(ImageData imageData)   {
+  void removeImage(ImageData imageData) {
     _images.remove(imageData);
     var imageDir = Directory("C:/Polar Pathing/Images");
     for (var imageFile in imageDir.listSync()) {
-      if (imageFile is File && imageFile.path.endsWith("${imageData.imageName}.polarimg")) {
+      if (imageFile is File &&
+          imageFile.path.endsWith("${imageData.imageName}.polarimg")) {
         imageFile.deleteSync();
       }
     }

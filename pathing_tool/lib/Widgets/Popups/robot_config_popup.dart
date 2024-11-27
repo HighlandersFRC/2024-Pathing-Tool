@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_iconpicker/Models/configuration.dart';
 import 'package:pathing_tool/Utils/Providers/robot_config_provider.dart';
 import 'package:pathing_tool/Utils/Structs/robot_config.dart';
 import 'package:provider/provider.dart';
@@ -8,7 +9,8 @@ import 'package:flutter_iconpicker/flutter_iconpicker.dart';
 class RobotConfigPopup extends StatefulWidget {
   final bool newRobot;
   final RobotConfig startingConfig;
-  const RobotConfigPopup({super.key, this.newRobot = false, required this.startingConfig});
+  const RobotConfigPopup(
+      {super.key, this.newRobot = false, required this.startingConfig});
 
   @override
   RobotConfigPopupState createState() => RobotConfigPopupState();
@@ -18,15 +20,20 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
   final TextEditingController _robotWidthController = TextEditingController();
   final TextEditingController _robotLengthController = TextEditingController();
   final TextEditingController _robotNameController = TextEditingController();
+  late bool tank;
   List<IconData?> _commandIcons = [];
   List<TextEditingController> _commandControllers = [];
   List<IconData?> _conditionIcons = [];
   List<TextEditingController> _conditionControllers = [];
   bool fieldsFilled = true;
-  Future<IconData?> _pickIcon() async {
+  Future<IconData?> _pickIcon(int index) async {
     final theme = Theme.of(context);
-    final IconData? icon = await showIconPicker(context, closeChild: Text("Close", style: TextStyle(color: theme.primaryColor)));
-    return icon;
+    final IconPickerIcon? icon = await showIconPicker(context,
+        configuration: SinglePickerConfiguration(
+            iconPackModes: [IconPack.allMaterial],
+            closeChild:
+                Text("Close", style: TextStyle(color: theme.primaryColor))));
+    return icon?.data;
   }
 
   @override
@@ -56,6 +63,7 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
             : List<IconCondition>.empty(growable: true))
         .map((condition) => TextEditingController(text: condition.name))
         .toList();
+    tank = widget.startingConfig.tank;
   }
 
   @override
@@ -100,6 +108,7 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
     });
   }
 
+  void _setRobotTank(bool tank) {}
   @override
   Widget build(BuildContext context) {
     ThemeData theme = Theme.of(context);
@@ -167,7 +176,7 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
                   Icon(_commandIcons[index]),
                   IconButton(
                     onPressed: () async {
-                      var newIcon = await _pickIcon();
+                      var newIcon = await _pickIcon(entry.key);
                       setState(() {
                         _commandIcons[index] = newIcon;
                       });
@@ -212,7 +221,7 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
                   Icon(_conditionIcons[index]),
                   IconButton(
                     onPressed: () async {
-                      var newIcon = await _pickIcon();
+                      var newIcon = await _pickIcon(entry.key);
                       setState(() {
                         _conditionIcons[index] = newIcon;
                       });
@@ -249,6 +258,13 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
                   foregroundColor: WidgetStateProperty.all(theme.primaryColor)),
               child: const Text('Add Condition'),
             ),
+            const Text('Tank?'),
+            Switch(
+              value: tank,
+              onChanged: (val) => setState(() => tank = val),
+              thumbColor: WidgetStateProperty.all(theme.primaryColor),
+              activeTrackColor: theme.primaryColor.withOpacity(0.8),
+            )
           ],
         ),
       ),
@@ -262,7 +278,7 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
           child: const Text('Close'),
         ),
         ElevatedButton(
-          child: widget.newRobot? const Text('Add'): const Text('Save'),
+          child: widget.newRobot ? const Text('Add') : const Text('Save'),
           onPressed: () {
             // Validate input
             if (_robotWidthController.text.isEmpty ||
@@ -285,12 +301,12 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
                   entry.value.text, _conditionIcons[entry.key]);
             }).toList();
             RobotConfig robotConfig = RobotConfig(
-              _robotNameController.text,
-              double.parse(_robotLengthController.text),
-              double.parse(_robotWidthController.text),
-              commands,
-              conditions,
-            );
+                _robotNameController.text,
+                double.parse(_robotLengthController.text),
+                double.parse(_robotWidthController.text),
+                commands,
+                conditions,
+                tank);
             RobotConfigProvider robotConfigProvider =
                 Provider.of<RobotConfigProvider>(context, listen: false);
             if (widget.newRobot) {

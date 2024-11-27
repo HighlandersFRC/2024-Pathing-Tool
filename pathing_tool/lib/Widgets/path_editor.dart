@@ -88,7 +88,7 @@ class _PathEditorState extends State<PathEditor>
           Duration(microseconds: ((endTime - startTime) * 1000000).round()),
     )..addListener(() {
         setState(() {
-          playbackWaypoint = _getPlaybackWaypoint();
+          playbackWaypoint = _getPlaybackWaypoint(context);
         });
       });
   }
@@ -100,8 +100,14 @@ class _PathEditorState extends State<PathEditor>
     super.dispose();
   }
 
-  Waypoint _getPlaybackWaypoint() {
+  Waypoint _getPlaybackWaypoint(BuildContext context) {
     var robot = Spline(waypoints, commands: commands);
+    final robotConfig =
+        Provider.of<RobotConfigProvider>(context, listen: false);
+    if (robotConfig.robotConfig.tank) {
+      return robot.getTankWaypoint(
+          _animationController.value * (endTime - startTime) + startTime);
+    }
     return robot.getRobotWaypoint(
         _animationController.value * (endTime - startTime) + startTime);
   }
@@ -327,6 +333,12 @@ class _PathEditorState extends State<PathEditor>
               PlayIntent(),
           LogicalKeySet(LogicalKeyboardKey.arrowLeft): BackwardIntent(),
           LogicalKeySet(LogicalKeyboardKey.arrowRight): ForwardIntent(),
+          LogicalKeySet(LogicalKeyboardKey.alt, LogicalKeyboardKey.keyE):
+              EditIntent(),
+          LogicalKeySet(LogicalKeyboardKey.alt, LogicalKeyboardKey.keyD):
+              DrawIntent(),
+          LogicalKeySet(LogicalKeyboardKey.alt, LogicalKeyboardKey.keyC):
+              CommandsIntent(),
         },
         child: Actions(
             actions: <Type, Action<Intent>>{
@@ -348,6 +360,15 @@ class _PathEditorState extends State<PathEditor>
               PlayIntent: PlayAction(() => playPath()),
               BackwardIntent: BackwardAction(_backward),
               ForwardIntent: ForwardAction(_forward),
+              EditIntent: EditAction(() => setState(() {
+                    editMode = 1;
+                  })),
+              DrawIntent: DrawAction(() => setState(() {
+                    editMode = 0;
+                  })),
+              CommandsIntent: CommandsAction(() => setState(() {
+                    editMode = 2;
+                  })),
             },
             child: Focus(
                 focusNode: _focusNode,
@@ -1393,6 +1414,42 @@ class BackwardAction extends Action<Intent> {
   }
 }
 
+class EditAction extends Action<Intent> {
+  final VoidCallback onPlay;
+
+  EditAction(this.onPlay);
+
+  @override
+  Object? invoke(covariant Intent intent) {
+    onPlay();
+    return null;
+  }
+}
+
+class DrawAction extends Action<Intent> {
+  final VoidCallback onForward;
+
+  DrawAction(this.onForward);
+
+  @override
+  Object? invoke(covariant Intent intent) {
+    onForward();
+    return null;
+  }
+}
+
+class CommandsAction extends Action<Intent> {
+  final VoidCallback onBackward;
+
+  CommandsAction(this.onBackward);
+
+  @override
+  Object? invoke(covariant Intent intent) {
+    onBackward();
+    return null;
+  }
+}
+
 class UndoIntent extends Intent {}
 
 class RedoIntent extends Intent {}
@@ -1406,3 +1463,9 @@ class PlayIntent extends Intent {}
 class ForwardIntent extends Intent {}
 
 class BackwardIntent extends Intent {}
+
+class EditIntent extends Intent {}
+
+class DrawIntent extends Intent {}
+
+class CommandsIntent extends Intent {}
