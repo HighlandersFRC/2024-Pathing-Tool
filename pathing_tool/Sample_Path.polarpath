@@ -10,15 +10,11 @@
                 "condition": "right_trigger",
                 "on_true": {
                     "name": "arm_up",
-                    "inputs": {
-                        "degrees": 20
-                    },
                     "start": 0.5,
                     "end": 1.0
                 },
                 "on_false": {
                     "name": "arm_down",
-                    "inputs": {},
                     "start": 0.5,
                     "end": 1.0
                 }

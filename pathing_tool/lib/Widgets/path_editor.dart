@@ -23,6 +23,8 @@ import 'package:provider/provider.dart';
 import 'dart:math' as math;
 import 'package:path/path.dart' as p;
 
+import '../Utils/Providers/preference_provider.dart';
+
 class PathEditor extends StatefulWidget {
   final List<Waypoint> startingWaypoints;
   final List<Command> startingCommands;
@@ -301,7 +303,8 @@ class _PathEditorState extends State<PathEditor>
       // Allow the user to pick a directory
       String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
           dialogTitle: "Save to which folder?",
-          initialDirectory: "C:\\Polar Pathing\\Saves");
+          initialDirectory:
+              "${Provider.of<PreferenceProvider>(context, listen: false).repositoryPath}\\Polar Pathing\\Saves");
 
       if (selectedDirectory == null) {
         // User canceled the picker
@@ -1192,12 +1195,6 @@ class _PathEditorState extends State<PathEditor>
       var (dy, dx) = _averageLinearVelocity(i);
       var dtheta = _averageAngularVelocity(i);
       newWaypoints.add(waypoints[i].copyWith(dy: dy, dx: dx, dtheta: dtheta));
-    }
-    for (int i = 0; i < newWaypoints.length; i++) {
-      var (d2y, d2x) = _averageLinearAcceleration(i, newWaypoints);
-      var d2theta = _averageAngularAcceleration(i, newWaypoints);
-      newWaypoints[i] =
-          newWaypoints[i].copyWith(d2y: d2y, d2x: d2x, d2theta: d2theta);
     }
     _onWaypointsChanged(newWaypoints);
     setState(() {

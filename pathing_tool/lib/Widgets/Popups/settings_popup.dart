@@ -1,6 +1,8 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:pathing_tool/Theme/theme_notifier.dart';
+import 'package:pathing_tool/Utils/Providers/preference_provider.dart';
 import 'package:pathing_tool/Utils/Providers/robot_config_provider.dart';
 import 'package:pathing_tool/Utils/Structs/image_data.dart';
 import 'package:pathing_tool/Utils/Providers/image_data_provider.dart';
@@ -261,6 +263,85 @@ class SettingsPopup extends StatelessWidget {
     );
   }
 
+  void _connectToRepository(BuildContext context) async {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final preferences =
+            Provider.of<PreferenceProvider>(context, listen: false).preferences;
+        final TextEditingController repoPathController =
+            TextEditingController(text: preferences["repository_path"] ?? "");
+        String text = preferences["repository_path"] ?? "";
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text("Connect to Repository"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    decoration:
+                        const InputDecoration(labelText: "Repository Path"),
+                    controller: repoPathController,
+                    onChanged: (value) {
+                      setState(() {
+                        text = value;
+                      }); // Update the state to enable/disable button
+                    },
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      FilePicker.platform.getDirectoryPath().then((value) {
+                        if (value != null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("Selected Path: $value")),
+                          );
+                          setState(() {
+                            repoPathController.text = value;
+                            text = value; // Update the text variable
+                          });
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("No path selected")),
+                          );
+                        }
+                      });
+                    },
+                    child: const Text("Choose Path"),
+                  ),
+                ],
+              ),
+              actions: [
+                ElevatedButton(
+                  onPressed: text.isNotEmpty
+                      ? () {
+                          PreferenceProvider preferenceProvider =
+                              Provider.of<PreferenceProvider>(context,
+                                  listen: false);
+                          final preferences = preferenceProvider.preferences;
+                          preferences["repository_path"] =
+                              repoPathController.text;
+                          preferenceProvider.savePreferences(
+                              preferences, context);
+                          Navigator.of(context).pop();
+                        }
+                      : null,
+                  child: const Text("Connect Repository"),
+                ),
+                TextButton(
+                  child: const Text("Close"),
+                  style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).primaryColor),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeNotifier = Provider.of<ThemeNotifier>(context);
@@ -311,6 +392,13 @@ class SettingsPopup extends StatelessWidget {
                 _openChangeRobotPopup(context);
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.link),
+              title: const Text('Connect to Repository'),
+              onTap: () {
+                _connectToRepository(context);
+              },
+            )
           ],
         ),
       ),

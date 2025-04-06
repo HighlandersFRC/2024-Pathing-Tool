@@ -6,8 +6,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:pathing_tool/Pages/autos_page.dart';
 import 'package:pathing_tool/Widgets/custom_app_bar.dart';
+import 'package:provider/provider.dart';
 import 'package:simple_snowfall/snows/snowfall_widget.dart';
 
+import '../Utils/Providers/preference_provider.dart';
 import '../Widgets/app_drawer.dart';
 
 class HomePage extends StatelessWidget {
@@ -65,6 +67,8 @@ class HomePage extends StatelessWidget {
   void _loadPathFromFiles(BuildContext context) async {
     final navigator = Navigator.of(context);
     FilePickerResult? result = await FilePicker.platform.pickFiles(
+      initialDirectory:
+          "${Provider.of<PreferenceProvider>(context, listen: false).repositoryPath}\\src\\main\\deploy\\",
       type: FileType.custom,
       allowedExtensions: ['polarauto'],
     );

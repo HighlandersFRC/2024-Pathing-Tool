@@ -51,7 +51,8 @@ class QuinticHermiteSpline {
               vectors[segmentIdx].time); // Making a time between 0 and 1
       Matrix position = Matrix.fromList([
             List.generate(6, (int index) {
-              return pow(adjustedTime, index) as double;
+              return pow(adjustedTime, index)
+                  as double; // multiply each coefficient by the time^index
             }),
           ]) *
           segmentCoefficients[segmentIdx];
@@ -59,7 +60,8 @@ class QuinticHermiteSpline {
             List.generate(6, (int index) {
               return index == 0
                   ? 0
-                  : index * pow(adjustedTime, index - 1) as double;
+                  : index * pow(adjustedTime, index - 1)
+                      as double; // multiply each coefficient by index*time^(index - 1)
             }),
           ]) *
           segmentCoefficients[segmentIdx];
@@ -67,7 +69,12 @@ class QuinticHermiteSpline {
             List.generate(6, (int index) {
               return index <= 1
                   ? 0
-                  : index * (index - 1) * pow(adjustedTime, index - 2)
+                  : index *
+                          (index - 1) *
+                          pow(
+                              adjustedTime,
+                              index -
+                                  2) // multiply each coefficient by index*(index - 1)*time^(index - 2)
                       as double;
             }),
           ]) *

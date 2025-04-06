@@ -18,6 +18,8 @@ import 'package:pathing_tool/Widgets/path_editor.dart';
 import 'package:provider/provider.dart';
 import 'package:path/path.dart' as p;
 
+import '../Utils/Providers/preference_provider.dart';
+
 class AutoEditor extends StatefulWidget {
   final List<Spline> splines;
   final String autoName;
@@ -759,7 +761,8 @@ class _AutoEditorState extends State<AutoEditor>
   _saveAutoToFile() async {
     String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
         dialogTitle: "Save to which folder?",
-        initialDirectory: "C:\\Polar Pathing\\Saves");
+        initialDirectory:
+            "${Provider.of<PreferenceProvider>(context, listen: false).repositoryPath}\\src\\main\\deploy\\");
     if (selectedDirectory == null) {
       // User canceled the picker
       return;
