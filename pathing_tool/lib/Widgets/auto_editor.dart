@@ -438,40 +438,6 @@ class _AutoEditorState extends State<AutoEditor>
     _saveState();
     setState(() {
       splines[selectedSpline] = spline;
-      if (selectedSpline != 0) {
-        if (splines[selectedSpline - 1].points.isNotEmpty &&
-            splines[selectedSpline].points.isNotEmpty) {
-          if (!splines[selectedSpline - 1]
-              .points
-              .last
-              .equals(spline.points.first)) {
-            splines[selectedSpline] = _handleFirstPoint(
-                spline, splines[selectedSpline - 1].points.last);
-          }
-        } else {
-          if (splines[selectedSpline - 1].points.isNotEmpty) {
-            splines[selectedSpline] = _handleFirstPoint(splines[selectedSpline],
-                splines[selectedSpline - 1].points.last);
-          }
-        }
-      }
-      if (selectedSpline != splines.length - 1) {
-        if (splines[selectedSpline + 1].points.isNotEmpty &&
-            splines[selectedSpline].points.isNotEmpty) {
-          if (!splines[selectedSpline + 1]
-              .points
-              .first
-              .equals(spline.points.last)) {
-            splines[selectedSpline + 1] = _handleFirstPoint(
-                splines[selectedSpline + 1], spline.points.last);
-          }
-        } else {
-          if (splines[selectedSpline].points.isNotEmpty) {
-            splines[selectedSpline + 1] = _handleFirstPoint(
-                splines[selectedSpline + 1], spline.points.last);
-          }
-        }
-      }
     });
   }
 
@@ -480,30 +446,6 @@ class _AutoEditorState extends State<AutoEditor>
       _saveState();
       splines[index] = spline;
       selectedSpline = index;
-      if (selectedSpline != splines.length - 1) {
-        if (splines[selectedSpline + 1].points.isNotEmpty &&
-            splines[selectedSpline].points.isNotEmpty) {
-          if (!splines[selectedSpline + 1]
-              .points
-              .first
-              .equals(spline.points.last)) {
-            splines[selectedSpline + 1] = _handleFirstPoint(
-                splines[selectedSpline + 1], spline.points.last);
-          }
-        }
-      }
-      if (selectedSpline != 0) {
-        if (splines[selectedSpline - 1].points.isNotEmpty &&
-            splines[selectedSpline].points.isNotEmpty) {
-          if (!splines[selectedSpline - 1]
-              .points
-              .last
-              .equals(spline.points.first)) {
-            splines[selectedSpline] = _handleFirstPoint(
-                spline, splines[selectedSpline - 1].points.last);
-          }
-        }
-      }
     });
   }
 
@@ -525,19 +467,6 @@ class _AutoEditorState extends State<AutoEditor>
         var spline = splines[selectedSpline];
         splines.remove(spline);
         splines.insert(selectedSpline + 1, spline);
-        // Handle connections with previous and next splines
-        for (var i = selectedSpline - 1; i <= selectedSpline + 1; i++) {
-          if (i >= 0 && i < splines.length - 1) {
-            var prevSpline = splines[i];
-            var nextSpline = splines[i + 1];
-            if (prevSpline.points.isNotEmpty && nextSpline.points.isNotEmpty) {
-              if (!prevSpline.points.last.equals(nextSpline.points.first)) {
-                splines[i + 1] =
-                    _handleFirstPoint(nextSpline, prevSpline.points.last);
-              }
-            }
-          }
-        }
         selectedSpline += 1;
       }
     });
@@ -551,19 +480,6 @@ class _AutoEditorState extends State<AutoEditor>
         var spline = splines[selectedSpline];
         splines.remove(spline);
         splines.insert(selectedSpline - 1, spline);
-        // Handle connections with previous and next splines
-        for (var i = selectedSpline - 1; i <= selectedSpline + 1; i++) {
-          if (i >= 0 && i < splines.length - 1) {
-            var prevSpline = splines[i];
-            var nextSpline = splines[i + 1];
-            if (prevSpline.points.isNotEmpty) {
-              if (!prevSpline.points.last.equals(nextSpline.points.first)) {
-                splines[i + 1] =
-                    _handleFirstPoint(nextSpline, prevSpline.points.last);
-              }
-            }
-          }
-        }
         selectedSpline -= 1;
       }
     });
@@ -615,12 +531,6 @@ class _AutoEditorState extends State<AutoEditor>
         String path = result.files.single.path!;
         File pathFile = File(path);
         Spline newSpline = Spline.fromPolarPathFile(pathFile);
-        if (newSpline.points.isNotEmpty &&
-            splines.lastOrNull != null &&
-            splines.last.points.lastOrNull != null &&
-            !splines.last.points.last.equals(newSpline.points.first)) {
-          newSpline = _handleFirstPoint(newSpline, splines.last.points.last);
-        }
         splines.add(newSpline);
       }
       selectedSpline = splines.length - 1;
@@ -792,18 +702,18 @@ class _AutoEditorState extends State<AutoEditor>
     }
   }
 
-  Spline _handleFirstPoint(Spline newSpline, Waypoint preferredPoint) {
-    // print("hi, I'm handling the first point");
-    if (newSpline.points.isNotEmpty) {
-      // print(newSpline.points.first.time);
-      return newSpline.copyWith(points: [
-        preferredPoint.copyWith(t: newSpline.points.first.time - 1),
-        ...newSpline.points
-      ]);
-    }
-    // print("Returning new spline with first point at 0.0");
-    return newSpline.copyWith(points: [preferredPoint.copyWith(t: 0.0)]);
-  }
+  // Spline _handleFirstPoint(Spline newSpline, Waypoint preferredPoint) {
+  //   // print("hi, I'm handling the first point");
+  //   if (newSpline.points.isNotEmpty) {
+  //     // print(newSpline.points.first.time);
+  //     return newSpline.copyWith(points: [
+  //       preferredPoint.copyWith(t: newSpline.points.first.time - 1),
+  //       ...newSpline.points
+  //     ]);
+  //   }
+  //   // print("Returning new spline with first point at 0.0");
+  //   return newSpline.copyWith(points: [preferredPoint.copyWith(t: 0.0)]);
+  // }
 
   _sendFileToRobotFRC() async {
     List<String> robotIPs = ["10.44.99.2", "172.22.11.2", "42.42.42.42"];
