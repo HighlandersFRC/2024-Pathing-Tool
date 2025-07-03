@@ -425,12 +425,16 @@ class _AutoEditorState extends State<AutoEditor>
     });
   }
 
-  _onEdit(Spline? spline, bool lastLocked, {Function(Spline)? returnSpline}) {
+  _onEdit(Spline? spline, bool lastLocked,
+      {Function(Spline)? returnSpline, Spline? previous}) {
     Navigator.push(context, MaterialPageRoute(builder: (context) {
-      return PathingPage.fromSpline(spline ?? splines[selectedSpline],
-          returnSpline: returnSpline ?? _returnSpline,
-          firstLocked: selectedSpline != 0 || returnSpline != null,
-          lastLocked: lastLocked);
+      return PathingPage.fromSpline(
+        spline ?? splines[selectedSpline],
+        returnSpline: returnSpline ?? _returnSpline,
+        firstLocked: selectedSpline != 0 || returnSpline != null,
+        lastLocked: lastLocked,
+        previous: previous,
+      );
     }));
   }
 

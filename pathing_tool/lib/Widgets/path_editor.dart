@@ -30,12 +30,14 @@ class PathEditor extends StatefulWidget {
   final List<Command> startingCommands;
   final String pathName;
   final Function(Spline)? returnSpline;
+  final Spline? prevPath;
   const PathEditor(
     this.startingWaypoints,
     this.pathName,
     this.startingCommands, {
     super.key,
     this.returnSpline,
+    this.prevPath,
   });
   static PathEditor fromFile(File file, Function(Spline)? returnSpline) {
     String jsonString = file.readAsStringSync();
@@ -944,6 +946,43 @@ class _PathEditorState extends State<PathEditor>
                                             ? selectedWaypoint
                                             : -1,
                                         onWaypointsChanged: _onWaypointsChanged,
+                                        connectToPreviousPath: widget
+                                                    .prevPath !=
+                                                null
+                                            ? () {
+                                                Waypoint newWaypoint = widget
+                                                    .prevPath!.points.last;
+                                                newWaypoint =
+                                                    newWaypoint.copyWith(
+                                                  t: 0.0,
+                                                );
+                                                setState(() {
+                                                  for (int i = 0;
+                                                      i < waypoints.length;
+                                                      i++) {
+                                                    waypoints[i] =
+                                                        waypoints[i].copyWith(
+                                                      t: waypoints[i].t + 1,
+                                                    );
+                                                  }
+                                                  waypoints.insert(
+                                                      0, newWaypoint);
+                                                  for (int i = 0;
+                                                      i < commands.length;
+                                                      i++) {
+                                                    commands[i] =
+                                                        commands[i].copyWith(
+                                                      startTime: commands[i]
+                                                              .startTime +
+                                                          1,
+                                                      endTime:
+                                                          commands[i].endTime +
+                                                              1,
+                                                    );
+                                                  }
+                                                });
+                                              }
+                                            : null,
                                       )
                                     else
                                       EditCommandMenu(
