@@ -1166,8 +1166,10 @@ class _PathEditorState extends State<PathEditor>
       double dt = p2.time - p0.time;
       double deltaX = p2.dx - p0.dx;
       double deltaY = p2.dy - p0.dy;
-      d2x = deltaX / pow(dt, 2);
-      d2y = deltaY / pow(dt, 2);
+      if (dt != 0) {
+        d2x = deltaX / dt;
+        d2y = deltaY / dt;
+      }
     } else {
       d2y = waypoints[index].d2y;
       d2x = waypoints[index].d2x;
@@ -1182,7 +1184,7 @@ class _PathEditorState extends State<PathEditor>
       Waypoint p2 = waypoints[index + 1];
       double dt = p2.time - p0.time;
       double d2a = p2.dtheta - p0.dtheta;
-      angAcc = d2a / pow(dt, 2);
+      angAcc = dt != 0 ? d2a / dt : 0;
     } else {
       angAcc = waypoints[index].d2theta;
     }
@@ -1194,7 +1196,15 @@ class _PathEditorState extends State<PathEditor>
     for (int i = 0; i < waypoints.length; i++) {
       var (dy, dx) = _averageLinearVelocity(i);
       var dtheta = _averageAngularVelocity(i);
-      newWaypoints.add(waypoints[i].copyWith(dy: dy, dx: dx, dtheta: dtheta));
+      var (d2y, d2x) = _averageLinearAcceleration(i, waypoints);
+      var d2theta = _averageAngularAcceleration(i, waypoints);
+      newWaypoints.add(waypoints[i].copyWith(
+          dy: dy,
+          dx: dx,
+          dtheta: dtheta,
+          d2y: d2y,
+          d2x: d2x,
+          d2theta: d2theta));
     }
     _onWaypointsChanged(newWaypoints);
     setState(() {
