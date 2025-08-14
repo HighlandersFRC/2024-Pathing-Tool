@@ -10,6 +10,7 @@ class Spline {
   late List<Waypoint> points;
   late List<Vectors> xVectors, yVectors, thetaVectors;
   late List<Command> commands;
+  late List<List<double>> arcLengthFunctions;
   final String name;
 
   Spline(this.points, {this.commands = const [], this.name = ""}) {
@@ -33,6 +34,34 @@ class Spline {
     x = QuinticHermiteSpline(xVectors);
     y = QuinticHermiteSpline(yVectors);
     theta = QuinticHermiteSpline(thetaVectors);
+  }
+
+  List<double> _getArcLengthFunction() {
+    int numSegments = x.getNumSegments();
+    for (int i = 0; i < numSegments; i++) {
+      List<double> fx = x.getPositionFunction(i);
+      List<double> fy = y.getPositionFunction(i);
+      List<double> dxdt = List.generate(fx.length - 1, (j) {
+        return fx[j] * (fx.length - j - 1);
+      });
+      List<double> dydt = List.generate(fy.length - 1, (j) {
+        return fy[j] * (fy.length - j - 1);
+      });
+      List<double> dxdt_squared = List.generate(dxdt.length * 2, (j) {
+        if (j % 2 == 0) {
+          return dxdt[j ~/ 2] * dxdt[j ~/ 2];
+        } else {
+          return 0;
+        }
+      });
+      List<double> dydt_squared = List.generate(dydt.length * 2, (j) {
+        if (j % 2 == 0) {
+          return dxdt[j ~/ 2] * dxdt[j ~/ 2];
+        } else {
+          return 0;
+        }
+      });
+    }
   }
 
   void optimizeRotation() {

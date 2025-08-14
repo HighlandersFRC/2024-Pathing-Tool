@@ -1,12 +1,18 @@
-import 'dart:math';
 import 'package:matrices/matrices.dart';
 import 'package:pathing_tool/Utils/Structs/waypoint.dart';
 
+/// A class representing a Quintic Hermite Spline, which is a type of spline
+/// interpolation that uses quintic (fifth-degree) polynomials to smoothly
+/// interpolate between points. This spline ensures continuity of position,
+/// velocity, and acceleration at the control points, making it suitable for
+/// smooth path generation in robotics, animation, and other applications
+/// requiring smooth motion profiles.
 class QuinticHermiteSpline {
   late int numSegments;
   late List<Matrix> segmentCoefficients;
   late List<Vectors> vectors;
   late List<Matrix> segmentVectors;
+  late List<double> segmentDurations;
   final Matrix scale = Matrix.fromList(
     [
       [1, 0, 0, 0, 0, 0],
@@ -34,57 +40,56 @@ class QuinticHermiteSpline {
       segmentCoefficients = List.generate(numSegments, (int index) {
         return scale * segmentVectors[index];
       });
+      segmentDurations = List.generate(numSegments, (int index) {
+        if (vectors.length - 1 > index) {
+          return vectors[index + 1].time - vectors[index].time;
+        }
+        return 1;
+      });
     }
   }
 
   Vectors getVectors(double time) {
-    if (numSegments >= 1) {
-      int segmentIdx = 0;
-      for (int i = 1; i < numSegments + 1; i++) {
-        if (time < vectors[i].time) {
-          segmentIdx = i - 1;
-          break;
-        }
+    if (numSegments == 0) return vectors[0];
+
+    int segmentIdx = 0;
+    for (int i = 1; i < numSegments + 1; i++) {
+      if (time < vectors[i].time) {
+        segmentIdx = i - 1;
+        break;
       }
-      double adjustedTime = (time - vectors[segmentIdx].time) /
-          (vectors[segmentIdx + 1].time -
-              vectors[segmentIdx].time); // Making a time between 0 and 1
-      Matrix position = Matrix.fromList([
-            List.generate(6, (int index) {
-              return pow(adjustedTime, index)
-                  as double; // multiply each coefficient by the time^index
-            }),
-          ]) *
-          segmentCoefficients[segmentIdx];
-      Matrix velocity = Matrix.fromList([
-            List.generate(6, (int index) {
-              return index == 0
-                  ? 0
-                  : index * pow(adjustedTime, index - 1)
-                      as double; // multiply each coefficient by index*time^(index - 1)
-            }),
-          ]) *
-          segmentCoefficients[segmentIdx];
-      Matrix acceleration = Matrix.fromList([
-            List.generate(6, (int index) {
-              return index <= 1
-                  ? 0
-                  : index *
-                          (index - 1) *
-                          pow(
-                              adjustedTime,
-                              index -
-                                  2) // multiply each coefficient by index*(index - 1)*time^(index - 2)
-                      as double;
-            }),
-          ]) *
-          segmentCoefficients[segmentIdx];
-      return Vectors(
-          position: position[0][0],
-          velocity: velocity[0][0],
-          acceleration: acceleration[0][0],
-          time: time);
     }
-    return vectors[0];
+
+    double dt = segmentDurations[segmentIdx];
+    double adjustedTime = (time - vectors[segmentIdx].time) / dt;
+
+    // Precompute powers
+    List<double> tPowers = List.filled(6, 1.0);
+    for (int i = 1; i < 6; i++) {
+      tPowers[i] = tPowers[i - 1] * adjustedTime;
+    }
+
+    // Direct evaluation
+    double pos = 0, vel = 0, acc = 0;
+    for (int i = 0; i < 6; i++) {
+      double c = segmentCoefficients[segmentIdx][i][0];
+      pos += c * tPowers[i];
+      if (i > 0) vel += c * i * tPowers[i - 1];
+      if (i > 1) acc += c * i * (i - 1) * tPowers[i - 2];
+    }
+
+    return Vectors(position: pos, velocity: vel, acceleration: acc, time: time);
+  }
+
+  List<double> getPositionFunction(int segmentIndex) {
+    if (segmentIndex < 0 || segmentIndex >= numSegments) {
+      throw RangeError('Segment index out of range');
+    }
+    List<double> row = segmentCoefficients[segmentIndex].column(0);
+    return row;
+  }
+
+  int getNumSegments() {
+    return numSegments;
   }
 }
