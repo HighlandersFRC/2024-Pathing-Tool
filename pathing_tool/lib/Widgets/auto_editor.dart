@@ -19,6 +19,7 @@ import 'package:provider/provider.dart';
 import 'package:path/path.dart' as p;
 
 import '../Utils/Providers/preference_provider.dart';
+import '../Utils/Structs/robot_config.dart';
 
 class AutoEditor extends StatefulWidget {
   final List<Spline> splines;
@@ -34,26 +35,34 @@ class AutoEditor extends StatefulWidget {
     return _AutoEditorState(splines, autoName);
   }
 
-  static AutoEditor fromFile(File file) {
+  static AutoEditor fromFile(File file, RobotConfig config, int resolution) {
     String jsonString = file.readAsStringSync();
     var pathJson = json.decode(jsonString);
-    return fromJson(pathJson);
+    return fromJson(pathJson, config, resolution);
   }
 
-  static AutoEditor fromJson(Map<String, dynamic> json) {
+  static AutoEditor fromJson(
+      Map<String, dynamic> json, RobotConfig config, int resolution) {
     String autoName = json['meta_data']['auto_name'];
     List<Spline> splines = [];
     var paths = json['paths'];
     for (var scheduleItem in json['schedule']) {
       if (scheduleItem['branched']) {
         var onTrue = SplineSet.fromJsonList(
-            scheduleItem["branched_path"]["on_true"], paths);
+            scheduleItem["branched_path"]["on_true"],
+            paths,
+            config,
+            resolution);
         var onFalse = SplineSet.fromJsonList(
-            scheduleItem["branched_path"]["on_false"], paths);
+            scheduleItem["branched_path"]["on_false"],
+            paths,
+            config,
+            resolution);
         var condition = scheduleItem["condition"];
-        splines.add(BranchedSpline(onTrue, onFalse, condition));
+        splines.add(BranchedSpline(onTrue, onFalse, condition, resolution));
       } else {
-        splines.add(Spline.fromJson(paths[scheduleItem['path']]));
+        splines.add(
+            Spline.fromJson(paths[scheduleItem['path']], config, resolution));
       }
     }
     return AutoEditor(splines, autoName);
@@ -322,7 +331,8 @@ class _AutoEditorState extends State<AutoEditor>
                                         ? Colors.white
                                         : Colors.grey.shade700,
                                     255,
-                                    constraints),
+                                    constraints,
+                                    true),
                               )
                             : null;
                         return Center(
@@ -529,12 +539,16 @@ class _AutoEditorState extends State<AutoEditor>
       type: FileType.custom,
       allowedExtensions: ['polarpath'],
     );
+    RobotConfigProvider robotConfigProvider =
+        Provider.of<RobotConfigProvider>(context, listen: false);
+    var preferences = Provider.of<PreferenceProvider>(context, listen: false);
     setState(() {
       if (result != null && result.files.single.path != null) {
         _saveState();
         String path = result.files.single.path!;
         File pathFile = File(path);
-        Spline newSpline = Spline.fromPolarPathFile(pathFile);
+        Spline newSpline = Spline.fromPolarPathFile(pathFile,
+            robotConfigProvider.robotConfig, preferences.pathResolution);
         splines.add(newSpline);
       }
       selectedSpline = splines.length - 1;
@@ -549,6 +563,10 @@ class _AutoEditorState extends State<AutoEditor>
       context: context,
       builder: (context) {
         final theme = Theme.of(context);
+        RobotConfigProvider robotConfigProvider =
+            Provider.of<RobotConfigProvider>(context);
+        PreferenceProvider preferencesProvider =
+            Provider.of<PreferenceProvider>(context);
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
@@ -581,6 +599,8 @@ class _AutoEditorState extends State<AutoEditor>
                           ? () {
                               splines.add(Spline(
                                 [],
+                                robotConfigProvider.robotConfig,
+                                preferencesProvider.pathResolution,
                                 commands: [],
                                 name: controller.text,
                               ));
@@ -627,12 +647,19 @@ class _AutoEditorState extends State<AutoEditor>
   }
 
   _onBranchedPathAdded() {
+    RobotConfigProvider robotConfigProvider =
+        Provider.of<RobotConfigProvider>(context);
+    PreferenceProvider preferencesProvider =
+        Provider.of<PreferenceProvider>(context);
     setState(() {
       _saveState();
       splines.add(BranchedSpline(
-        SplineSet([]),
-        SplineSet([]),
+        SplineSet([], robotConfigProvider.robotConfig,
+            preferencesProvider.pathResolution),
+        SplineSet([], robotConfigProvider.robotConfig,
+            preferencesProvider.pathResolution),
         "",
+        preferencesProvider.pathResolution,
         isTrue: true,
       ));
       selectedSpline = splines.length - 1;

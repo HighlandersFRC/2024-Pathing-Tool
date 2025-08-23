@@ -342,11 +342,60 @@ class SettingsPopup extends StatelessWidget {
     );
   }
 
+  void _openChangePathResolutionPopup(BuildContext context) {
+    final settingsProvider =
+        Provider.of<PreferenceProvider>(context, listen: false);
+    final TextEditingController controller = TextEditingController(
+      text: settingsProvider.preferences["path_resolution"]?.toString() ?? "1",
+    );
+    final theme = Theme.of(context);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Change Path Resolution'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: "Path Resolution"),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            style: ButtonStyle(
+              foregroundColor: WidgetStateProperty.all(theme.primaryColor),
+            ),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final value = int.tryParse(controller.text);
+              if (value != null && value > 0) {
+                final preferences = settingsProvider.preferences;
+                preferences["path_resolution"] = value;
+                settingsProvider.savePreferences(preferences, context);
+                Navigator.of(context).pop();
+                Navigator.of(context).pop();
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text("Please enter a valid positive integer.")),
+                );
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeNotifier = Provider.of<ThemeNotifier>(context);
     final theme = Theme.of(context);
-
+    final settingsProvider = Provider.of<PreferenceProvider>(context);
     return AlertDialog(
       title: const Text('Settings'),
       content: SingleChildScrollView(
@@ -398,7 +447,16 @@ class SettingsPopup extends StatelessWidget {
               onTap: () {
                 _connectToRepository(context);
               },
-            )
+            ),
+            ListTile(
+              leading: const Icon(Icons.restart_alt_rounded),
+              title: const Text('Change Path Resolution'),
+              trailing:
+                  Text('${settingsProvider.preferences["path_resolution"]}'),
+              onTap: () {
+                _openChangePathResolutionPopup(context);
+              },
+            ),
           ],
         ),
       ),

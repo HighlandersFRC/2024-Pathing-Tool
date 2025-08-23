@@ -105,9 +105,13 @@ class _PathEditorState extends State<PathEditor>
   }
 
   Waypoint _getPlaybackWaypoint(BuildContext context) {
-    var robot = Spline(waypoints, commands: commands);
     final robotConfig =
         Provider.of<RobotConfigProvider>(context, listen: false);
+    PreferenceProvider preferencesProvider =
+        Provider.of<PreferenceProvider>(context, listen: false);
+    var robot = Spline(
+        waypoints, robotConfig.robotConfig, preferencesProvider.pathResolution,
+        commands: commands);
     if (robotConfig.robotConfig.tank) {
       return robot.getTankWaypoint(
           _animationController.value * (endTime - startTime) + startTime);
@@ -189,10 +193,16 @@ class _PathEditorState extends State<PathEditor>
   @override
   Widget build(BuildContext context) {
     final focusScope = FocusScope.of(context);
+    RobotConfigProvider robotConfigProvider =
+        Provider.of<RobotConfigProvider>(context);
+    PreferenceProvider preferencesProvider =
+        Provider.of<PreferenceProvider>(context);
     if (!(focusScope.focusedChild?.ancestors.contains(_focusNode) ?? false) &&
         !(focusScope.focusedChild.hashCode == _focusNode.hashCode)) {
       focusScope.requestFocus(_focusNode);
     }
+    Spline robot = Spline(waypoints, robotConfigProvider.robotConfig,
+        preferencesProvider.pathResolution);
     _animationController.duration =
         Duration(microseconds: ((endTime - startTime) * 1000000).round());
     _animationController.stop();
@@ -205,9 +215,7 @@ class _PathEditorState extends State<PathEditor>
     List<FlSpot> fullSpline = [];
     List<FlSpot> commandSpline = [];
     final theme = Theme.of(context);
-    final robotConfigProvider = Provider.of<RobotConfigProvider>(context);
     if (waypoints.length > 1) {
-      Spline robot = Spline(waypoints);
       double timeStep = 0.01; // Adjust for desired granularity
       double endTime = robot.points.last.t;
       for (double t = waypoints.first.t; t <= endTime; t += timeStep) {
@@ -216,7 +224,6 @@ class _PathEditorState extends State<PathEditor>
       }
     }
     if (waypoints.length > 1 && selectedCommand != -1) {
-      Spline robot = Spline(waypoints);
       double timeStep = 0.01; // Adjust for desired granularity
       double start =
           max(commands[selectedCommand].startTime, robot.points.first.t);
@@ -255,7 +262,8 @@ class _PathEditorState extends State<PathEditor>
             context: context);
       }
       double timeStep = 0.01;
-      Spline robot = Spline(waypoints);
+      Spline robot = Spline(waypoints, robotConfigProvider.robotConfig,
+          preferencesProvider.pathResolution);
       List<Map<String, dynamic>> sampledPoints = [];
       for (double t = 0; t <= robot.points.last.t; t += timeStep) {
         Waypoint waypoint = robot.getRobotWaypoint(t);
@@ -422,8 +430,12 @@ class _PathEditorState extends State<PathEditor>
                             waitDuration: const Duration(milliseconds: 500),
                             child: TextButton(
                                 onPressed: () {
-                                  widget.returnSpline!(Spline(waypoints,
-                                      commands: commands, name: pathName));
+                                  widget.returnSpline!(Spline(
+                                      waypoints,
+                                      robotConfigProvider.robotConfig,
+                                      preferencesProvider.pathResolution,
+                                      commands: commands,
+                                      name: pathName));
                                   Navigator.pop(context);
                                 },
                                 style: ButtonStyle(
@@ -452,6 +464,8 @@ class _PathEditorState extends State<PathEditor>
                     ),
                     automaticallyImplyLeading: false,
                     actions: [
+                      Text(
+                          "Path Length: ${robot.getArcLength(robot.endTime).toStringAsFixed(3)}m"),
                       Tooltip(
                         message: "Play Path",
                         waitDuration: const Duration(milliseconds: 500),
@@ -633,7 +647,8 @@ class _PathEditorState extends State<PathEditor>
                                                   ? Colors.white
                                                   : Colors.grey.shade700,
                                           255,
-                                          constraints),
+                                          constraints,
+                                          true),
                                     )
                                   : null;
                               return Center(
@@ -747,7 +762,8 @@ class _PathEditorState extends State<PathEditor>
                                                             .indexOf(waypoint)
                                                     ? 255
                                                     : 100,
-                                                constraints),
+                                                constraints,
+                                                false),
                                           );
                                         }),
                                         if (playbackPaint != null)
@@ -1299,6 +1315,7 @@ class RobotPainter extends CustomPainter {
   final int opacity;
   late double metersToPixelsRatio;
   final BoxConstraints constraints;
+  final bool showArrow;
 
   RobotPainter(
       this.waypoint,
@@ -1309,7 +1326,8 @@ class RobotPainter extends CustomPainter {
       this.robotConfig,
       this.color,
       this.opacity,
-      this.constraints) {
+      this.constraints,
+      this.showArrow) {
     metersToPixelsRatio = usedWidth / fieldImageData.imageWidthInMeters;
   }
 
@@ -1368,6 +1386,43 @@ class RobotPainter extends CustomPainter {
       yPixels - angleLineLength * math.sin(angle),
     );
     canvas.drawLine(Offset(xPixels, yPixels), angleLineEnd, paint);
+    if (showArrow) {
+      // Draw velocity vector as an arrow
+      const double arrowHeadLength = 14;
+      const double velocityScale = 1; // Adjust for visual scaling
+      double vAngle = math.atan2(waypoint.dy, waypoint.dx);
+      final double vx = waypoint.dx * metersToPixelsRatio * velocityScale +
+          14 * math.cos(vAngle);
+      final double vy = -waypoint.dy * metersToPixelsRatio * velocityScale +
+          14 * math.sin(vAngle);
+
+      final Offset start = Offset(xPixels, yPixels);
+      final Offset end = Offset(xPixels + vx, yPixels + vy);
+
+      final Paint velocityPaint = Paint()
+        ..color = color
+        ..strokeWidth = 2
+        ..style = PaintingStyle.stroke;
+
+      // Draw the main velocity line
+      canvas.drawLine(start, end, velocityPaint);
+
+      // Draw arrowhead
+      const double arrowHeadAngle = 0.45; // radians
+      vAngle = math.atan2(end.dy - start.dy, end.dx - start.dx);
+
+      final Offset arrowP1 = Offset(
+        end.dx - arrowHeadLength * math.cos(vAngle - arrowHeadAngle),
+        end.dy - arrowHeadLength * math.sin(vAngle - arrowHeadAngle),
+      );
+      final Offset arrowP2 = Offset(
+        end.dx - arrowHeadLength * math.cos(vAngle + arrowHeadAngle),
+        end.dy - arrowHeadLength * math.sin(vAngle + arrowHeadAngle),
+      );
+
+      canvas.drawLine(end, arrowP1, velocityPaint);
+      canvas.drawLine(end, arrowP2, velocityPaint);
+    }
   }
 
   @override

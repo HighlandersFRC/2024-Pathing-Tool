@@ -56,6 +56,7 @@ class PreferenceProvider extends ChangeNotifier {
   }
 
   String get repositoryPath => preferences["repository_path"] ?? "C:";
+  int get pathResolution => preferences["path_resolution"] ?? 144;
 
   void savePreferences(
       Map<String, dynamic> newPreferences, BuildContext context) {

@@ -20,6 +20,11 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
   final TextEditingController _robotWidthController = TextEditingController();
   final TextEditingController _robotLengthController = TextEditingController();
   final TextEditingController _robotNameController = TextEditingController();
+  final TextEditingController _maxVelocityController = TextEditingController();
+  final TextEditingController _maxAccelerationController =
+      TextEditingController();
+  final TextEditingController _maxCentripetalAccelerationController =
+      TextEditingController();
   late bool tank;
   List<IconData?> _commandIcons = [];
   List<TextEditingController> _commandControllers = [];
@@ -47,6 +52,15 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
         widget.newRobot ? "1.0" : robotConfig.length.toString();
     _robotWidthController.text =
         widget.newRobot ? "1.0" : robotConfig.width.toString();
+    _maxVelocityController.text = widget.newRobot
+        ? "3.0"
+        : robotConfig.maxVelocity.toString(); // <-- Added
+    _maxAccelerationController.text = widget.newRobot
+        ? "2.0"
+        : robotConfig.maxAcceleration.toString(); // <-- Added
+    _maxCentripetalAccelerationController.text = widget.newRobot
+        ? "2.0"
+        : robotConfig.maxCentripetalAcceleration.toString(); // <-- Added
     _commandControllers = (!widget.newRobot
             ? robotConfig.commands
             : List<IconCommand>.empty(growable: true))
@@ -71,6 +85,9 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
     _robotWidthController.dispose();
     _robotLengthController.dispose();
     _robotNameController.dispose();
+    _maxAccelerationController.dispose();
+    _maxVelocityController.dispose();
+    _maxCentripetalAccelerationController.dispose();
     for (var controller in _commandControllers) {
       controller.dispose();
     }
@@ -152,6 +169,60 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
               controller: _robotWidthController,
               decoration: InputDecoration(
                 labelText: 'Robot Width',
+                focusColor: theme.primaryColor,
+                hoverColor: theme.primaryColor,
+                floatingLabelStyle: TextStyle(color: theme.primaryColor),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: theme.primaryColor),
+                ),
+              ),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: <TextInputFormatter>[
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+              ],
+              cursorColor: theme.primaryColor,
+            ),
+            TextFormField(
+              controller: _maxVelocityController,
+              decoration: InputDecoration(
+                labelText: 'Max Velocity',
+                focusColor: theme.primaryColor,
+                hoverColor: theme.primaryColor,
+                floatingLabelStyle: TextStyle(color: theme.primaryColor),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: theme.primaryColor),
+                ),
+              ),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: <TextInputFormatter>[
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+              ],
+              cursorColor: theme.primaryColor,
+            ),
+            TextFormField(
+              controller: _maxAccelerationController,
+              decoration: InputDecoration(
+                labelText: 'Max Acceleration',
+                focusColor: theme.primaryColor,
+                hoverColor: theme.primaryColor,
+                floatingLabelStyle: TextStyle(color: theme.primaryColor),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: theme.primaryColor),
+                ),
+              ),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: <TextInputFormatter>[
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+              ],
+              cursorColor: theme.primaryColor,
+            ),
+            TextFormField(
+              controller: _maxCentripetalAccelerationController,
+              decoration: InputDecoration(
+                labelText: 'Max Centripetal Acceleration',
                 focusColor: theme.primaryColor,
                 hoverColor: theme.primaryColor,
                 floatingLabelStyle: TextStyle(color: theme.primaryColor),
@@ -284,6 +355,9 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
             if (_robotWidthController.text.isEmpty ||
                 _robotLengthController.text.isEmpty ||
                 _robotNameController.text.isEmpty ||
+                _maxVelocityController.text.isEmpty ||
+                _maxAccelerationController.text.isEmpty ||
+                _maxCentripetalAccelerationController.text.isEmpty ||
                 _commandControllers
                     .any((controller) => controller.text.isEmpty)) {
               setState(() {
@@ -306,7 +380,11 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
                 double.parse(_robotWidthController.text),
                 commands,
                 conditions,
-                tank);
+                tank,
+                maxVelocity: double.parse(_maxVelocityController.text),
+                maxAcceleration: double.parse(_maxAccelerationController.text),
+                maxCentripetalAcceleration:
+                    double.parse(_maxCentripetalAccelerationController.text));
             RobotConfigProvider robotConfigProvider =
                 Provider.of<RobotConfigProvider>(context, listen: false);
             if (widget.newRobot) {
@@ -320,6 +398,9 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
             _robotLengthController.clear();
             _robotWidthController.clear();
             _robotNameController.clear();
+            _maxVelocityController.clear();
+            _maxAccelerationController.clear();
+            _maxCentripetalAccelerationController.clear();
             for (var controller in _commandControllers) {
               controller.clear();
             }

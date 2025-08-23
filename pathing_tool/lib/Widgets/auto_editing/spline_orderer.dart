@@ -6,6 +6,8 @@ import 'package:pathing_tool/Utils/Providers/robot_config_provider.dart';
 import 'package:pathing_tool/Utils/spline.dart';
 import 'package:provider/provider.dart';
 
+import '../../Utils/Providers/preference_provider.dart';
+
 class SplineOrderer extends StatefulWidget {
   final List<Spline> splines;
   final Function(int) onSplineSelected;
@@ -190,8 +192,12 @@ class BranchedSplineEditor extends StatefulWidget {
       {super.key,
       this.lastLocked = false});
 
-  _returnSpline(bool isTrue, int index,
+  _returnSpline(bool isTrue, int index, BuildContext context,
       {Function(Spline)? returnSpline, Spline? spline}) {
+    RobotConfigProvider configProvider =
+        Provider.of<RobotConfigProvider>(context);
+    PreferenceProvider preferencesProvider =
+        Provider.of<PreferenceProvider>(context);
     if (spline != null) {
       if (isTrue) {
         var splineList = [
@@ -204,7 +210,9 @@ class BranchedSplineEditor extends StatefulWidget {
             spline.$2
         ];
         splineList.insert(index, spline);
-        onChanged(this.spline.copyWith(onTrue: SplineSet(splineList)));
+        onChanged(this.spline.copyWith(
+            onTrue: SplineSet(splineList, configProvider.robotConfig,
+                preferencesProvider.pathResolution)));
       } else {
         var splineList = [
           for (var spline in this
@@ -216,7 +224,9 @@ class BranchedSplineEditor extends StatefulWidget {
             spline.$2
         ];
         splineList.insert(index, spline);
-        onChanged(this.spline.copyWith(onFalse: SplineSet(splineList)));
+        onChanged(this.spline.copyWith(
+            onFalse: SplineSet(splineList, configProvider.robotConfig,
+                preferencesProvider.pathResolution)));
       }
     }
   }
@@ -234,11 +244,16 @@ class _BranchedSplineEditorState extends State<BranchedSplineEditor> {
       allowedExtensions: ['polarpath'],
     );
     setState(() {
+      RobotConfigProvider configProvider =
+          Provider.of<RobotConfigProvider>(context, listen: false);
+      PreferenceProvider preferencesProvider =
+          Provider.of<PreferenceProvider>(context, listen: false);
       var splines = spline.onTrue.splines;
       if (result != null && result.files.single.path != null) {
         String path = result.files.single.path!;
         File pathFile = File(path);
-        Spline newSpline = Spline.fromPolarPathFile(pathFile);
+        Spline newSpline = Spline.fromPolarPathFile(pathFile,
+            configProvider.robotConfig, preferencesProvider.pathResolution);
         widget.onChanged(
           isTrue
               ? spline.copyWith(onTrue: spline.onTrue.addSpline(newSpline))
@@ -258,11 +273,14 @@ class _BranchedSplineEditorState extends State<BranchedSplineEditor> {
   _newPath(bool isTrue) {
     bool pathAdded = false;
     TextEditingController controller = TextEditingController();
-
     showDialog(
       context: context,
       builder: (context) {
         final theme = Theme.of(context);
+        RobotConfigProvider configProvider =
+            Provider.of<RobotConfigProvider>(context);
+        PreferenceProvider preferencesProvider =
+            Provider.of<PreferenceProvider>(context);
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
@@ -297,11 +315,15 @@ class _BranchedSplineEditorState extends State<BranchedSplineEditor> {
                                   ? widget.onChanged(spline.copyWith(
                                       onTrue: spline.onTrue.addSpline(Spline(
                                       [],
+                                      configProvider.robotConfig,
+                                      preferencesProvider.pathResolution,
                                       name: controller.text,
                                     ))))
                                   : widget.onChanged(spline.copyWith(
                                       onFalse: spline.onFalse.addSpline(Spline(
                                       [],
+                                      configProvider.robotConfig,
+                                      preferencesProvider.pathResolution,
                                       name: controller.text,
                                     ))));
                               Navigator.pop(context);
@@ -356,6 +378,7 @@ class _BranchedSplineEditorState extends State<BranchedSplineEditor> {
     final theme = Theme.of(context);
     final robotConfigProvider = Provider.of<RobotConfigProvider>(context);
     var robotConditions = robotConfigProvider.robotConfig.conditions;
+    final preferencesProvider = Provider.of<PreferenceProvider>(context);
     return Column(
       children: [
         Text(
@@ -439,7 +462,7 @@ class _BranchedSplineEditorState extends State<BranchedSplineEditor> {
                         {Function(Spline)? returnSpline, Spline? previous}) {
                       widget.onEdit(spline, true,
                           returnSpline: (Spline? newSpline) {
-                        widget._returnSpline(true, selectedOnTrue,
+                        widget._returnSpline(true, selectedOnTrue, context,
                             returnSpline: returnSpline, spline: newSpline);
                       }, previous: previous);
                     },
@@ -461,13 +484,19 @@ class _BranchedSplineEditorState extends State<BranchedSplineEditor> {
                     () {
                       var newSplines = spline.onTrue.splines;
                       newSplines.add(BranchedSpline(
-                        SplineSet([]),
-                        SplineSet([]),
+                        SplineSet([], robotConfigProvider.robotConfig,
+                            preferencesProvider.pathResolution),
+                        SplineSet([], robotConfigProvider.robotConfig,
+                            preferencesProvider.pathResolution),
                         "",
+                        preferencesProvider.pathResolution,
                         isTrue: true,
                       ));
-                      widget.onChanged(
-                          spline.copyWith(onTrue: SplineSet(newSplines)));
+                      widget.onChanged(spline.copyWith(
+                          onTrue: SplineSet(
+                              newSplines,
+                              robotConfigProvider.robotConfig,
+                              preferencesProvider.pathResolution)));
                     },
                     () {
                       _newPath(true);
@@ -503,7 +532,7 @@ class _BranchedSplineEditorState extends State<BranchedSplineEditor> {
                       {Function(Spline)? returnSpline, Spline? previous}) {
                     widget.onEdit(spline, false,
                         returnSpline: (Spline? newSpline) {
-                      widget._returnSpline(false, selectedOnFalse,
+                      widget._returnSpline(false, selectedOnFalse, context,
                           returnSpline: returnSpline, spline: newSpline);
                     });
                   },
@@ -525,13 +554,19 @@ class _BranchedSplineEditorState extends State<BranchedSplineEditor> {
                   () {
                     var newSplines = spline.onFalse.splines;
                     newSplines.add(BranchedSpline(
-                      SplineSet([]),
-                      SplineSet([]),
+                      SplineSet([], robotConfigProvider.robotConfig,
+                          preferencesProvider.pathResolution),
+                      SplineSet([], robotConfigProvider.robotConfig,
+                          preferencesProvider.pathResolution),
                       "",
+                      preferencesProvider.pathResolution,
                       isTrue: false,
                     ));
-                    widget.onChanged(
-                        spline.copyWith(onFalse: SplineSet(newSplines)));
+                    widget.onChanged(spline.copyWith(
+                        onFalse: SplineSet(
+                            newSplines,
+                            robotConfigProvider.robotConfig,
+                            preferencesProvider.pathResolution)));
                   },
                   () {
                     _newPath(false);

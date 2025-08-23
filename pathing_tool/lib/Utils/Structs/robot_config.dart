@@ -2,13 +2,23 @@ import 'package:flutter/material.dart';
 
 class RobotConfig {
   double width, length;
+  double maxVelocity, maxAcceleration, maxCentripetalAcceleration;
   List<IconCommand> commands;
   List<IconCondition> conditions;
   String name;
   bool tank;
 
-  RobotConfig(this.name, this.length, this.width, this.commands,
-      this.conditions, this.tank);
+  RobotConfig(
+    this.name,
+    this.length,
+    this.width,
+    this.commands,
+    this.conditions,
+    this.tank, {
+    this.maxVelocity = 3.0,
+    this.maxAcceleration = 2.0,
+    this.maxCentripetalAcceleration = 2.0,
+  });
 
   factory RobotConfig.fromJson(Map<String, dynamic> json) {
     var commandsJson = json['commands'] as List;
@@ -21,8 +31,27 @@ class RobotConfig {
     try {
       tank = json['tank'] as bool;
     } catch (e) {}
-    return RobotConfig(json['name'], json['length'], json['width'],
-        commandsList, conditionsList, tank);
+    double maxVelocity = json['max_velocity'] != null
+        ? (json['max_velocity'] as num).toDouble()
+        : 3.0;
+    double maxAcceleration = json['max_acceleration'] != null
+        ? (json['max_acceleration'] as num).toDouble()
+        : 2.0;
+    double maxCentripetalAcceleration =
+        json['max_centripetal_acceleration'] != null
+            ? (json['max_centripetal_acceleration'] as num).toDouble()
+            : 2.0;
+    return RobotConfig(
+      json['name'],
+      json['length'],
+      json['width'],
+      commandsList,
+      conditionsList,
+      tank,
+      maxVelocity: maxVelocity,
+      maxAcceleration: maxAcceleration,
+      maxCentripetalAcceleration: maxCentripetalAcceleration,
+    );
   }
 
   Map<String, dynamic> toJson() {
@@ -33,6 +62,8 @@ class RobotConfig {
       'commands': commands.map((e) => e.toJson()).toList(),
       'conditions': conditions.map((e) => e.toJson()).toList(),
       'tank': tank,
+      'max_velocity': maxVelocity,
+      'max_acceleration': maxAcceleration,
     };
   }
 }
