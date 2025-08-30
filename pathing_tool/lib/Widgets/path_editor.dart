@@ -113,11 +113,13 @@ class _PathEditorState extends State<PathEditor>
         waypoints, robotConfig.robotConfig, preferencesProvider.pathResolution,
         commands: commands);
     if (robotConfig.robotConfig.tank) {
-      return robot.getTankWaypoint(
-          _animationController.value * (endTime - startTime) + startTime);
+      return robot.getTankWaypoint(_animationController.value *
+          _animationController.duration!.inMicroseconds /
+          1000000);
     }
-    return robot.getRobotWaypoint(
-        _animationController.value * (endTime - startTime) + startTime);
+    return robot.getRobotWaypoint(_animationController.value *
+        _animationController.duration!.inMicroseconds /
+        1000000);
   }
 
   void playPath() {
@@ -203,8 +205,17 @@ class _PathEditorState extends State<PathEditor>
     }
     Spline robot = Spline(waypoints, robotConfigProvider.robotConfig,
         preferencesProvider.pathResolution);
-    _animationController.duration =
-        Duration(microseconds: ((endTime - startTime) * 1000000).round());
+    _animationController.duration = Duration(
+        microseconds: (((robot.path.lastOrNull?.time ?? endTime) +
+                    endTime -
+                    waypoints.last.t -
+                    (robot.path.firstOrNull?.time ?? startTime)) *
+                1000000)
+            .round());
+    double animationDurationSeconds =
+        _animationController.duration!.inMicroseconds.toDouble() / 1000000.0;
+    double animationTime =
+        _animationController.value * animationDurationSeconds;
     _animationController.stop();
     if (playing && waypoints.length > 1) {
       _animationController.repeat();
@@ -216,9 +227,10 @@ class _PathEditorState extends State<PathEditor>
     List<FlSpot> commandSpline = [];
     final theme = Theme.of(context);
     if (waypoints.length > 1) {
-      double timeStep = 0.01; // Adjust for desired granularity
+      double timeStep = 1 /
+          preferencesProvider.pathResolution; // Adjust for desired granularity
       double endTime = robot.points.last.t;
-      for (double t = waypoints.first.t; t <= endTime; t += timeStep) {
+      for (double t = startTime; t <= endTime; t += timeStep) {
         Waypoint point = robot.getRobotWaypoint(t);
         fullSpline.add(FlSpot(point.x, point.y));
       }
@@ -386,42 +398,49 @@ class _PathEditorState extends State<PathEditor>
             child: Focus(
                 focusNode: _focusNode,
                 child: Scaffold(
+                  persistentFooterAlignment: AlignmentDirectional.bottomCenter,
                   persistentFooterButtons: [
-                    ProgressBar(
-                      baseBarColor: theme.primaryColor.withOpacity(0.3),
-                      thumbColor: theme.primaryColor,
-                      thumbGlowColor: theme.primaryColor.withOpacity(0.2),
-                      progress: Duration(
-                          microseconds: waypoints.isNotEmpty
-                              ? ((_animationController.value *
-                                          (endTime - startTime)) *
-                                      1000000)
-                                  .floor()
-                              : 0),
-                      total: Duration(
-                          microseconds: waypoints.isNotEmpty
-                              ? ((endTime - startTime) * 1000000).floor()
-                              : 0),
-                      progressBarColor: theme.primaryColor,
-                      onDragStart: (details) {
-                        _animationController.stop();
-                        var pathTime =
-                            details.timeStamp.inMicroseconds / 1000000;
-                        _animationController.value =
-                            pathTime / waypoints.last.t;
-                      },
-                      onDragUpdate: (details) {
-                        var pathTime =
-                            details.timeStamp.inMicroseconds / 1000000;
-                        _animationController.value =
-                            pathTime / waypoints.last.t;
-                      },
-                      onDragEnd: () {
-                        if (playing) {
-                          _animationController.repeat();
-                        }
-                      },
-                    ),
+                    Row(children: [
+                      SizedBox(
+                        width: MediaQuery.of(context).size.width -
+                            (69 +
+                                (animationTime.toStringAsFixed(2).length - 4) *
+                                    8),
+                        child: ProgressBar(
+                          baseBarColor: theme.primaryColor.withOpacity(0.3),
+                          thumbColor: theme.primaryColor,
+                          thumbGlowColor: theme.primaryColor.withOpacity(0.2),
+                          progress: Duration(
+                              microseconds: waypoints.isNotEmpty
+                                  ? (animationTime * 1000000).floor()
+                                  : 0),
+                          total: _animationController.duration!,
+                          progressBarColor: theme.primaryColor,
+                          onDragStart: (details) {
+                            _animationController.stop();
+                            var pathTime =
+                                details.timeStamp.inMicroseconds / 1000000;
+                            _animationController.value =
+                                pathTime / animationDurationSeconds;
+                          },
+                          onDragUpdate: (details) {
+                            var pathTime =
+                                details.timeStamp.inMicroseconds / 1000000;
+                            _animationController.value =
+                                pathTime / animationDurationSeconds;
+                          },
+                          onDragEnd: () {
+                            if (playing) {
+                              _animationController.repeat();
+                            }
+                          },
+                          timeLabelLocation: TimeLabelLocation.none,
+                        ),
+                      ),
+                      Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: Text("${animationTime.toStringAsFixed(2)}s")),
+                    ])
                   ],
                   appBar: AppBar(
                     leading: widget.returnSpline != null
@@ -1386,43 +1405,6 @@ class RobotPainter extends CustomPainter {
       yPixels - angleLineLength * math.sin(angle),
     );
     canvas.drawLine(Offset(xPixels, yPixels), angleLineEnd, paint);
-    if (showArrow) {
-      // Draw velocity vector as an arrow
-      const double arrowHeadLength = 14;
-      const double velocityScale = 1; // Adjust for visual scaling
-      double vAngle = math.atan2(waypoint.dy, waypoint.dx);
-      final double vx = waypoint.dx * metersToPixelsRatio * velocityScale +
-          14 * math.cos(vAngle);
-      final double vy = -waypoint.dy * metersToPixelsRatio * velocityScale +
-          14 * math.sin(vAngle);
-
-      final Offset start = Offset(xPixels, yPixels);
-      final Offset end = Offset(xPixels + vx, yPixels + vy);
-
-      final Paint velocityPaint = Paint()
-        ..color = color
-        ..strokeWidth = 2
-        ..style = PaintingStyle.stroke;
-
-      // Draw the main velocity line
-      canvas.drawLine(start, end, velocityPaint);
-
-      // Draw arrowhead
-      const double arrowHeadAngle = 0.45; // radians
-      vAngle = math.atan2(end.dy - start.dy, end.dx - start.dx);
-
-      final Offset arrowP1 = Offset(
-        end.dx - arrowHeadLength * math.cos(vAngle - arrowHeadAngle),
-        end.dy - arrowHeadLength * math.sin(vAngle - arrowHeadAngle),
-      );
-      final Offset arrowP2 = Offset(
-        end.dx - arrowHeadLength * math.cos(vAngle + arrowHeadAngle),
-        end.dy - arrowHeadLength * math.sin(vAngle + arrowHeadAngle),
-      );
-
-      canvas.drawLine(end, arrowP1, velocityPaint);
-      canvas.drawLine(end, arrowP2, velocityPaint);
-    }
   }
 
   @override

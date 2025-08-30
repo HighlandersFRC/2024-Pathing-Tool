@@ -85,6 +85,9 @@ class Spline {
         double prevT = path[i - 1].t;
         double maxV = maxVelocityMap[i].$2;
         double newV = sqrt(prevV * prevV + 2 * config.maxAcceleration * ds);
+        if (newV.isNaN || newV.isInfinite) {
+          newV = 0;
+        }
         newV = min(newV, maxV);
         double acceleration = (newV - prevV) / (ds / prevV);
         if (acceleration.isNaN || acceleration.isInfinite) {
@@ -112,7 +115,6 @@ class Spline {
             t: nextT);
         path.add(newWaypoint);
       }
-
       // Backward pass: enforce deceleration limits
       path[path.length - 1] = path[path.length - 1].copyWith(
         dx: path.last.velocityMag * cos(atan2(path.last.dy, path.last.dx)),
@@ -125,6 +127,9 @@ class Spline {
         double newV = sqrt(nextV * nextV + 2 * config.maxAcceleration * ds);
         newV = min(path[i].velocityMag, newV);
         newV = min(newV, maxV);
+        if (newV.isNaN || newV.isInfinite) {
+          newV = 0;
+        }
         double vDirection = atan2(path[i].dy, path[i].dx);
         path[i] = path[i].copyWith(
           dx: newV * cos(vDirection),
