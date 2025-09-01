@@ -208,7 +208,7 @@ class _PathEditorState extends State<PathEditor>
     _animationController.duration = Duration(
         microseconds: (((robot.path.lastOrNull?.time ?? endTime) +
                     endTime -
-                    (waypoints.lastOrNull?.t?? endTime) -
+                    (waypoints.lastOrNull?.t ?? endTime) -
                     (robot.path.firstOrNull?.time ?? startTime)) *
                 1000000)
             .round());
@@ -227,24 +227,18 @@ class _PathEditorState extends State<PathEditor>
     List<FlSpot> commandSpline = [];
     final theme = Theme.of(context);
     if (waypoints.length > 1) {
-      double timeStep = 1 /
-          preferencesProvider.pathResolution; // Adjust for desired granularity
-      double endTime = robot.points.last.t;
-      for (double t = startTime; t <= endTime; t += timeStep) {
-        Waypoint point = robot.getRobotWaypoint(t);
+      for (var point in robot.path) {
         fullSpline.add(FlSpot(point.x, point.y));
       }
     }
     if (waypoints.length > 1 && selectedCommand != -1) {
-      double timeStep = 0.01; // Adjust for desired granularity
       double start =
-          max(commands[selectedCommand].startTime, robot.points.first.t);
-      double endTime = commands[selectedCommand].endTime;
-      for (double t = start;
-          t <= endTime && t <= robot.points.last.t;
-          t += timeStep) {
-        Waypoint point = robot.getRobotWaypoint(t);
-        commandSpline.add(FlSpot(point.x, point.y));
+          robot.pathTimeToRealTime(commands[selectedCommand].startTime);
+      double end = robot.pathTimeToRealTime(commands[selectedCommand].endTime);
+      for (var point in robot.path) {
+        if (point.t >= start && point.t <= end) {
+          commandSpline.add(FlSpot(point.x, point.y));
+        }
       }
     }
     void savePathToFile() async {
@@ -655,11 +649,15 @@ class _PathEditorState extends State<PathEditor>
                                           editMode == 2 &&
                                                   selectedCommand != -1 &&
                                                   playbackWaypoint!.t >
-                                                      commands[selectedCommand]
-                                                          .startTime &&
+                                                      robot.pathTimeToRealTime(
+                                                          commands[
+                                                                  selectedCommand]
+                                                              .startTime) &&
                                                   playbackWaypoint!.t <
-                                                      commands[selectedCommand]
-                                                          .endTime
+                                                      robot.pathTimeToRealTime(
+                                                          commands[
+                                                                  selectedCommand]
+                                                              .endTime)
                                               ? theme.primaryColor
                                               : theme.brightness ==
                                                       Brightness.dark

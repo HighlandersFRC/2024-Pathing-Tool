@@ -20,6 +20,7 @@ import 'package:path/path.dart' as p;
 
 import '../Utils/Providers/preference_provider.dart';
 import '../Utils/Structs/robot_config.dart';
+import '../Utils/utils.dart';
 
 class AutoEditor extends StatefulWidget {
   final List<Spline> splines;
@@ -91,18 +92,16 @@ class _AutoEditorState extends State<AutoEditor>
         Provider.of<RobotConfigProvider>(context, listen: false);
     double currentDuration = 0;
     for (var spline in splines) {
-      currentDuration += spline.duration;
+      currentDuration += spline.realTime;
       if (wantedTime <= currentDuration) {
         if (robotConfigProvider.robotConfig.tank) {
           return spline.getTankWaypoint(_animationController.value * duration -
               (currentDuration) +
-              spline.startTime +
-              spline.duration);
+              spline.realTime);
         }
         return spline.getRobotWaypoint(_animationController.value * duration -
             (currentDuration) +
-            spline.startTime +
-            spline.duration);
+            spline.realTime);
       }
     }
     return null;
@@ -111,7 +110,7 @@ class _AutoEditorState extends State<AutoEditor>
   @override
   void initState() {
     for (var spline in splines) {
-      duration += spline.duration;
+      duration += spline.realTime;
     }
     _focusNode = FocusNode();
     _animationController = AnimationController(
@@ -130,11 +129,15 @@ class _AutoEditorState extends State<AutoEditor>
     final robotConfigProvider = Provider.of<RobotConfigProvider>(context);
     duration = 0;
     for (var spline in splines) {
-      duration += spline.duration;
+      duration += spline.realTime;
     }
     // print('duration: $duration');
     _animationController.duration =
         Duration(microseconds: (duration * 1000000).round());
+    double animationDurationSeconds =
+        _animationController.duration!.inMicroseconds.toDouble() / 1000000.0;
+    double animationTime =
+        _animationController.value * animationDurationSeconds;
     _animationController.stop();
     if (playing && splines.length > 0) {
       _animationController.repeat();
@@ -173,35 +176,49 @@ class _AutoEditorState extends State<AutoEditor>
                 focusNode: _focusNode,
                 child: Scaffold(
                     persistentFooterButtons: [
-                      ProgressBar(
-                        baseBarColor: theme.primaryColor.withOpacity(0.3),
-                        thumbColor: theme.primaryColor,
-                        thumbGlowColor: theme.primaryColor.withOpacity(0.2),
-                        progress: Duration(
-                            microseconds: (_animationController.value *
-                                    duration *
-                                    1000000)
-                                .round()),
-                        total: Duration(
-                            microseconds: (duration * 1000000).round()),
-                        progressBarColor: theme.primaryColor,
-                        onDragStart: (details) {
-                          _animationController.stop();
-                          var pathTime =
-                              details.timeStamp.inMicroseconds / 1000000;
-                          _animationController.value = pathTime / duration;
-                        },
-                        onDragUpdate: (details) {
-                          var pathTime =
-                              details.timeStamp.inMicroseconds / 1000000;
-                          _animationController.value = pathTime / duration;
-                        },
-                        onDragEnd: () {
-                          if (playing) {
-                            _animationController.repeat();
-                          }
-                        },
-                      ),
+                      Row(children: [
+                        SizedBox(
+                          width: MediaQuery.of(context).size.width -
+                              (69 +
+                                  (animationTime.toStringAsFixed(2).length -
+                                          4) *
+                                      8),
+                          child: ProgressBar(
+                            baseBarColor: theme.primaryColor.withOpacity(0.3),
+                            thumbColor: theme.primaryColor,
+                            thumbGlowColor: theme.primaryColor.withOpacity(0.2),
+                            progress: Duration(
+                                microseconds: splines.isNotEmpty
+                                    ? (animationTime * 1000000).floor()
+                                    : 0),
+                            total: _animationController.duration!,
+                            progressBarColor: theme.primaryColor,
+                            onDragStart: (details) {
+                              _animationController.stop();
+                              var pathTime =
+                                  details.timeStamp.inMicroseconds / 1000000;
+                              _animationController.value =
+                                  pathTime / animationDurationSeconds;
+                            },
+                            onDragUpdate: (details) {
+                              var pathTime =
+                                  details.timeStamp.inMicroseconds / 1000000;
+                              _animationController.value =
+                                  pathTime / animationDurationSeconds;
+                            },
+                            onDragEnd: () {
+                              if (playing) {
+                                _animationController.repeat();
+                              }
+                            },
+                            timeLabelLocation: TimeLabelLocation.none,
+                          ),
+                        ),
+                        Padding(
+                            padding: const EdgeInsets.all(10),
+                            child:
+                                Text("${animationTime.toStringAsFixed(2)}s")),
+                      ])
                     ],
                     appBar: AppBar(
                       automaticallyImplyLeading: false,
@@ -349,9 +366,8 @@ class _AutoEditorState extends State<AutoEditor>
                                 List<FlSpot> xSpots = [];
                                 if (spline.points.length > 1) {
                                   double timeStep = 0.01;
-                                  double endTime = spline.points.last.t;
-                                  for (double t = spline.points.first.t;
-                                      t <= endTime;
+                                  for (double t = spline.startTime;
+                                      t <= spline.startTime + spline.realTime;
                                       t += timeStep) {
                                     Waypoint point = spline.getRobotWaypoint(t);
                                     xSpots.add(FlSpot(point.x, point.y));
@@ -666,7 +682,7 @@ class _AutoEditorState extends State<AutoEditor>
     });
   }
 
-  String _toJSON() {
+  Future<String> _toJSON() async {
     List<Map<String, dynamic>> schedule = [];
     List<Map<String, dynamic>> paths = [];
     int pathIndex = 0;
@@ -687,6 +703,7 @@ class _AutoEditorState extends State<AutoEditor>
         Provider.of<ImageDataProvider>(context, listen: false);
     Map<String, dynamic> metaData = {
       "auto_name": autoName,
+      "path_version": await Utils.getVersionFromPubspec(),
       "robot_name": robotConfigProvider.robotConfig.name,
       "field_name": fieldConfigProvider.selectedImage.imageName,
     };
@@ -712,7 +729,7 @@ class _AutoEditorState extends State<AutoEditor>
     final String path = p.join(selectedDirectory, '$autoName.polarauto');
     // Write the JSON object to a file
     File savePathFile = File(path);
-    savePathFile.writeAsString(_toJSON()).then((value) {
+    savePathFile.writeAsString(await _toJSON()).then((value) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Auto saved to ${savePathFile.path}")),
       );
@@ -782,7 +799,7 @@ class _AutoEditorState extends State<AutoEditor>
       file = await robotSFTP.open('./deploy/$autoName.polarauto',
           mode: SftpFileOpenMode.write);
     }
-    await file.writeBytes(utf8.encode(_toJSON()));
+    await file.writeBytes(utf8.encode(await _toJSON()));
     robotClient.close();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Auto saved to robot")),

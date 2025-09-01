@@ -65,7 +65,7 @@ class _SplineOrdererState extends State<SplineOrderer> {
                 headerBuilder: (context, isExpanded) {
                   return ListTile(
                     title: Text(
-                      "${spline.value.name} - ${spline.value.duration} seconds",
+                      "${spline.value.name} - ${spline.value.realTime.toStringAsFixed(2)} seconds",
                     ),
                   );
                 },
@@ -446,7 +446,7 @@ class _BranchedSplineEditorState extends State<BranchedSplineEditor> {
                         ? theme.primaryColor.withOpacity(0.2)
                         : null,
                     title: Text(
-                      "${spline.onTrue.name} - ${spline.onTrue.duration} seconds",
+                      "${spline.onTrue.name} - ${spline.onTrue.realTime.toStringAsFixed(2)} seconds",
                     ),
                   );
                 },
@@ -516,7 +516,7 @@ class _BranchedSplineEditorState extends State<BranchedSplineEditor> {
                   tileColor:
                       !isExpanded ? theme.primaryColor.withOpacity(0.2) : null,
                   title: Text(
-                    "${spline.onFalse.name} - ${spline.onFalse.duration} seconds",
+                    "${spline.onFalse.name} - ${spline.onFalse.realTime.toStringAsFixed(2)} seconds",
                   ),
                 );
               },

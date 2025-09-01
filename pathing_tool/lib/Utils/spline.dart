@@ -116,10 +116,6 @@ class Spline {
         path.add(newWaypoint);
       }
       // Backward pass: enforce deceleration limits
-      path[path.length - 1] = path[path.length - 1].copyWith(
-        dx: path.last.velocityMag * cos(atan2(path.last.dy, path.last.dx)),
-        dy: path.last.velocityMag * sin(atan2(path.last.dy, path.last.dx)),
-      );
       for (int i = path.length - 2; i >= 0; i--) {
         double ds = arcLengthMap[i + 1].$2 - arcLengthMap[i].$2;
         double nextV = path[i + 1].velocityMag;
@@ -216,29 +212,54 @@ class Spline {
   }
 
   Waypoint getRobotWaypoint(double time) {
-    if (time < startTime) {
-      return getRobotWaypoint(startTime);
-    } else if (time > endTime) {
-      return getRobotWaypoint(endTime);
-    }
-    if (points.length > 1) {
-      if (time < points.first.time) {
-        return points.first.copyWith();
-      } else if (time > points.last.time) {
-        return points.last.copyWith();
+    if (path.length > 1) {
+      if (time < path.first.time) {
+        return path.first.copyWith();
+      } else if (time > path.last.time) {
+        return path.last.copyWith();
       }
     }
-    double timeRatio =
-        (path.last.t - path.first.t) / (points.last.time - points.first.time);
-    double scaledTime = timeRatio * (time - points.first.time) + path.first.t;
+    // double timeRatio = 1;
+    // (path.last.t - path.first.t) / (points.last.time - points.first.time);
+    // double scaledTime = timeRatio * (time - points.first.time) + path.first.t;
     // print(scaledTime);
     for (var point in path) {
-      if (point.t >= scaledTime) {
+      if (point.t >= time) {
         return point.copyWith();
       }
     }
-    return vectorsToWaypoint(
-        x.getVectors(time), y.getVectors(time), theta.getVectors(time));
+    return path.last.copyWith();
+  }
+
+  double pathTimeToRealTime(double time) {
+    if (points.isEmpty) {
+      return time;
+    }
+    if (time < points.first.time) {
+      return time;
+    }
+    if (time > points.last.time) {
+      return time - (points.last.time - path.last.t);
+    }
+    // int left = 0;
+    // int right = arcLengthMap.length - 1;
+    // while (left < right) {
+    //   int mid = left + ((right - left) >> 1);
+    //   if (arcLengthMap[mid].$1 < time) {
+    //     left = mid + 1;
+    //   } else {
+    //     right = mid;
+    //   }
+    // }
+    // if (left < path.length) {
+    //   return path[left].t;
+    // }
+    for (int i = 0; i < arcLengthMap.length; i++) {
+      if (arcLengthMap[i].$1 >= time) {
+        return path[i].t;
+      }
+    }
+    return path.last.t;
   }
 
   Waypoint getTankWaypoint(double time) {
@@ -271,8 +292,17 @@ class Spline {
         commands: commands, name: name ?? this.name);
   }
 
-  double get duration {
-    return endTime - startTime;
+  double get realTime {
+    if (path.isEmpty) return endTime - startTime;
+    return path.last.t -
+        path.first.t +
+        (points.first.time - startTime) +
+        (endTime - points.last.time);
+  }
+
+  double get pathingTime {
+    if (path.isEmpty) return 0.0;
+    return path.last.t - path.first.t;
   }
 
   double get startTime {
@@ -298,14 +328,17 @@ class Spline {
   Map<String, dynamic> toJson() {
     var json = {
       "meta_data": {"path_name": name},
-      "key_points":
-          points.map((Waypoint waypoint) => waypoint.toJson()).toList(),
-      "commands": commands.map((Command command) => command.toJson()).toList(),
-      if (points.isNotEmpty)
-        "sampled_points": [
-          for (double t = points.first.t; t <= points.last.t; t += 0.01)
-            getRobotWaypoint(t)
-        ]
+      "key_points": points.map((Waypoint waypoint) {
+        return waypoint.toJson();
+      }).toList(),
+      "commands": commands.map((Command command) {
+        var newCommand = command.copyWith(
+            startTime: pathTimeToRealTime(command.startTime),
+            endTime: pathTimeToRealTime(command.endTime));
+        return newCommand.toJson();
+      }).toList(),
+      if (path.isNotEmpty)
+        "sampled_points": [for (var point in path) point.toJson()]
     };
     return json;
   }
@@ -664,7 +697,7 @@ List<Waypoint> _getWaypointsFromSplineList(List<Spline> splines) {
     for (var point in spline.points) {
       waypoints.add(point.copyWith(t: duration + point.t));
     }
-    duration += spline.duration;
+    duration += spline.realTime;
   }
   return waypoints;
 }
