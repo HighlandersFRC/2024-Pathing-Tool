@@ -208,7 +208,7 @@ class _PathEditorState extends State<PathEditor>
     _animationController.duration = Duration(
         microseconds: (((robot.path.lastOrNull?.time ?? endTime) +
                     endTime -
-                    waypoints.last.t -
+                    (waypoints.lastOrNull?.t?? endTime) -
                     (robot.path.firstOrNull?.time ?? startTime)) *
                 1000000)
             .round());
