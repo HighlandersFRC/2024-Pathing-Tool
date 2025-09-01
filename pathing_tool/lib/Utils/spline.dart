@@ -80,9 +80,11 @@ class Spline {
       path.add(points.first);
       // Forward pass: compute velocity profile with acceleration limits
       for (int i = 1; i < arcLengthMap.length; i++) {
-        double ds = arcLengthMap[i].$2 - arcLengthMap[i - 1].$2;
+        double ds = (arcLengthMap[i].$2 - arcLengthMap[i - 1].$2).abs();
         double prevV = path[i - 1].velocityMag;
         double prevT = path[i - 1].t;
+        double prevTheta = path[i - 1].theta;
+        double prevAngVel = path[i - 1].dtheta;
         double maxV = maxVelocityMap[i].$2;
         double newV = sqrt(prevV * prevV + 2 * config.maxAcceleration * ds);
         if (newV.isNaN || newV.isInfinite) {
@@ -98,9 +100,18 @@ class Spline {
             thetaVectors = theta.getVectors(arcLengthMap[i].$1);
         double aDirection = atan2(yVectors.acceleration, xVectors.acceleration);
         double vDirection = atan2(yVectors.velocity, xVectors.velocity);
-        double nextT = (prevT + (ds / prevV));
+        double dt = ds / prevV;
+        double nextT = (prevT + dt);
+        double nextAngVel = (thetaVectors.position - prevTheta) / dt;
+        double nextAngAcc = (nextAngVel - prevAngVel) / dt;
         if (nextT.isNaN || nextT.isInfinite) {
           nextT = prevT;
+        }
+        if (nextAngVel.isNaN || nextAngVel.isInfinite) {
+          nextAngVel = 0;
+        }
+        if (nextAngAcc.isNaN || nextAngAcc.isInfinite) {
+          nextAngAcc = 0;
         }
         Waypoint newWaypoint = Waypoint(
             x: xVectors.position,
@@ -108,10 +119,10 @@ class Spline {
             theta: thetaVectors.position,
             dx: newV * cos(vDirection),
             dy: newV * sin(vDirection),
-            dtheta: thetaVectors.velocity,
+            dtheta: nextAngVel,
             d2x: acceleration * cos(aDirection),
             d2y: acceleration * sin(aDirection),
-            d2theta: thetaVectors.acceleration,
+            d2theta: nextAngAcc,
             t: nextT);
         path.add(newWaypoint);
       }
