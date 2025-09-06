@@ -1,6 +1,8 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:pathing_tool/Theme/theme_notifier.dart';
+import 'package:pathing_tool/Utils/Providers/preference_provider.dart';
 import 'package:pathing_tool/Utils/Providers/robot_config_provider.dart';
 import 'package:pathing_tool/Utils/Structs/image_data.dart';
 import 'package:pathing_tool/Utils/Providers/image_data_provider.dart';
@@ -261,11 +263,139 @@ class SettingsPopup extends StatelessWidget {
     );
   }
 
+  void _connectToRepository(BuildContext context) async {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final preferences =
+            Provider.of<PreferenceProvider>(context, listen: false).preferences;
+        final TextEditingController repoPathController =
+            TextEditingController(text: preferences["repository_path"] ?? "");
+        String text = preferences["repository_path"] ?? "";
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text("Connect to Repository"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    decoration:
+                        const InputDecoration(labelText: "Repository Path"),
+                    controller: repoPathController,
+                    onChanged: (value) {
+                      setState(() {
+                        text = value;
+                      }); // Update the state to enable/disable button
+                    },
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      FilePicker.platform.getDirectoryPath().then((value) {
+                        if (value != null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("Selected Path: $value")),
+                          );
+                          setState(() {
+                            repoPathController.text = value;
+                            text = value; // Update the text variable
+                          });
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("No path selected")),
+                          );
+                        }
+                      });
+                    },
+                    child: const Text("Choose Path"),
+                  ),
+                ],
+              ),
+              actions: [
+                ElevatedButton(
+                  onPressed: text.isNotEmpty
+                      ? () {
+                          PreferenceProvider preferenceProvider =
+                              Provider.of<PreferenceProvider>(context,
+                                  listen: false);
+                          final preferences = preferenceProvider.preferences;
+                          preferences["repository_path"] =
+                              repoPathController.text;
+                          preferenceProvider.savePreferences(
+                              preferences, context);
+                          Navigator.of(context).pop();
+                        }
+                      : null,
+                  child: const Text("Connect Repository"),
+                ),
+                TextButton(
+                  child: const Text("Close"),
+                  style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).primaryColor),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _openChangePathResolutionPopup(BuildContext context) {
+    final settingsProvider =
+        Provider.of<PreferenceProvider>(context, listen: false);
+    final TextEditingController controller = TextEditingController(
+      text: settingsProvider.preferences["path_resolution"]?.toString() ?? "1",
+    );
+    final theme = Theme.of(context);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Change Path Resolution'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: "Path Resolution"),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            style: ButtonStyle(
+              foregroundColor: WidgetStateProperty.all(theme.primaryColor),
+            ),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final value = int.tryParse(controller.text);
+              if (value != null && value > 0) {
+                final preferences = settingsProvider.preferences;
+                preferences["path_resolution"] = value;
+                settingsProvider.savePreferences(preferences, context);
+                Navigator.of(context).pop();
+                Navigator.of(context).pop();
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text("Please enter a valid positive integer.")),
+                );
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeNotifier = Provider.of<ThemeNotifier>(context);
     final theme = Theme.of(context);
-
+    final settingsProvider = Provider.of<PreferenceProvider>(context);
     return AlertDialog(
       title: const Text('Settings'),
       content: SingleChildScrollView(
@@ -309,6 +439,22 @@ class SettingsPopup extends StatelessWidget {
               title: const Text('Change Robot'),
               onTap: () {
                 _openChangeRobotPopup(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.link),
+              title: const Text('Connect to Repository'),
+              onTap: () {
+                _connectToRepository(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.restart_alt_rounded),
+              title: const Text('Change Path Resolution'),
+              trailing:
+                  Text('${settingsProvider.preferences["path_resolution"]}'),
+              onTap: () {
+                _openChangePathResolutionPopup(context);
               },
             ),
           ],

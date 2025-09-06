@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:pathing_tool/Pages/autos_page.dart';
 import 'package:pathing_tool/Utils/Providers/image_data_provider.dart';
+import 'package:pathing_tool/Utils/Providers/preference_provider.dart';
 import 'package:pathing_tool/Utils/Providers/robot_config_provider.dart';
 import 'package:provider/provider.dart';
 import 'Pages/home_page.dart';
@@ -18,33 +19,33 @@ void main() {
         ChangeNotifierProvider(create: (_) => ThemeNotifier()),
         ChangeNotifierProvider(create: (_) => RobotConfigProvider()),
         ChangeNotifierProvider(create: (_) => ImageDataProvider()),
+        ChangeNotifierProvider(create: (_) => PreferenceProvider()),
       ],
-      child: MainApp(),
+      child: const MainApp(),
     ),
   );
 }
 
 class MainApp extends StatelessWidget {
-   
+  const MainApp({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return Consumer<ThemeNotifier>(
-      builder: (context, themeNotifier, child) {
-        return MaterialApp(
-          home: Builder(
-            builder: (context) => const HomePage(), // Wrap your home page with Builder
-          ),
-          theme: themeNotifier.themeData,
-          routes: {
-            '/home': (context) => const HomePage(),
-            '/autos': (context) => const AutosPage([], ""),
-          },
-        );
-      }
-    );
+    return Consumer<ThemeNotifier>(builder: (context, themeNotifier, child) {
+      return MaterialApp(
+        home: Builder(
+          builder: (context) =>
+              const HomePage(), // Wrap your home page with Builder
+        ),
+        theme: themeNotifier.themeData,
+        routes: {
+          '/home': (context) => const HomePage(),
+          '/autos': (context) => const AutosPage([], ""),
+        },
+      );
+    });
   }
 }
-
 
 // Helper function to create a MaterialColor from a Color
 MaterialColor createMaterialColor(Color color) {

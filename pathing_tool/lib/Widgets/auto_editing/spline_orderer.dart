@@ -6,6 +6,8 @@ import 'package:pathing_tool/Utils/Providers/robot_config_provider.dart';
 import 'package:pathing_tool/Utils/spline.dart';
 import 'package:provider/provider.dart';
 
+import '../../Utils/Providers/preference_provider.dart';
+
 class SplineOrderer extends StatefulWidget {
   final List<Spline> splines;
   final Function(int) onSplineSelected;
@@ -14,7 +16,8 @@ class SplineOrderer extends StatefulWidget {
       onMoveBackward,
       onBranchedSplineAdded,
       onSplineAdded;
-  final Function(Spline?, bool, {Function(Spline)? returnSpline}) onEdit;
+  final Function(Spline?, bool,
+      {Function(Spline)? returnSpline, Spline? previous}) onEdit;
   final Function(Spline, int) onChanged;
   final int splineIndex;
   const SplineOrderer(
@@ -62,7 +65,7 @@ class _SplineOrdererState extends State<SplineOrderer> {
                 headerBuilder: (context, isExpanded) {
                   return ListTile(
                     title: Text(
-                      "${spline.value.name} - ${spline.value.duration} seconds",
+                      "${spline.value.name} - ${spline.value.realTime.toStringAsFixed(2)} seconds",
                     ),
                   );
                 },
@@ -76,6 +79,8 @@ class _SplineOrdererState extends State<SplineOrderer> {
                   widget.onDelete,
                   widget.splines.length,
                   (Spline newSpline) => widget.onChanged(newSpline, spline.key),
+                  previous:
+                      spline.key > 0 ? widget.splines[spline.key - 1] : null,
                 ))
         ],
       ),
@@ -83,18 +88,19 @@ class _SplineOrdererState extends State<SplineOrderer> {
           onPressed: widget.onBranchedSplineAdded,
           child: const Text('Add Branched Path')),
       ElevatedButton(
-          onPressed: widget.onSplineAdded,
-          child: const Text('Add Path')),
+          onPressed: widget.onSplineAdded, child: const Text('Add Path')),
     ]));
   }
 }
 
 class SplineEditor extends StatelessWidget {
   final Spline spline;
+  final Spline? previous;
   final int splineIndex;
   final int length;
   final Function() onMoveForward, onMoveBackward, onDelete;
-  final Function(Spline?, bool, {Function(Spline)? returnSpline}) onEdit;
+  final Function(Spline?, bool,
+      {Function(Spline)? returnSpline, Spline? previous}) onEdit;
   final Function(Spline) onChanged;
   final bool isBranch, lastLocked;
   const SplineEditor(
@@ -109,6 +115,7 @@ class SplineEditor extends StatelessWidget {
     super.key,
     this.isBranch = false,
     this.lastLocked = false,
+    this.previous,
   });
   @override
   Widget build(BuildContext context) {
@@ -117,49 +124,50 @@ class SplineEditor extends StatelessWidget {
         ? BranchedSplineEditor(spline as BranchedSpline, splineIndex,
             onMoveForward, onMoveBackward, onEdit, onDelete, length, onChanged)
         : Column(
+            children: [
+              Text(
+                spline.name,
+                style: theme.textTheme.headlineLarge,
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    spline.name,
-                    style: theme.textTheme.headlineLarge,
+                  if (!isBranch)
+                    IconButton(
+                      onPressed: splineIndex != 0 ? onMoveBackward : null,
+                      icon: const Icon(Icons.keyboard_arrow_left_rounded),
+                      color: splineIndex != 0
+                          ? theme.primaryColor
+                          : Colors.grey[500],
+                    ),
+                  IconButton(
+                    onPressed: () =>
+                        onEdit(spline, lastLocked, previous: previous),
+                    icon: const Icon(Icons.edit),
+                    color: theme.brightness == Brightness.dark
+                        ? Colors.white
+                        : Colors.black,
                   ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      if (!isBranch)
-                        IconButton(
-                          onPressed: splineIndex != 0 ? onMoveBackward : null,
-                          icon: const Icon(Icons.keyboard_arrow_left_rounded),
-                          color: splineIndex != 0
-                              ? theme.primaryColor
-                              : Colors.grey[500],
-                        ),
-                      IconButton(
-                        onPressed: () => onEdit(spline, lastLocked),
-                        icon: const Icon(Icons.edit),
-                        color: theme.brightness == Brightness.dark
-                            ? Colors.white
-                            : Colors.black,
-                      ),
-                      IconButton(
-                        onPressed: onDelete,
-                        icon: const Icon(Icons.delete),
-                        color: theme.brightness == Brightness.dark
-                            ? Colors.white
-                            : Colors.black,
-                      ),
-                      if (!isBranch)
-                        IconButton(
-                          onPressed:
-                              splineIndex != length - 1 ? onMoveForward : null,
-                          icon: const Icon(Icons.keyboard_arrow_right_rounded),
-                          color: splineIndex != length - 1
-                              ? theme.primaryColor
-                              : Colors.grey[500],
-                        )
-                    ],
+                  IconButton(
+                    onPressed: onDelete,
+                    icon: const Icon(Icons.delete),
+                    color: theme.brightness == Brightness.dark
+                        ? Colors.white
+                        : Colors.black,
                   ),
+                  if (!isBranch)
+                    IconButton(
+                      onPressed:
+                          splineIndex != length - 1 ? onMoveForward : null,
+                      icon: const Icon(Icons.keyboard_arrow_right_rounded),
+                      color: splineIndex != length - 1
+                          ? theme.primaryColor
+                          : Colors.grey[500],
+                    )
                 ],
-              );
+              ),
+            ],
+          );
   }
 }
 
@@ -168,7 +176,8 @@ class BranchedSplineEditor extends StatefulWidget {
   final int splineIndex;
   final int length;
   final Function() onMoveForward, onMoveBackward, onDelete;
-  final Function(Spline?, bool, {Function(Spline)? returnSpline}) onEdit;
+  final Function(Spline?, bool,
+      {Function(Spline)? returnSpline, Spline? previous}) onEdit;
   final Function(Spline) onChanged;
   final bool lastLocked;
   const BranchedSplineEditor(
@@ -183,8 +192,12 @@ class BranchedSplineEditor extends StatefulWidget {
       {super.key,
       this.lastLocked = false});
 
-  _returnSpline(bool isTrue, int index,
+  _returnSpline(bool isTrue, int index, BuildContext context,
       {Function(Spline)? returnSpline, Spline? spline}) {
+    RobotConfigProvider configProvider =
+        Provider.of<RobotConfigProvider>(context);
+    PreferenceProvider preferencesProvider =
+        Provider.of<PreferenceProvider>(context);
     if (spline != null) {
       if (isTrue) {
         var splineList = [
@@ -197,7 +210,9 @@ class BranchedSplineEditor extends StatefulWidget {
             spline.$2
         ];
         splineList.insert(index, spline);
-        onChanged(this.spline.copyWith(onTrue: SplineSet(splineList)));
+        onChanged(this.spline.copyWith(
+            onTrue: SplineSet(splineList, configProvider.robotConfig,
+                preferencesProvider.pathResolution)));
       } else {
         var splineList = [
           for (var spline in this
@@ -209,7 +224,9 @@ class BranchedSplineEditor extends StatefulWidget {
             spline.$2
         ];
         splineList.insert(index, spline);
-        onChanged(this.spline.copyWith(onFalse: SplineSet(splineList)));
+        onChanged(this.spline.copyWith(
+            onFalse: SplineSet(splineList, configProvider.robotConfig,
+                preferencesProvider.pathResolution)));
       }
     }
   }
@@ -227,11 +244,16 @@ class _BranchedSplineEditorState extends State<BranchedSplineEditor> {
       allowedExtensions: ['polarpath'],
     );
     setState(() {
+      RobotConfigProvider configProvider =
+          Provider.of<RobotConfigProvider>(context, listen: false);
+      PreferenceProvider preferencesProvider =
+          Provider.of<PreferenceProvider>(context, listen: false);
       var splines = spline.onTrue.splines;
       if (result != null && result.files.single.path != null) {
         String path = result.files.single.path!;
         File pathFile = File(path);
-        Spline newSpline = Spline.fromPolarPathFile(pathFile);
+        Spline newSpline = Spline.fromPolarPathFile(pathFile,
+            configProvider.robotConfig, preferencesProvider.pathResolution);
         widget.onChanged(
           isTrue
               ? spline.copyWith(onTrue: spline.onTrue.addSpline(newSpline))
@@ -251,11 +273,14 @@ class _BranchedSplineEditorState extends State<BranchedSplineEditor> {
   _newPath(bool isTrue) {
     bool pathAdded = false;
     TextEditingController controller = TextEditingController();
-
     showDialog(
       context: context,
       builder: (context) {
         final theme = Theme.of(context);
+        RobotConfigProvider configProvider =
+            Provider.of<RobotConfigProvider>(context);
+        PreferenceProvider preferencesProvider =
+            Provider.of<PreferenceProvider>(context);
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
@@ -290,11 +315,15 @@ class _BranchedSplineEditorState extends State<BranchedSplineEditor> {
                                   ? widget.onChanged(spline.copyWith(
                                       onTrue: spline.onTrue.addSpline(Spline(
                                       [],
+                                      configProvider.robotConfig,
+                                      preferencesProvider.pathResolution,
                                       name: controller.text,
                                     ))))
                                   : widget.onChanged(spline.copyWith(
                                       onFalse: spline.onFalse.addSpline(Spline(
                                       [],
+                                      configProvider.robotConfig,
+                                      preferencesProvider.pathResolution,
                                       name: controller.text,
                                     ))));
                               Navigator.pop(context);
@@ -303,9 +332,7 @@ class _BranchedSplineEditorState extends State<BranchedSplineEditor> {
                       child: Text(
                         "Add Path",
                         style: TextStyle(
-                          color: pathAdded
-                              ? null
-                              : Colors.grey.shade500,
+                          color: pathAdded ? null : Colors.grey.shade500,
                         ),
                       ),
                     ),
@@ -351,6 +378,7 @@ class _BranchedSplineEditorState extends State<BranchedSplineEditor> {
     final theme = Theme.of(context);
     final robotConfigProvider = Provider.of<RobotConfigProvider>(context);
     var robotConditions = robotConfigProvider.robotConfig.conditions;
+    final preferencesProvider = Provider.of<PreferenceProvider>(context);
     return Column(
       children: [
         Text(
@@ -418,7 +446,7 @@ class _BranchedSplineEditorState extends State<BranchedSplineEditor> {
                         ? theme.primaryColor.withOpacity(0.2)
                         : null,
                     title: Text(
-                      "${spline.onTrue.name} - ${spline.onTrue.duration} seconds",
+                      "${spline.onTrue.name} - ${spline.onTrue.realTime.toStringAsFixed(2)} seconds",
                     ),
                   );
                 },
@@ -430,12 +458,13 @@ class _BranchedSplineEditorState extends State<BranchedSplineEditor> {
                         selectedOnTrue = index;
                       });
                     },
-                    (spline, lastLocked, {Function(Spline)? returnSpline}) {
+                    (spline, lastLocked,
+                        {Function(Spline)? returnSpline, Spline? previous}) {
                       widget.onEdit(spline, true,
                           returnSpline: (Spline? newSpline) {
-                        widget._returnSpline(true, selectedOnTrue,
+                        widget._returnSpline(true, selectedOnTrue, context,
                             returnSpline: returnSpline, spline: newSpline);
-                      });
+                      }, previous: previous);
                     },
                     () {
                       widget.onChanged(spline.copyWith(
@@ -455,13 +484,19 @@ class _BranchedSplineEditorState extends State<BranchedSplineEditor> {
                     () {
                       var newSplines = spline.onTrue.splines;
                       newSplines.add(BranchedSpline(
-                        SplineSet([]),
-                        SplineSet([]),
+                        SplineSet([], robotConfigProvider.robotConfig,
+                            preferencesProvider.pathResolution),
+                        SplineSet([], robotConfigProvider.robotConfig,
+                            preferencesProvider.pathResolution),
                         "",
+                        preferencesProvider.pathResolution,
                         isTrue: true,
                       ));
-                      widget.onChanged(
-                          spline.copyWith(onTrue: SplineSet(newSplines)));
+                      widget.onChanged(spline.copyWith(
+                          onTrue: SplineSet(
+                              newSplines,
+                              robotConfigProvider.robotConfig,
+                              preferencesProvider.pathResolution)));
                     },
                     () {
                       _newPath(true);
@@ -481,61 +516,68 @@ class _BranchedSplineEditorState extends State<BranchedSplineEditor> {
                   tileColor:
                       !isExpanded ? theme.primaryColor.withOpacity(0.2) : null,
                   title: Text(
-                    "${spline.onFalse.name} - ${spline.onFalse.duration} seconds",
+                    "${spline.onFalse.name} - ${spline.onFalse.realTime.toStringAsFixed(2)} seconds",
                   ),
                 );
               },
               isExpanded: !spline.isTrue,
               body: SplineOrderer(
-                    spline.onFalse.splines,
-                    (int index) {
-                      setState(() {
-                        selectedOnFalse = index;
-                      });
-                    },
-                    (spline, lastLocked, {Function(Spline)? returnSpline}) {
-                      widget.onEdit(spline, false,
-                          returnSpline: (Spline? newSpline) {
-                        widget._returnSpline(false, selectedOnFalse,
-                            returnSpline: returnSpline, spline: newSpline);
-                      });
-                    },
-                    () {
-                      widget.onChanged(spline.copyWith(
-                          onFalse: spline.onFalse.removeSpline(selectedOnFalse)));
-                    },
-                    selectedOnFalse,
-                    () {
-                      widget.onChanged(spline.copyWith(
-                          onFalse:
-                              spline.onFalse.moveSplineForward(selectedOnFalse)));
-                    },
-                    () {
-                      widget.onChanged(spline.copyWith(
-                          onFalse: spline.onFalse
-                              .moveSplineBackward(selectedOnFalse)));
-                    },
-                    () {
-                      var newSplines = spline.onFalse.splines;
-                      newSplines.add(BranchedSpline(
-                        SplineSet([]),
-                        SplineSet([]),
-                        "",
-                        isTrue: false,
-                      ));
-                      widget.onChanged(
-                          spline.copyWith(onFalse: SplineSet(newSplines)));
-                    },
-                    () {
-                      _newPath(false);
-                    },
-                    (spline, index) {
-                      widget.onChanged(this.spline.copyWith(
-                          onFalse: this
-                              .spline
-                              .onFalse
-                              .onSplineChanged(index, spline)));
-                    }),
+                  spline.onFalse.splines,
+                  (int index) {
+                    setState(() {
+                      selectedOnFalse = index;
+                    });
+                  },
+                  (spline, lastLocked,
+                      {Function(Spline)? returnSpline, Spline? previous}) {
+                    widget.onEdit(spline, false,
+                        returnSpline: (Spline? newSpline) {
+                      widget._returnSpline(false, selectedOnFalse, context,
+                          returnSpline: returnSpline, spline: newSpline);
+                    });
+                  },
+                  () {
+                    widget.onChanged(spline.copyWith(
+                        onFalse: spline.onFalse.removeSpline(selectedOnFalse)));
+                  },
+                  selectedOnFalse,
+                  () {
+                    widget.onChanged(spline.copyWith(
+                        onFalse:
+                            spline.onFalse.moveSplineForward(selectedOnFalse)));
+                  },
+                  () {
+                    widget.onChanged(spline.copyWith(
+                        onFalse: spline.onFalse
+                            .moveSplineBackward(selectedOnFalse)));
+                  },
+                  () {
+                    var newSplines = spline.onFalse.splines;
+                    newSplines.add(BranchedSpline(
+                      SplineSet([], robotConfigProvider.robotConfig,
+                          preferencesProvider.pathResolution),
+                      SplineSet([], robotConfigProvider.robotConfig,
+                          preferencesProvider.pathResolution),
+                      "",
+                      preferencesProvider.pathResolution,
+                      isTrue: false,
+                    ));
+                    widget.onChanged(spline.copyWith(
+                        onFalse: SplineSet(
+                            newSplines,
+                            robotConfigProvider.robotConfig,
+                            preferencesProvider.pathResolution)));
+                  },
+                  () {
+                    _newPath(false);
+                  },
+                  (spline, index) {
+                    widget.onChanged(this.spline.copyWith(
+                        onFalse: this
+                            .spline
+                            .onFalse
+                            .onSplineChanged(index, spline)));
+                  }),
             ),
           ],
         ),

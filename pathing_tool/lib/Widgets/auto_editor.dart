@@ -18,6 +18,10 @@ import 'package:pathing_tool/Widgets/path_editor.dart';
 import 'package:provider/provider.dart';
 import 'package:path/path.dart' as p;
 
+import '../Utils/Providers/preference_provider.dart';
+import '../Utils/Structs/robot_config.dart';
+import '../Utils/utils.dart';
+
 class AutoEditor extends StatefulWidget {
   final List<Spline> splines;
   final String autoName;
@@ -32,26 +36,34 @@ class AutoEditor extends StatefulWidget {
     return _AutoEditorState(splines, autoName);
   }
 
-  static AutoEditor fromFile(File file) {
+  static AutoEditor fromFile(File file, RobotConfig config, int resolution) {
     String jsonString = file.readAsStringSync();
     var pathJson = json.decode(jsonString);
-    return fromJson(pathJson);
+    return fromJson(pathJson, config, resolution);
   }
 
-  static AutoEditor fromJson(Map<String, dynamic> json) {
+  static AutoEditor fromJson(
+      Map<String, dynamic> json, RobotConfig config, int resolution) {
     String autoName = json['meta_data']['auto_name'];
     List<Spline> splines = [];
     var paths = json['paths'];
     for (var scheduleItem in json['schedule']) {
       if (scheduleItem['branched']) {
         var onTrue = SplineSet.fromJsonList(
-            scheduleItem["branched_path"]["on_true"], paths);
+            scheduleItem["branched_path"]["on_true"],
+            paths,
+            config,
+            resolution);
         var onFalse = SplineSet.fromJsonList(
-            scheduleItem["branched_path"]["on_false"], paths);
+            scheduleItem["branched_path"]["on_false"],
+            paths,
+            config,
+            resolution);
         var condition = scheduleItem["condition"];
-        splines.add(BranchedSpline(onTrue, onFalse, condition));
+        splines.add(BranchedSpline(onTrue, onFalse, condition, resolution));
       } else {
-        splines.add(Spline.fromJson(paths[scheduleItem['path']]));
+        splines.add(
+            Spline.fromJson(paths[scheduleItem['path']], config, resolution));
       }
     }
     return AutoEditor(splines, autoName);
@@ -80,18 +92,16 @@ class _AutoEditorState extends State<AutoEditor>
         Provider.of<RobotConfigProvider>(context, listen: false);
     double currentDuration = 0;
     for (var spline in splines) {
-      currentDuration += spline.duration;
+      currentDuration += spline.realTime;
       if (wantedTime <= currentDuration) {
         if (robotConfigProvider.robotConfig.tank) {
           return spline.getTankWaypoint(_animationController.value * duration -
               (currentDuration) +
-              spline.startTime +
-              spline.duration);
+              spline.realTime);
         }
         return spline.getRobotWaypoint(_animationController.value * duration -
             (currentDuration) +
-            spline.startTime +
-            spline.duration);
+            spline.realTime);
       }
     }
     return null;
@@ -100,7 +110,7 @@ class _AutoEditorState extends State<AutoEditor>
   @override
   void initState() {
     for (var spline in splines) {
-      duration += spline.duration;
+      duration += spline.realTime;
     }
     _focusNode = FocusNode();
     _animationController = AnimationController(
@@ -119,11 +129,15 @@ class _AutoEditorState extends State<AutoEditor>
     final robotConfigProvider = Provider.of<RobotConfigProvider>(context);
     duration = 0;
     for (var spline in splines) {
-      duration += spline.duration;
+      duration += spline.realTime;
     }
     // print('duration: $duration');
     _animationController.duration =
         Duration(microseconds: (duration * 1000000).round());
+    double animationDurationSeconds =
+        _animationController.duration!.inMicroseconds.toDouble() / 1000000.0;
+    double animationTime =
+        _animationController.value * animationDurationSeconds;
     _animationController.stop();
     if (playing && splines.length > 0) {
       _animationController.repeat();
@@ -162,35 +176,60 @@ class _AutoEditorState extends State<AutoEditor>
                 focusNode: _focusNode,
                 child: Scaffold(
                     persistentFooterButtons: [
-                      ProgressBar(
-                        baseBarColor: theme.primaryColor.withOpacity(0.3),
-                        thumbColor: theme.primaryColor,
-                        thumbGlowColor: theme.primaryColor.withOpacity(0.2),
-                        progress: Duration(
-                            microseconds: (_animationController.value *
-                                    duration *
-                                    1000000)
-                                .round()),
-                        total: Duration(
-                            microseconds: (duration * 1000000).round()),
-                        progressBarColor: theme.primaryColor,
-                        onDragStart: (details) {
-                          _animationController.stop();
-                          var pathTime =
-                              details.timeStamp.inMicroseconds / 1000000;
-                          _animationController.value = pathTime / duration;
-                        },
-                        onDragUpdate: (details) {
-                          var pathTime =
-                              details.timeStamp.inMicroseconds / 1000000;
-                          _animationController.value = pathTime / duration;
-                        },
-                        onDragEnd: () {
-                          if (playing) {
-                            _animationController.repeat();
-                          }
-                        },
-                      ),
+                      Row(children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: Text("${animationTime.toStringAsFixed(2)}s"),
+                        ),
+                        SizedBox(
+                          width: MediaQuery.of(context).size.width -
+                              (69 +
+                                  (animationTime.toStringAsFixed(2).length -
+                                          4) *
+                                      8 +
+                                  (animationDurationSeconds
+                                              .toStringAsFixed(2)
+                                              .length -
+                                          4) *
+                                      8 +
+                                  69), // Adjust for both time labels
+                          child: ProgressBar(
+                            baseBarColor: theme.primaryColor.withOpacity(0.3),
+                            thumbColor: theme.primaryColor,
+                            thumbGlowColor: theme.primaryColor.withOpacity(0.2),
+                            progress: Duration(
+                                microseconds: splines.isNotEmpty
+                                    ? (animationTime * 1000000).floor()
+                                    : 0),
+                            total: _animationController.duration!,
+                            progressBarColor: theme.primaryColor,
+                            onDragStart: (details) {
+                              _animationController.stop();
+                              var pathTime =
+                                  details.timeStamp.inMicroseconds / 1000000;
+                              _animationController.value =
+                                  pathTime / animationDurationSeconds;
+                            },
+                            onDragUpdate: (details) {
+                              var pathTime =
+                                  details.timeStamp.inMicroseconds / 1000000;
+                              _animationController.value =
+                                  pathTime / animationDurationSeconds;
+                            },
+                            onDragEnd: () {
+                              if (playing) {
+                                _animationController.repeat();
+                              }
+                            },
+                            timeLabelLocation: TimeLabelLocation.none,
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: Text(
+                              "${animationDurationSeconds.toStringAsFixed(2)}s"),
+                        ),
+                      ]),
                     ],
                     appBar: AppBar(
                       automaticallyImplyLeading: false,
@@ -320,7 +359,8 @@ class _AutoEditorState extends State<AutoEditor>
                                         ? Colors.white
                                         : Colors.grey.shade700,
                                     255,
-                                    constraints),
+                                    constraints,
+                                    true),
                               )
                             : null;
                         return Center(
@@ -337,9 +377,8 @@ class _AutoEditorState extends State<AutoEditor>
                                 List<FlSpot> xSpots = [];
                                 if (spline.points.length > 1) {
                                   double timeStep = 0.01;
-                                  double endTime = spline.points.last.t;
-                                  for (double t = spline.points.first.t;
-                                      t <= endTime;
+                                  for (double t = spline.startTime;
+                                      t <= spline.startTime + spline.realTime;
                                       t += timeStep) {
                                     Waypoint point = spline.getRobotWaypoint(t);
                                     xSpots.add(FlSpot(point.x, point.y));
@@ -423,12 +462,16 @@ class _AutoEditorState extends State<AutoEditor>
     });
   }
 
-  _onEdit(Spline? spline, bool lastLocked, {Function(Spline)? returnSpline}) {
+  _onEdit(Spline? spline, bool lastLocked,
+      {Function(Spline)? returnSpline, Spline? previous}) {
     Navigator.push(context, MaterialPageRoute(builder: (context) {
-      return PathingPage.fromSpline(spline ?? splines[selectedSpline],
-          returnSpline: returnSpline ?? _returnSpline,
-          firstLocked: selectedSpline != 0 || returnSpline != null,
-          lastLocked: lastLocked);
+      return PathingPage.fromSpline(
+        spline ?? splines[selectedSpline],
+        returnSpline: returnSpline ?? _returnSpline,
+        firstLocked: selectedSpline != 0 || returnSpline != null,
+        lastLocked: lastLocked,
+        previous: previous,
+      );
     }));
   }
 
@@ -436,40 +479,6 @@ class _AutoEditorState extends State<AutoEditor>
     _saveState();
     setState(() {
       splines[selectedSpline] = spline;
-      if (selectedSpline != 0) {
-        if (splines[selectedSpline - 1].points.isNotEmpty &&
-            splines[selectedSpline].points.isNotEmpty) {
-          if (!splines[selectedSpline - 1]
-              .points
-              .last
-              .equals(spline.points.first)) {
-            splines[selectedSpline] = _handleFirstPoint(
-                spline, splines[selectedSpline - 1].points.last);
-          }
-        } else {
-          if (splines[selectedSpline - 1].points.isNotEmpty) {
-            splines[selectedSpline] = _handleFirstPoint(splines[selectedSpline],
-                splines[selectedSpline - 1].points.last);
-          }
-        }
-      }
-      if (selectedSpline != splines.length - 1) {
-        if (splines[selectedSpline + 1].points.isNotEmpty &&
-            splines[selectedSpline].points.isNotEmpty) {
-          if (!splines[selectedSpline + 1]
-              .points
-              .first
-              .equals(spline.points.last)) {
-            splines[selectedSpline + 1] = _handleFirstPoint(
-                splines[selectedSpline + 1], spline.points.last);
-          }
-        } else {
-          if (splines[selectedSpline].points.isNotEmpty) {
-            splines[selectedSpline + 1] = _handleFirstPoint(
-                splines[selectedSpline + 1], spline.points.last);
-          }
-        }
-      }
     });
   }
 
@@ -478,30 +487,6 @@ class _AutoEditorState extends State<AutoEditor>
       _saveState();
       splines[index] = spline;
       selectedSpline = index;
-      if (selectedSpline != splines.length - 1) {
-        if (splines[selectedSpline + 1].points.isNotEmpty &&
-            splines[selectedSpline].points.isNotEmpty) {
-          if (!splines[selectedSpline + 1]
-              .points
-              .first
-              .equals(spline.points.last)) {
-            splines[selectedSpline + 1] = _handleFirstPoint(
-                splines[selectedSpline + 1], spline.points.last);
-          }
-        }
-      }
-      if (selectedSpline != 0) {
-        if (splines[selectedSpline - 1].points.isNotEmpty &&
-            splines[selectedSpline].points.isNotEmpty) {
-          if (!splines[selectedSpline - 1]
-              .points
-              .last
-              .equals(spline.points.first)) {
-            splines[selectedSpline] = _handleFirstPoint(
-                spline, splines[selectedSpline - 1].points.last);
-          }
-        }
-      }
     });
   }
 
@@ -523,19 +508,6 @@ class _AutoEditorState extends State<AutoEditor>
         var spline = splines[selectedSpline];
         splines.remove(spline);
         splines.insert(selectedSpline + 1, spline);
-        // Handle connections with previous and next splines
-        for (var i = selectedSpline - 1; i <= selectedSpline + 1; i++) {
-          if (i >= 0 && i < splines.length - 1) {
-            var prevSpline = splines[i];
-            var nextSpline = splines[i + 1];
-            if (prevSpline.points.isNotEmpty && nextSpline.points.isNotEmpty) {
-              if (!prevSpline.points.last.equals(nextSpline.points.first)) {
-                splines[i + 1] =
-                    _handleFirstPoint(nextSpline, prevSpline.points.last);
-              }
-            }
-          }
-        }
         selectedSpline += 1;
       }
     });
@@ -549,19 +521,6 @@ class _AutoEditorState extends State<AutoEditor>
         var spline = splines[selectedSpline];
         splines.remove(spline);
         splines.insert(selectedSpline - 1, spline);
-        // Handle connections with previous and next splines
-        for (var i = selectedSpline - 1; i <= selectedSpline + 1; i++) {
-          if (i >= 0 && i < splines.length - 1) {
-            var prevSpline = splines[i];
-            var nextSpline = splines[i + 1];
-            if (prevSpline.points.isNotEmpty) {
-              if (!prevSpline.points.last.equals(nextSpline.points.first)) {
-                splines[i + 1] =
-                    _handleFirstPoint(nextSpline, prevSpline.points.last);
-              }
-            }
-          }
-        }
         selectedSpline -= 1;
       }
     });
@@ -607,18 +566,16 @@ class _AutoEditorState extends State<AutoEditor>
       type: FileType.custom,
       allowedExtensions: ['polarpath'],
     );
+    RobotConfigProvider robotConfigProvider =
+        Provider.of<RobotConfigProvider>(context, listen: false);
+    var preferences = Provider.of<PreferenceProvider>(context, listen: false);
     setState(() {
       if (result != null && result.files.single.path != null) {
         _saveState();
         String path = result.files.single.path!;
         File pathFile = File(path);
-        Spline newSpline = Spline.fromPolarPathFile(pathFile);
-        if (newSpline.points.isNotEmpty &&
-            splines.lastOrNull != null &&
-            splines.last.points.lastOrNull != null &&
-            !splines.last.points.last.equals(newSpline.points.first)) {
-          newSpline = _handleFirstPoint(newSpline, splines.last.points.last);
-        }
+        Spline newSpline = Spline.fromPolarPathFile(pathFile,
+            robotConfigProvider.robotConfig, preferences.pathResolution);
         splines.add(newSpline);
       }
       selectedSpline = splines.length - 1;
@@ -633,6 +590,10 @@ class _AutoEditorState extends State<AutoEditor>
       context: context,
       builder: (context) {
         final theme = Theme.of(context);
+        RobotConfigProvider robotConfigProvider =
+            Provider.of<RobotConfigProvider>(context);
+        PreferenceProvider preferencesProvider =
+            Provider.of<PreferenceProvider>(context);
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
@@ -665,6 +626,8 @@ class _AutoEditorState extends State<AutoEditor>
                           ? () {
                               splines.add(Spline(
                                 [],
+                                robotConfigProvider.robotConfig,
+                                preferencesProvider.pathResolution,
                                 commands: [],
                                 name: controller.text,
                               ));
@@ -711,19 +674,26 @@ class _AutoEditorState extends State<AutoEditor>
   }
 
   _onBranchedPathAdded() {
+    RobotConfigProvider robotConfigProvider =
+        Provider.of<RobotConfigProvider>(context);
+    PreferenceProvider preferencesProvider =
+        Provider.of<PreferenceProvider>(context);
     setState(() {
       _saveState();
       splines.add(BranchedSpline(
-        SplineSet([]),
-        SplineSet([]),
+        SplineSet([], robotConfigProvider.robotConfig,
+            preferencesProvider.pathResolution),
+        SplineSet([], robotConfigProvider.robotConfig,
+            preferencesProvider.pathResolution),
         "",
+        preferencesProvider.pathResolution,
         isTrue: true,
       ));
       selectedSpline = splines.length - 1;
     });
   }
 
-  String _toJSON() {
+  Future<String> _toJSON() async {
     List<Map<String, dynamic>> schedule = [];
     List<Map<String, dynamic>> paths = [];
     int pathIndex = 0;
@@ -744,6 +714,7 @@ class _AutoEditorState extends State<AutoEditor>
         Provider.of<ImageDataProvider>(context, listen: false);
     Map<String, dynamic> metaData = {
       "auto_name": autoName,
+      "path_version": await Utils.getVersionFromPubspec(),
       "robot_name": robotConfigProvider.robotConfig.name,
       "field_name": fieldConfigProvider.selectedImage.imageName,
     };
@@ -759,7 +730,8 @@ class _AutoEditorState extends State<AutoEditor>
   _saveAutoToFile() async {
     String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
         dialogTitle: "Save to which folder?",
-        initialDirectory: "C:\\Polar Pathing\\Saves");
+        initialDirectory:
+            "${Provider.of<PreferenceProvider>(context, listen: false).repositoryPath}\\src\\main\\deploy\\");
     if (selectedDirectory == null) {
       // User canceled the picker
       return;
@@ -768,7 +740,7 @@ class _AutoEditorState extends State<AutoEditor>
     final String path = p.join(selectedDirectory, '$autoName.polarauto');
     // Write the JSON object to a file
     File savePathFile = File(path);
-    savePathFile.writeAsString(_toJSON()).then((value) {
+    savePathFile.writeAsString(await _toJSON()).then((value) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Auto saved to ${savePathFile.path}")),
       );
@@ -789,18 +761,18 @@ class _AutoEditorState extends State<AutoEditor>
     }
   }
 
-  Spline _handleFirstPoint(Spline newSpline, Waypoint preferredPoint) {
-    // print("hi, I'm handling the first point");
-    if (newSpline.points.isNotEmpty) {
-      // print(newSpline.points.first.time);
-      return newSpline.copyWith(points: [
-        preferredPoint.copyWith(t: newSpline.points.first.time - 1),
-        ...newSpline.points
-      ]);
-    }
-    // print("Returning new spline with first point at 0.0");
-    return newSpline.copyWith(points: [preferredPoint.copyWith(t: 0.0)]);
-  }
+  // Spline _handleFirstPoint(Spline newSpline, Waypoint preferredPoint) {
+  //   // print("hi, I'm handling the first point");
+  //   if (newSpline.points.isNotEmpty) {
+  //     // print(newSpline.points.first.time);
+  //     return newSpline.copyWith(points: [
+  //       preferredPoint.copyWith(t: newSpline.points.first.time - 1),
+  //       ...newSpline.points
+  //     ]);
+  //   }
+  //   // print("Returning new spline with first point at 0.0");
+  //   return newSpline.copyWith(points: [preferredPoint.copyWith(t: 0.0)]);
+  // }
 
   _sendFileToRobotFRC() async {
     List<String> robotIPs = ["10.44.99.2", "172.22.11.2", "42.42.42.42"];
@@ -838,7 +810,7 @@ class _AutoEditorState extends State<AutoEditor>
       file = await robotSFTP.open('./deploy/$autoName.polarauto',
           mode: SftpFileOpenMode.write);
     }
-    await file.writeBytes(utf8.encode(_toJSON()));
+    await file.writeBytes(utf8.encode(await _toJSON()));
     robotClient.close();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Auto saved to robot")),

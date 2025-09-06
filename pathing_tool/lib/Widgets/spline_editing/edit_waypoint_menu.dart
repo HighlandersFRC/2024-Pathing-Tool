@@ -8,9 +8,10 @@ import 'package:provider/provider.dart';
 class EditWaypointMenu extends StatefulWidget {
   final List<Waypoint> waypoints;
   final int selectedWaypoint;
-  final Function(int) onWaypointSelected;
-  final Function(Waypoint) onAttributeChanged;
-  final Function(List<Waypoint>) onWaypointsChanged;
+  final void Function(int) onWaypointSelected;
+  final void Function(Waypoint) onAttributeChanged;
+  final void Function(List<Waypoint>) onWaypointsChanged;
+  final void Function()? connectToPreviousPath;
 
   const EditWaypointMenu({
     super.key,
@@ -19,6 +20,7 @@ class EditWaypointMenu extends StatefulWidget {
     required this.onAttributeChanged,
     required this.selectedWaypoint,
     required this.onWaypointsChanged,
+    this.connectToPreviousPath,
   });
 
   @override
@@ -58,6 +60,10 @@ class _EditWaypointMenuState extends State<EditWaypointMenu> {
                   'Waypoints',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
+              ),
+              ElevatedButton(
+                onPressed: widget.connectToPreviousPath,
+                child: const Text('Connect to Previous Path'),
               ),
               Padding(
                 padding:

@@ -5,6 +5,10 @@ import 'package:dartssh2/dartssh2.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:pathing_tool/Pages/autos_page.dart';
+import 'package:provider/provider.dart';
+import '../Utils/Providers/preference_provider.dart';
+import '../Utils/Providers/robot_config_provider.dart';
+import '../Utils/Structs/robot_config.dart';
 import 'Popups/settings_popup.dart';
 
 class AppDrawer extends StatelessWidget {
@@ -61,6 +65,10 @@ class AppDrawer extends StatelessWidget {
 
   void _loadPathFromFiles(BuildContext context) async {
     final navigator = Navigator.of(context);
+    final RobotConfig robotConfig =
+        Provider.of<RobotConfigProvider>(context, listen: false).robotConfig;
+    PreferenceProvider preferencesProvider =
+        Provider.of<PreferenceProvider>(context, listen: false);
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['polarauto'],
@@ -70,7 +78,8 @@ class AppDrawer extends StatelessWidget {
       String path = result.files.single.path!;
       File pathFile = File(path);
       navigator.push(MaterialPageRoute(
-          builder: (BuildContext context) => AutosPage.fromFile(pathFile)));
+          builder: (BuildContext context) => AutosPage.fromFile(
+              pathFile, robotConfig, preferencesProvider.pathResolution)));
     }
   }
 
@@ -160,6 +169,10 @@ class AppDrawer extends StatelessWidget {
   void _newAutoEditorFromSftpName(SftpName name, BuildContext context) async {
     List<String> robotIPs = ["10.44.99.2", "172.22.11.2", "42.42.42.42"];
     final navigator = Navigator.of(context);
+    final RobotConfig robotConfig =
+        Provider.of<RobotConfigProvider>(context, listen: false).robotConfig;
+    PreferenceProvider preferencesProvider =
+        Provider.of<PreferenceProvider>(context, listen: false);
     SSHClient? robotClient;
     for (String robotIP in robotIPs) {
       try {
@@ -182,7 +195,8 @@ class AppDrawer extends StatelessWidget {
     robotSFTP.close();
     navigator.push(
       MaterialPageRoute(
-        builder: (context) => AutosPage.fromJson(fileContentJSON),
+        builder: (context) => AutosPage.fromJson(
+            fileContentJSON, robotConfig, preferencesProvider.pathResolution),
       ),
     );
   }

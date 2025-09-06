@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../Utils/utils.dart';
+
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   final Size preferredSize;
 
-  const CustomAppBar({super.key}) 
+  const CustomAppBar({super.key})
       : preferredSize = const Size.fromHeight(kToolbarHeight);
 
   @override
@@ -20,8 +22,19 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
           const Text(
             "Polar Pathing",
-            style: TextStyle(color: Colors.white, fontSize: 40, fontFamily: "OpenSans"),
-          )
+            style: TextStyle(
+                color: Colors.white, fontSize: 40, fontFamily: "OpenSans"),
+          ),
+          const SizedBox(width: 16),
+          FutureBuilder(
+              builder: (BuildContext context, AsyncSnapshot snapshot) => Text(
+                    snapshot.hasData ? "v${snapshot.data}" : "",
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontFamily: "OpenSans"),
+                  ),
+              future: Utils.getVersionFromPubspec()),
         ],
       ),
       backgroundColor: theme.primaryColor,

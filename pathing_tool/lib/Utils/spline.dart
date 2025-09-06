@@ -5,14 +5,27 @@ import 'package:pathing_tool/Utils/Structs/command.dart';
 import 'package:pathing_tool/Utils/quintic_hermite_spline.dart';
 import 'package:pathing_tool/Utils/Structs/waypoint.dart';
 
+import 'Structs/robot_config.dart';
+
 class Spline {
   late QuinticHermiteSpline x, y, theta;
   late List<Waypoint> points;
+  final RobotConfig config;
   late List<Vectors> xVectors, yVectors, thetaVectors;
   late List<Command> commands;
+  List<(double t, double s)> arcLengthMap = [];
+  List<(double t, double maxVel)> maxVelocityMap = [];
+  List<Waypoint> path = [];
   final String name;
+  final int resolution;
 
-  Spline(this.points, {this.commands = const [], this.name = ""}) {
+  Spline(
+    this.points,
+    this.config,
+    this.resolution, {
+    this.commands = const [],
+    this.name = "",
+  }) {
     points.sort((a, b) => a.time.compareTo(b.time));
     var startTime = this.startTime;
     commands = [
@@ -33,6 +46,152 @@ class Spline {
     x = QuinticHermiteSpline(xVectors);
     y = QuinticHermiteSpline(yVectors);
     theta = QuinticHermiteSpline(thetaVectors);
+    if (points.length > 1) {
+      double length = 0.0;
+      for (int i = (points.first.time * resolution).floor();
+          i < (points.last.time * resolution).ceil();
+          i++) {
+        double time = i / resolution;
+        if (time >= points.last.time) break;
+        double dx = x.getVectors(time).velocity;
+        double dy = y.getVectors(time).velocity;
+        length += sqrt(dx * dx + dy * dy) / resolution;
+        arcLengthMap.add((time, length));
+      }
+      for (int i = 0; i < arcLengthMap.length; i++) {
+        double time = arcLengthMap[i].$1;
+        Waypoint? point;
+        for (int j = 1; j < points.length; j++) {
+          if (points[j].time >= time) {
+            point = points[j];
+            break;
+          }
+        }
+        double vMax = _computeVMax(
+          vRobotMax: config.maxVelocity,
+          aMax: config.maxAcceleration,
+          aCentripetalMax: config.maxCentripetalAcceleration,
+          curvature: getCurvature(time),
+          distanceRemaining: getArcLength(point!.t) - getArcLength(time),
+          endVelocity: point.velocityMag,
+        );
+        maxVelocityMap.add((time, vMax));
+      }
+      path.add(points.first);
+      // Forward pass: compute velocity profile with acceleration limits
+      for (int i = 1; i < arcLengthMap.length; i++) {
+        double ds = (arcLengthMap[i].$2 - arcLengthMap[i - 1].$2).abs();
+        double prevV = path[i - 1].velocityMag;
+        double prevT = path[i - 1].t;
+        double prevTheta = path[i - 1].theta;
+        double prevAngVel = path[i - 1].dtheta;
+        double maxV = maxVelocityMap[i].$2;
+        double newV = sqrt(prevV * prevV + 2 * config.maxAcceleration * ds);
+        if (newV.isNaN || newV.isInfinite) {
+          newV = 0;
+        }
+        newV = min(newV, maxV);
+        double acceleration = (newV - prevV) / (ds / prevV);
+        if (acceleration.isNaN || acceleration.isInfinite) {
+          acceleration = 0.0;
+        }
+        Vectors xVectors = x.getVectors(arcLengthMap[i].$1),
+            yVectors = y.getVectors(arcLengthMap[i].$1),
+            thetaVectors = theta.getVectors(arcLengthMap[i].$1);
+        double aDirection = atan2(yVectors.acceleration, xVectors.acceleration);
+        double vDirection;
+        if (i < arcLengthMap.length - 1) {
+          Vectors nextXVectors = x.getVectors(arcLengthMap[i + 1].$1);
+          Vectors nextYVectors = y.getVectors(arcLengthMap[i + 1].$1);
+          vDirection = atan2(nextYVectors.position - path[i - 1].y,
+              nextXVectors.position - path[i - 1].x);
+        } else {
+          vDirection = atan2(yVectors.position - path[i - 1].y,
+              xVectors.position - path[i - 1].x);
+        }
+        double dt = ds / prevV;
+        double nextT = (prevT + dt);
+        double nextAngVel = (thetaVectors.position - prevTheta) / dt;
+        double nextAngAcc = (nextAngVel - prevAngVel) / dt;
+        if (nextT.isNaN || nextT.isInfinite) {
+          nextT = prevT;
+        }
+        if (nextAngVel.isNaN || nextAngVel.isInfinite) {
+          nextAngVel = 0;
+        }
+        if (nextAngAcc.isNaN || nextAngAcc.isInfinite) {
+          nextAngAcc = 0;
+        }
+        Waypoint newWaypoint = Waypoint(
+            x: xVectors.position,
+            y: yVectors.position,
+            theta: thetaVectors.position,
+            dx: newV * cos(vDirection),
+            dy: newV * sin(vDirection),
+            dtheta: nextAngVel,
+            d2x: acceleration * cos(aDirection),
+            d2y: acceleration * sin(aDirection),
+            d2theta: nextAngAcc,
+            t: nextT);
+        path.add(newWaypoint);
+      }
+      // Backward pass: enforce deceleration limits
+      for (int i = path.length - 2; i >= 0; i--) {
+        double ds = arcLengthMap[i + 1].$2 - arcLengthMap[i].$2;
+        double nextV = path[i + 1].velocityMag;
+        double maxV = maxVelocityMap[i].$2;
+        double newV = sqrt(nextV * nextV + 2 * config.maxAcceleration * ds);
+        newV = min(path[i].velocityMag, newV);
+        newV = min(newV, maxV);
+        if (newV.isNaN || newV.isInfinite) {
+          newV = 0;
+        }
+        double vDirection = atan2(path[i].dy, path[i].dx);
+        path[i] = path[i].copyWith(
+          dx: newV * cos(vDirection),
+          dy: newV * sin(vDirection),
+        );
+      }
+    }
+  }
+
+  double getArcLength(double t) {
+    if (arcLengthMap.isEmpty) return 0.0;
+    if (t < points.first.time ||
+        (t - points.first.time).round() * resolution < 0) return 0.0;
+    if (t > points.last.time ||
+        (t - points.first.time).floor() * resolution > arcLengthMap.length - 1)
+      return arcLengthMap.last.$2;
+    return arcLengthMap[((t - points.first.time) * resolution).floor()].$2;
+  }
+
+  double getCurvature(double t) {
+    if (t < points.first.time || t > points.last.time) return 0.0;
+    var x = this.x.getVectors(t);
+    var y = this.y.getVectors(t);
+    var curvature =
+        (x.velocity * y.acceleration - y.velocity * x.acceleration) /
+            pow(x.velocity * x.velocity + y.velocity * y.velocity, 1.5);
+    return curvature;
+  }
+
+  double _computeVMax(
+      {required double vRobotMax, // Max linear velocity of robot
+      required double aMax, // Max linear acceleration
+      required double aCentripetalMax, // Max centripetal acceleration
+      required double curvature, // Local curvature kappa(u)
+      required double
+          distanceRemaining, // Remaining distance to stop or next constraint
+      required double endVelocity}) {
+    // Curvature-based velocity limit (centripetal acceleration)
+    double vCurveMax = curvature.abs() < 1e-6
+        ? double.infinity // Straight line, no centripetal limit
+        : sqrt(aCentripetalMax / curvature.abs());
+
+    // Acceleration-based velocity limit (kinematics)
+    double vAccelMax = sqrt(2 * aMax * distanceRemaining) + endVelocity;
+    // Final velocity limit
+    return min(vRobotMax, min(vCurveMax, vAccelMax));
   }
 
   void optimizeRotation() {
@@ -51,13 +210,15 @@ class Spline {
     }
   }
 
-  static Spline fromPolarPathFile(File file) {
+  static Spline fromPolarPathFile(
+      File file, RobotConfig config, int resolution) {
     String jsonString = file.readAsStringSync();
     Map<String, dynamic> splineJson = json.decode(jsonString);
-    return fromJson(splineJson);
+    return fromJson(splineJson, config, resolution);
   }
 
-  static Spline fromJson(Map<String, dynamic> splineJson) {
+  static Spline fromJson(
+      Map<String, dynamic> splineJson, RobotConfig config, int resolution) {
     List<Waypoint> points = [];
     splineJson["key_points"].forEach((waypointJson) {
       points.add(Waypoint.fromJson(waypointJson));
@@ -67,24 +228,58 @@ class Spline {
       commands.add(Command.fromJson(commandJson));
     });
     String name = splineJson["meta_data"]["path_name"];
-    return Spline(points, commands: commands, name: name);
+    return Spline(points, config, resolution, commands: commands, name: name);
   }
 
   Waypoint getRobotWaypoint(double time) {
-    if (time < startTime) {
-      return getRobotWaypoint(startTime);
-    } else if (time > endTime) {
-      return getRobotWaypoint(endTime);
-    }
-    if (points.length > 1) {
-      if (time < points.first.time) {
-        return points.first.copyWith();
-      } else if (time > points.last.time) {
-        return points.last.copyWith();
+    if (path.length > 1) {
+      if (time < path.first.time) {
+        return path.first.copyWith();
+      } else if (time > path.last.time) {
+        return path.last.copyWith();
       }
     }
-    return vectorsToWaypoint(
-        x.getVectors(time), y.getVectors(time), theta.getVectors(time));
+    // double timeRatio = 1;
+    // (path.last.t - path.first.t) / (points.last.time - points.first.time);
+    // double scaledTime = timeRatio * (time - points.first.time) + path.first.t;
+    // print(scaledTime);
+    for (var point in path) {
+      if (point.t >= time) {
+        return point.copyWith();
+      }
+    }
+    return path.last.copyWith();
+  }
+
+  double pathTimeToRealTime(double time) {
+    if (points.isEmpty) {
+      return time;
+    }
+    if (time < points.first.time) {
+      return time;
+    }
+    if (time > points.last.time) {
+      return time - (points.last.time - path.last.t);
+    }
+    // int left = 0;
+    // int right = arcLengthMap.length - 1;
+    // while (left < right) {
+    //   int mid = left + ((right - left) >> 1);
+    //   if (arcLengthMap[mid].$1 < time) {
+    //     left = mid + 1;
+    //   } else {
+    //     right = mid;
+    //   }
+    // }
+    // if (left < path.length) {
+    //   return path[left].t;
+    // }
+    for (int i = 0; i < arcLengthMap.length; i++) {
+      if (arcLengthMap[i].$1 >= time) {
+        return path[i].t;
+      }
+    }
+    return path.last.t;
   }
 
   Waypoint getTankWaypoint(double time) {
@@ -105,16 +300,29 @@ class Spline {
   }
 
   Spline copyWith(
-      {List<Command>? commands, String? name, List<Waypoint>? points}) {
+      {List<Command>? commands,
+      String? name,
+      List<Waypoint>? points,
+      int? resolution}) {
     points = [for (var point in (points ?? this.points)) point.copyWith()];
     commands = [
       for (var command in (commands ?? this.commands)) command.copyWith()
     ];
-    return Spline(points, commands: commands, name: name ?? this.name);
+    return Spline(points, config, resolution ?? this.resolution,
+        commands: commands, name: name ?? this.name);
   }
 
-  double get duration {
-    return endTime - startTime;
+  double get realTime {
+    if (path.isEmpty) return endTime - startTime;
+    return path.last.t -
+        path.first.t +
+        (points.first.time - startTime) +
+        (endTime - points.last.time);
+  }
+
+  double get pathingTime {
+    if (path.isEmpty) return 0.0;
+    return path.last.t - path.first.t;
   }
 
   double get startTime {
@@ -140,14 +348,17 @@ class Spline {
   Map<String, dynamic> toJson() {
     var json = {
       "meta_data": {"path_name": name},
-      "key_points":
-          points.map((Waypoint waypoint) => waypoint.toJson()).toList(),
-      "commands": commands.map((Command command) => command.toJson()).toList(),
-      if (points.isNotEmpty)
-        "sampled_points": [
-          for (double t = points.first.t; t <= points.last.t; t += 0.01)
-            getRobotWaypoint(t)
-        ]
+      "key_points": points.map((Waypoint waypoint) {
+        return waypoint.toJson();
+      }).toList(),
+      "commands": commands.map((Command command) {
+        var newCommand = command.copyWith(
+            startTime: pathTimeToRealTime(command.startTime),
+            endTime: pathTimeToRealTime(command.endTime));
+        return newCommand.toJson();
+      }).toList(),
+      if (path.isNotEmpty)
+        "sampled_points": [for (var point in path) point.toJson()]
     };
     return json;
   }
@@ -181,10 +392,12 @@ class Spline {
 class BranchedSpline extends Spline {
   final SplineSet onTrue, onFalse;
   final String condition;
+  final int resolution;
   late bool _isTrue;
-  BranchedSpline(this.onTrue, this.onFalse, this.condition,
+  BranchedSpline(this.onTrue, this.onFalse, this.condition, this.resolution,
       {bool isTrue = true})
-      : super(isTrue ? onTrue.points : onFalse.points,
+      : super(isTrue ? onTrue.points : onFalse.points, onTrue.config,
+            onTrue.resolution,
             name: "Branched Spline") {
     _isTrue = isTrue;
   }
@@ -197,6 +410,7 @@ class BranchedSpline extends Spline {
       String? name,
       List<Waypoint>? points,
       SplineSet? onTrue,
+      int? resolution,
       SplineSet? onFalse,
       String? condition,
       bool? isTrue}) {
@@ -248,25 +462,25 @@ class BranchedSpline extends Spline {
       }
     }
     return BranchedSpline(onTrue, onFalse, condition ?? this.condition,
+        resolution ?? this.resolution,
         isTrue: isTrue ?? this.isTrue);
   }
 
   SplineSet _handleFirstPoint(SplineSet newSpline, Waypoint preferredPoint) {
-    print("hi");
     if (newSpline.splines.isEmpty) {
       return SplineSet([
-        Spline([preferredPoint.copyWith(t: 0)])
-      ]);
+        Spline([preferredPoint.copyWith(t: 0)], config, resolution)
+      ], config, resolution);
     }
     if (newSpline.splines.first.points.isEmpty) {
       return SplineSet([
-        Spline(([preferredPoint.copyWith(t: 0)])),
+        Spline(([preferredPoint.copyWith(t: 0)]), config, resolution),
         ...[
           for (var spline
               in newSpline.splines.indexed.where((spline) => spline.$1 != 0))
             spline.$2
         ],
-      ]);
+      ], config, resolution);
     }
     return SplineSet([
       newSpline.splines.first.copyWith(points: [
@@ -278,14 +492,14 @@ class BranchedSpline extends Spline {
             in newSpline.splines.indexed.where((spline) => spline.$1 != 0))
           spline.$2
       ],
-    ]);
+    ], config, resolution);
   }
 
   SplineSet _handleLastPoint(SplineSet newSpline, Waypoint preferredPoint) {
     if (newSpline.splines.isEmpty) {
       return SplineSet([
-        Spline([preferredPoint.copyWith(t: 0)])
-      ]);
+        Spline([preferredPoint.copyWith(t: 0)], config, resolution)
+      ], config, resolution);
     }
     if (newSpline.splines.last.points.isEmpty) {
       return SplineSet([
@@ -294,8 +508,8 @@ class BranchedSpline extends Spline {
               .where((spline) => spline.$1 != newSpline.splines.length - 1))
             spline.$2
         ],
-        Spline(([preferredPoint.copyWith(t: 0)])),
-      ]);
+        Spline(([preferredPoint.copyWith(t: 0)]), config, resolution),
+      ], config, resolution);
     }
     return SplineSet([
       ...[
@@ -307,7 +521,7 @@ class BranchedSpline extends Spline {
         ...newSpline.splines.first.points,
         preferredPoint.copyWith(t: newSpline.points.last.t + 1),
       ]),
-    ]);
+    ], config, resolution);
   }
 
   @override
@@ -337,8 +551,8 @@ class BranchedSpline extends Spline {
 
 class SplineSet extends Spline {
   final List<Spline> splines;
-  SplineSet(this.splines)
-      : super(_getWaypointsFromSplineList(splines),
+  SplineSet(this.splines, RobotConfig config, int resolution)
+      : super(_getWaypointsFromSplineList(splines), config, resolution,
             commands: _getCommandsFromSplineList(splines), name: "Spline Set");
   @override
   List<Waypoint> get points => _getWaypointsFromSplineList(splines);
@@ -346,19 +560,22 @@ class SplineSet extends Spline {
   List<Command> get commands => _getCommandsFromSplineList(splines);
   @override
   SplineSet copyWith(
-      {List<Command>? commands, String? name, List<Waypoint>? points}) {
-    List<Spline> newSplines = List<Spline>.empty(growable: true);
+      {List<Command>? commands,
+      String? name,
+      List<Waypoint>? points,
+      int? resolution}) {
+    List<Spline> newSplines = <Spline>[];
     for (var spline in splines) {
       newSplines.add(spline.copyWith());
     }
-    return SplineSet(newSplines);
+    return SplineSet(newSplines, config, resolution ?? this.resolution);
   }
 
   SplineSet changeSpline(int index, Spline newSpline) {
     return SplineSet([
       ...splines.indexed
           .map((spline) => spline.$1 == index ? newSpline : spline.$2)
-    ]);
+    ], config, resolution);
   }
 
   SplineSet moveSplineForward(int index) {
@@ -372,7 +589,7 @@ class SplineSet extends Spline {
     if (index != splines.length - 2) {
       _handleFirstPoint(splines[index + 2], splines[index + 1].points.last);
     }
-    return SplineSet(splines);
+    return SplineSet(splines, config, resolution);
   }
 
   SplineSet moveSplineBackward(int index) {
@@ -389,7 +606,7 @@ class SplineSet extends Spline {
       splines[index + 1] =
           _handleFirstPoint(splines[index + 1], splines[index].points.last);
     }
-    return SplineSet(splines);
+    return SplineSet(splines, config, resolution);
   }
 
   SplineSet onSplineChanged(int index, Spline newSpline) {
@@ -403,23 +620,24 @@ class SplineSet extends Spline {
       splines[index + 1] =
           _handleFirstPoint(splines[index + 1], splines[index].points.last);
     }
-    return SplineSet(splines);
+    return SplineSet(splines, config, resolution);
   }
 
   SplineSet addSpline(Spline newSpline) {
     if (splines.isEmpty) {
-      return SplineSet([newSpline]);
+      return SplineSet([newSpline], config, resolution);
     }
     newSpline = _handleFirstPoint(newSpline, splines.last.points.last);
-    return SplineSet([...splines, newSpline]);
+    return SplineSet([...splines, newSpline], config, resolution);
   }
 
   SplineSet removeSpline(int index) {
     if (index == 0) {
-      return SplineSet(splines.sublist(1));
+      return SplineSet(splines.sublist(1), config, resolution);
     }
     if (index == splines.length - 1) {
-      return SplineSet(splines.sublist(0, splines.length - 1));
+      return SplineSet(
+          splines.sublist(0, splines.length - 1), config, resolution);
     }
     splines.removeAt(index);
     if (index != splines.length - 1) {
@@ -430,12 +648,12 @@ class SplineSet extends Spline {
       splines[index] =
           _handleFirstPoint(splines[index], splines[index - 1].points.last);
     }
-    return SplineSet(splines);
+    return SplineSet(splines, config, resolution);
   }
 
   Spline _handleFirstPoint(Spline newSpline, Waypoint preferredPoint) {
     if (newSpline.points.isEmpty) {
-      return Spline(([preferredPoint]));
+      return Spline(([preferredPoint]), config, resolution);
     }
     if (newSpline.points.first.equals(preferredPoint)) {
       return newSpline;
@@ -466,21 +684,29 @@ class SplineSet extends Spline {
     throw UnimplementedError();
   }
 
-  static SplineSet fromJsonList(List scheduleList, List paths) {
+  static SplineSet fromJsonList(
+      List scheduleList, List paths, RobotConfig config, int resolution) {
     List<Spline> splines = [];
     for (var scheduleItem in scheduleList) {
       if (scheduleItem['branched']) {
         var onTrue = SplineSet.fromJsonList(
-            scheduleItem["branched_path"]["on_true"], paths);
+            scheduleItem["branched_path"]["on_true"],
+            paths,
+            config,
+            resolution);
         var onFalse = SplineSet.fromJsonList(
-            scheduleItem["branched_path"]["on_false"], paths);
+            scheduleItem["branched_path"]["on_false"],
+            paths,
+            config,
+            resolution);
         var condition = scheduleItem["condition"];
-        splines.add(BranchedSpline(onTrue, onFalse, condition));
+        splines.add(BranchedSpline(onTrue, onFalse, condition, resolution));
       } else {
-        splines.add(Spline.fromJson(paths[scheduleItem['path']]));
+        splines.add(
+            Spline.fromJson(paths[scheduleItem['path']], config, resolution));
       }
     }
-    return SplineSet(splines);
+    return SplineSet(splines, config, resolution);
   }
 }
 
@@ -491,7 +717,7 @@ List<Waypoint> _getWaypointsFromSplineList(List<Spline> splines) {
     for (var point in spline.points) {
       waypoints.add(point.copyWith(t: duration + point.t));
     }
-    duration += spline.duration;
+    duration += spline.realTime;
   }
   return waypoints;
 }

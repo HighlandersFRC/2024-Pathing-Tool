@@ -1,7 +1,7 @@
 name: pathing_tool
-description: "A new Flutter project."
+description: "FRC All-In-One Autonomous/Pathing Tool"
 publish_to: 'none'
-version: 0.1.0
+version: 1.2.0
 
 environment:
   sdk: '>=3.4.1 <4.0.0'
@@ -39,3 +39,4 @@ flutter:
   assets:
     - Images/game_field.png
     - Images/PolarBearHead.png
+    - pubspec.yaml

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:archive/archive_io.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_image_converter/flutter_image_converter.dart';
@@ -17,71 +18,112 @@ class ImageDataProvider extends ChangeNotifier {
   );
 
   ImageDataProvider() {
-    Directory imageDir = Directory("C:/Polar Pathing/Images");
-    if (imageDir.existsSync()) {
+    _refreshImages();
+  }
+
+  String _getRepositoryPath() {
+    String repoPath = 'C:';
+    try {
+      Directory prefDir = Directory("C:/Polar Pathing/Preferences");
+      File? preferencesFile;
+      ZipDecoder decoder = ZipDecoder();
+      prefDir.listSync().forEach((file) {
+        if (file.path.split(".").last == "polarprefs") {
+          preferencesFile = file as File;
+        }
+      });
+      if (preferencesFile != null) {
+        final Uint8List prefBytes = preferencesFile!.readAsBytesSync();
+        Archive prefArchive = decoder.decodeBytes(prefBytes);
+        for (ArchiveFile file in prefArchive) {
+          if (file.name == "config.json") {
+            String jsonString = utf8.decode(file.content);
+            Map<String, dynamic> preferredConfigJson = json.decode(jsonString);
+            repoPath = preferredConfigJson["repository_path"] ?? "C:";
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      // Handle error if necessary
+    }
+    return repoPath;
+  }
+
+  void _refreshImages() {
+    _images.clear();
+    String repoPath = _getRepositoryPath();
+    Directory imageDir = Directory("$repoPath/Polar Pathing/Images");
+    if (!imageDir.existsSync()) {
       imageDir.createSync(recursive: true);
     }
     var imageFiles = imageDir.listSync();
     ZipDecoder decoder = ZipDecoder();
+    File preferencesFile =
+        File("C:/Polar Pathing/Images/ImagePreferences.polarimgprefs");
+    if (preferencesFile.existsSync()) {
+      final bytes = preferencesFile.readAsBytesSync();
+      final archive = decoder.decodeBytes(bytes);
+      String name = '2024 FRC Game Field';
+      double wm = 16.65, wp = 7680, hm = 8.211, hp = 3812;
+      Image image = Image.asset("Images/game_field.png");
+      for (ArchiveFile file in archive) {
+        if (file.name == "image_data.json") {
+          String imageDataJsonString = utf8.decode(file.content);
+          Map<String, dynamic> imageDataJson = json.decode(imageDataJsonString);
+          name = imageDataJson['name'];
+          wm = imageDataJson['width_meters'];
+          hm = imageDataJson['height_meters'];
+          wp = imageDataJson['width_pixels'];
+          hp = imageDataJson['height_pixels'];
+        } else if (file.name == "image.png") {
+          image = Image.memory(file.content);
+        }
+      }
+      _selectedImage = ImageData(
+          image: image,
+          imageName: name,
+          imageWidthInMeters: wm,
+          imageHeightInMeters: hm,
+          imageWidthInPixels: wp,
+          imageHeightInPixels: hp);
+    }
+
     for (var imageFile in imageFiles) {
       if (imageFile is File) {
-        if (imageFile.path.split('.').last == "polarimgprefs") {
-          final bytes = imageFile.readAsBytesSync();
-          final archive = decoder.decodeBytes(bytes);
-          String name = '2024 FRC Game Field';
-          double wm = 16.65, wp = 7680, hm = 8.211, hp = 3812;
-          Image image = Image.asset("Images/game_field.png");
-          for (ArchiveFile file in archive) {
-            if (file.name == "image_data.json") {
-              String imageDataJsonString = utf8.decode(file.content);
-              Map<String, dynamic> imageDataJson =
-                  json.decode(imageDataJsonString);
-              name = imageDataJson['name'];
-              wm = imageDataJson['width_meters'];
-              hm = imageDataJson['height_meters'];
-              wp = imageDataJson['width_pixels'];
-              hp = imageDataJson['height_pixels'];
-            } else if (file.name == "image.png") {
-              image = Image.memory(file.content);
-            }
+        final bytes = imageFile.readAsBytesSync();
+        final archive = decoder.decodeBytes(bytes);
+        String name = '2024 FRC Game Field';
+        double wm = 16.65, wp = 7680, hm = 8.211, hp = 3812;
+        Image image = Image.asset("Images/game_field.png");
+        for (ArchiveFile file in archive) {
+          if (file.name == "image_data.json") {
+            String imageDataJsonString = utf8.decode(file.content);
+            Map<String, dynamic> imageDataJson =
+                json.decode(imageDataJsonString);
+            name = imageDataJson['name'];
+            wm = imageDataJson['width_meters'];
+            hm = imageDataJson['height_meters'];
+            wp = imageDataJson['width_pixels'];
+            hp = imageDataJson['height_pixels'];
+          } else if (file.name == "image.png") {
+            image = Image.memory(file.content);
           }
-          _selectedImage = ImageData(
-              image: image,
-              imageName: name,
-              imageWidthInMeters: wm,
-              imageHeightInMeters: hm,
-              imageWidthInPixels: wp,
-              imageHeightInPixels: hp);
-        } else {
-          final bytes = imageFile.readAsBytesSync();
-          final archive = decoder.decodeBytes(bytes);
-          String name = '2024 FRC Game Field';
-          double wm = 16.65, wp = 7680, hm = 8.211, hp = 3812;
-          Image image = Image.asset("Images/game_field.png");
-          for (ArchiveFile file in archive) {
-            if (file.name == "image_data.json") {
-              String imageDataJsonString = utf8.decode(file.content);
-              Map<String, dynamic> imageDataJson =
-                  json.decode(imageDataJsonString);
-              name = imageDataJson['name'];
-              wm = imageDataJson['width_meters'];
-              hm = imageDataJson['height_meters'];
-              wp = imageDataJson['width_pixels'];
-              hp = imageDataJson['height_pixels'];
-            } else if (file.name == "image.png") {
-              image = Image.memory(file.content);
-            }
-          }
-          _images.add(ImageData(
-              image: image,
-              imageName: name,
-              imageWidthInMeters: wm,
-              imageHeightInMeters: hm,
-              imageWidthInPixels: wp,
-              imageHeightInPixels: hp));
+        }
+        final data = ImageData(
+            image: image,
+            imageName: name,
+            imageWidthInMeters: wm,
+            imageHeightInMeters: hm,
+            imageWidthInPixels: wp,
+            imageHeightInPixels: hp);
+        _images.add(data);
+        if (name == _selectedImage.imageName) {
+          _selectedImage = data;
         }
       }
     }
+    notifyListeners();
   }
 
   List<ImageData> get images => _images;
@@ -106,9 +148,10 @@ class ImageDataProvider extends ChangeNotifier {
     Archive archive = Archive();
     archive.addFile(jsonArchive);
     archive.addFile(imageArchive);
-    var zippedArchive = ZipEncoder().encode(archive);
+    final zippedArchive = ZipEncoder().encode(archive);
+    String repoPath = _getRepositoryPath();
     File outputFile =
-        File("C:/Polar Pathing/Images/${imageData.imageName}.polarimg");
+        File("$repoPath/Polar Pathing/Images/${imageData.imageName}.polarimg");
     outputFile.writeAsBytesSync(zippedArchive!);
   }
 
@@ -130,7 +173,7 @@ class ImageDataProvider extends ChangeNotifier {
     Archive archive = Archive();
     archive.addFile(jsonArchive);
     archive.addFile(imageArchive);
-    var zippedArchive = ZipEncoder().encode(archive);
+    final zippedArchive = ZipEncoder().encode(archive);
     File outputFile =
         File("C:/Polar Pathing/Images/ImagePreferences.polarimgprefs");
     outputFile.writeAsBytesSync(zippedArchive!);
@@ -138,7 +181,8 @@ class ImageDataProvider extends ChangeNotifier {
 
   void removeImage(ImageData imageData) {
     _images.remove(imageData);
-    var imageDir = Directory("C:/Polar Pathing/Images");
+    String repoPath = _getRepositoryPath();
+    var imageDir = Directory("$repoPath/Polar Pathing/Images");
     for (var imageFile in imageDir.listSync()) {
       if (imageFile is File &&
           imageFile.path.endsWith("${imageData.imageName}.polarimg")) {
@@ -146,5 +190,9 @@ class ImageDataProvider extends ChangeNotifier {
       }
     }
     notifyListeners();
+  }
+
+  void refresh() {
+    _refreshImages();
   }
 }

@@ -23,17 +23,21 @@ import 'package:provider/provider.dart';
 import 'dart:math' as math;
 import 'package:path/path.dart' as p;
 
+import '../Utils/Providers/preference_provider.dart';
+
 class PathEditor extends StatefulWidget {
   final List<Waypoint> startingWaypoints;
   final List<Command> startingCommands;
   final String pathName;
   final Function(Spline)? returnSpline;
+  final Spline? prevPath;
   const PathEditor(
     this.startingWaypoints,
     this.pathName,
     this.startingCommands, {
     super.key,
     this.returnSpline,
+    this.prevPath,
   });
   static PathEditor fromFile(File file, Function(Spline)? returnSpline) {
     String jsonString = file.readAsStringSync();
@@ -101,15 +105,21 @@ class _PathEditorState extends State<PathEditor>
   }
 
   Waypoint _getPlaybackWaypoint(BuildContext context) {
-    var robot = Spline(waypoints, commands: commands);
     final robotConfig =
         Provider.of<RobotConfigProvider>(context, listen: false);
+    PreferenceProvider preferencesProvider =
+        Provider.of<PreferenceProvider>(context, listen: false);
+    var robot = Spline(
+        waypoints, robotConfig.robotConfig, preferencesProvider.pathResolution,
+        commands: commands);
     if (robotConfig.robotConfig.tank) {
-      return robot.getTankWaypoint(
-          _animationController.value * (endTime - startTime) + startTime);
+      return robot.getTankWaypoint(_animationController.value *
+          _animationController.duration!.inMicroseconds /
+          1000000);
     }
-    return robot.getRobotWaypoint(
-        _animationController.value * (endTime - startTime) + startTime);
+    return robot.getRobotWaypoint(_animationController.value *
+        _animationController.duration!.inMicroseconds /
+        1000000);
   }
 
   void playPath() {
@@ -185,12 +195,27 @@ class _PathEditorState extends State<PathEditor>
   @override
   Widget build(BuildContext context) {
     final focusScope = FocusScope.of(context);
+    RobotConfigProvider robotConfigProvider =
+        Provider.of<RobotConfigProvider>(context);
+    PreferenceProvider preferencesProvider =
+        Provider.of<PreferenceProvider>(context);
     if (!(focusScope.focusedChild?.ancestors.contains(_focusNode) ?? false) &&
         !(focusScope.focusedChild.hashCode == _focusNode.hashCode)) {
       focusScope.requestFocus(_focusNode);
     }
-    _animationController.duration =
-        Duration(microseconds: ((endTime - startTime) * 1000000).round());
+    Spline robot = Spline(waypoints, robotConfigProvider.robotConfig,
+        preferencesProvider.pathResolution);
+    _animationController.duration = Duration(
+        microseconds: (((robot.path.lastOrNull?.time ?? endTime) +
+                    endTime -
+                    (waypoints.lastOrNull?.t ?? endTime) -
+                    (robot.path.firstOrNull?.time ?? startTime)) *
+                1000000)
+            .round());
+    double animationDurationSeconds =
+        _animationController.duration!.inMicroseconds.toDouble() / 1000000.0;
+    double animationTime =
+        _animationController.value * animationDurationSeconds;
     _animationController.stop();
     if (playing && waypoints.length > 1) {
       _animationController.repeat();
@@ -201,27 +226,19 @@ class _PathEditorState extends State<PathEditor>
     List<FlSpot> fullSpline = [];
     List<FlSpot> commandSpline = [];
     final theme = Theme.of(context);
-    final robotConfigProvider = Provider.of<RobotConfigProvider>(context);
     if (waypoints.length > 1) {
-      Spline robot = Spline(waypoints);
-      double timeStep = 0.01; // Adjust for desired granularity
-      double endTime = robot.points.last.t;
-      for (double t = waypoints.first.t; t <= endTime; t += timeStep) {
-        Waypoint point = robot.getRobotWaypoint(t);
+      for (var point in robot.path) {
         fullSpline.add(FlSpot(point.x, point.y));
       }
     }
     if (waypoints.length > 1 && selectedCommand != -1) {
-      Spline robot = Spline(waypoints);
-      double timeStep = 0.01; // Adjust for desired granularity
       double start =
-          max(commands[selectedCommand].startTime, robot.points.first.t);
-      double endTime = commands[selectedCommand].endTime;
-      for (double t = start;
-          t <= endTime && t <= robot.points.last.t;
-          t += timeStep) {
-        Waypoint point = robot.getRobotWaypoint(t);
-        commandSpline.add(FlSpot(point.x, point.y));
+          robot.pathTimeToRealTime(commands[selectedCommand].startTime);
+      double end = robot.pathTimeToRealTime(commands[selectedCommand].endTime);
+      for (var point in robot.path) {
+        if (point.t >= start && point.t <= end) {
+          commandSpline.add(FlSpot(point.x, point.y));
+        }
       }
     }
     void savePathToFile() async {
@@ -251,7 +268,8 @@ class _PathEditorState extends State<PathEditor>
             context: context);
       }
       double timeStep = 0.01;
-      Spline robot = Spline(waypoints);
+      Spline robot = Spline(waypoints, robotConfigProvider.robotConfig,
+          preferencesProvider.pathResolution);
       List<Map<String, dynamic>> sampledPoints = [];
       for (double t = 0; t <= robot.points.last.t; t += timeStep) {
         Waypoint waypoint = robot.getRobotWaypoint(t);
@@ -301,7 +319,8 @@ class _PathEditorState extends State<PathEditor>
       // Allow the user to pick a directory
       String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
           dialogTitle: "Save to which folder?",
-          initialDirectory: "C:\\Polar Pathing\\Saves");
+          initialDirectory:
+              "${Provider.of<PreferenceProvider>(context, listen: false).repositoryPath}\\Polar Pathing\\Saves");
 
       if (selectedDirectory == null) {
         // User canceled the picker
@@ -373,42 +392,61 @@ class _PathEditorState extends State<PathEditor>
             child: Focus(
                 focusNode: _focusNode,
                 child: Scaffold(
+                  persistentFooterAlignment: AlignmentDirectional.bottomCenter,
                   persistentFooterButtons: [
-                    ProgressBar(
-                      baseBarColor: theme.primaryColor.withOpacity(0.3),
-                      thumbColor: theme.primaryColor,
-                      thumbGlowColor: theme.primaryColor.withOpacity(0.2),
-                      progress: Duration(
-                          microseconds: waypoints.isNotEmpty
-                              ? ((_animationController.value *
-                                          (endTime - startTime)) *
-                                      1000000)
-                                  .floor()
-                              : 0),
-                      total: Duration(
-                          microseconds: waypoints.isNotEmpty
-                              ? ((endTime - startTime) * 1000000).floor()
-                              : 0),
-                      progressBarColor: theme.primaryColor,
-                      onDragStart: (details) {
-                        _animationController.stop();
-                        var pathTime =
-                            details.timeStamp.inMicroseconds / 1000000;
-                        _animationController.value =
-                            pathTime / waypoints.last.t;
-                      },
-                      onDragUpdate: (details) {
-                        var pathTime =
-                            details.timeStamp.inMicroseconds / 1000000;
-                        _animationController.value =
-                            pathTime / waypoints.last.t;
-                      },
-                      onDragEnd: () {
-                        if (playing) {
-                          _animationController.repeat();
-                        }
-                      },
-                    ),
+                    Row(children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Text("${animationTime.toStringAsFixed(2)}s"),
+                      ),
+                      SizedBox(
+                        width: MediaQuery.of(context).size.width -
+                            (69 +
+                                (animationTime.toStringAsFixed(2).length - 4) *
+                                    8 +
+                                (animationDurationSeconds
+                                            .toStringAsFixed(2)
+                                            .length -
+                                        4) *
+                                    8 +
+                                69), // Adjust for both time labels
+                        child: ProgressBar(
+                          baseBarColor: theme.primaryColor.withOpacity(0.3),
+                          thumbColor: theme.primaryColor,
+                          thumbGlowColor: theme.primaryColor.withOpacity(0.2),
+                          progress: Duration(
+                              microseconds: waypoints.isNotEmpty
+                                  ? (animationTime * 1000000).floor()
+                                  : 0),
+                          total: _animationController.duration!,
+                          progressBarColor: theme.primaryColor,
+                          onDragStart: (details) {
+                            _animationController.stop();
+                            var pathTime =
+                                details.timeStamp.inMicroseconds / 1000000;
+                            _animationController.value =
+                                pathTime / animationDurationSeconds;
+                          },
+                          onDragUpdate: (details) {
+                            var pathTime =
+                                details.timeStamp.inMicroseconds / 1000000;
+                            _animationController.value =
+                                pathTime / animationDurationSeconds;
+                          },
+                          onDragEnd: () {
+                            if (playing) {
+                              _animationController.repeat();
+                            }
+                          },
+                          timeLabelLocation: TimeLabelLocation.none,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Text(
+                            "${animationDurationSeconds.toStringAsFixed(2)}s"),
+                      ),
+                    ]),
                   ],
                   appBar: AppBar(
                     leading: widget.returnSpline != null
@@ -417,8 +455,12 @@ class _PathEditorState extends State<PathEditor>
                             waitDuration: const Duration(milliseconds: 500),
                             child: TextButton(
                                 onPressed: () {
-                                  widget.returnSpline!(Spline(waypoints,
-                                      commands: commands, name: pathName));
+                                  widget.returnSpline!(Spline(
+                                      waypoints,
+                                      robotConfigProvider.robotConfig,
+                                      preferencesProvider.pathResolution,
+                                      commands: commands,
+                                      name: pathName));
                                   Navigator.pop(context);
                                 },
                                 style: ButtonStyle(
@@ -447,6 +489,8 @@ class _PathEditorState extends State<PathEditor>
                     ),
                     automaticallyImplyLeading: false,
                     actions: [
+                      Text(
+                          "Path Length: ${robot.getArcLength(robot.endTime).toStringAsFixed(3)}m"),
                       Tooltip(
                         message: "Play Path",
                         waitDuration: const Duration(milliseconds: 500),
@@ -617,18 +661,23 @@ class _PathEditorState extends State<PathEditor>
                                           editMode == 2 &&
                                                   selectedCommand != -1 &&
                                                   playbackWaypoint!.t >
-                                                      commands[selectedCommand]
-                                                          .startTime &&
+                                                      robot.pathTimeToRealTime(
+                                                          commands[
+                                                                  selectedCommand]
+                                                              .startTime) &&
                                                   playbackWaypoint!.t <
-                                                      commands[selectedCommand]
-                                                          .endTime
+                                                      robot.pathTimeToRealTime(
+                                                          commands[
+                                                                  selectedCommand]
+                                                              .endTime)
                                               ? theme.primaryColor
                                               : theme.brightness ==
                                                       Brightness.dark
                                                   ? Colors.white
                                                   : Colors.grey.shade700,
                                           255,
-                                          constraints),
+                                          constraints,
+                                          true),
                                     )
                                   : null;
                               return Center(
@@ -742,7 +791,8 @@ class _PathEditorState extends State<PathEditor>
                                                             .indexOf(waypoint)
                                                     ? 255
                                                     : 100,
-                                                constraints),
+                                                constraints,
+                                                false),
                                           );
                                         }),
                                         if (playbackPaint != null)
@@ -941,6 +991,43 @@ class _PathEditorState extends State<PathEditor>
                                             ? selectedWaypoint
                                             : -1,
                                         onWaypointsChanged: _onWaypointsChanged,
+                                        connectToPreviousPath: widget
+                                                    .prevPath !=
+                                                null
+                                            ? () {
+                                                Waypoint newWaypoint = widget
+                                                    .prevPath!.points.last;
+                                                newWaypoint =
+                                                    newWaypoint.copyWith(
+                                                  t: 0.0,
+                                                );
+                                                setState(() {
+                                                  for (int i = 0;
+                                                      i < waypoints.length;
+                                                      i++) {
+                                                    waypoints[i] =
+                                                        waypoints[i].copyWith(
+                                                      t: waypoints[i].t + 1,
+                                                    );
+                                                  }
+                                                  waypoints.insert(
+                                                      0, newWaypoint);
+                                                  for (int i = 0;
+                                                      i < commands.length;
+                                                      i++) {
+                                                    commands[i] =
+                                                        commands[i].copyWith(
+                                                      startTime: commands[i]
+                                                              .startTime +
+                                                          1,
+                                                      endTime:
+                                                          commands[i].endTime +
+                                                              1,
+                                                    );
+                                                  }
+                                                });
+                                              }
+                                            : null,
                                       )
                                     else
                                       EditCommandMenu(
@@ -1163,8 +1250,10 @@ class _PathEditorState extends State<PathEditor>
       double dt = p2.time - p0.time;
       double deltaX = p2.dx - p0.dx;
       double deltaY = p2.dy - p0.dy;
-      d2x = deltaX / pow(dt, 2);
-      d2y = deltaY / pow(dt, 2);
+      if (dt != 0) {
+        d2x = deltaX / dt;
+        d2y = deltaY / dt;
+      }
     } else {
       d2y = waypoints[index].d2y;
       d2x = waypoints[index].d2x;
@@ -1179,7 +1268,7 @@ class _PathEditorState extends State<PathEditor>
       Waypoint p2 = waypoints[index + 1];
       double dt = p2.time - p0.time;
       double d2a = p2.dtheta - p0.dtheta;
-      angAcc = d2a / pow(dt, 2);
+      angAcc = dt != 0 ? d2a / dt : 0;
     } else {
       angAcc = waypoints[index].d2theta;
     }
@@ -1191,13 +1280,15 @@ class _PathEditorState extends State<PathEditor>
     for (int i = 0; i < waypoints.length; i++) {
       var (dy, dx) = _averageLinearVelocity(i);
       var dtheta = _averageAngularVelocity(i);
-      newWaypoints.add(waypoints[i].copyWith(dy: dy, dx: dx, dtheta: dtheta));
-    }
-    for (int i = 0; i < newWaypoints.length; i++) {
-      var (d2y, d2x) = _averageLinearAcceleration(i, newWaypoints);
-      var d2theta = _averageAngularAcceleration(i, newWaypoints);
-      newWaypoints[i] =
-          newWaypoints[i].copyWith(d2y: d2y, d2x: d2x, d2theta: d2theta);
+      var (d2y, d2x) = _averageLinearAcceleration(i, waypoints);
+      var d2theta = _averageAngularAcceleration(i, waypoints);
+      newWaypoints.add(waypoints[i].copyWith(
+          dy: dy,
+          dx: dx,
+          dtheta: dtheta,
+          d2y: d2y,
+          d2x: d2x,
+          d2theta: d2theta));
     }
     _onWaypointsChanged(newWaypoints);
     setState(() {
@@ -1253,6 +1344,7 @@ class RobotPainter extends CustomPainter {
   final int opacity;
   late double metersToPixelsRatio;
   final BoxConstraints constraints;
+  final bool showArrow;
 
   RobotPainter(
       this.waypoint,
@@ -1263,7 +1355,8 @@ class RobotPainter extends CustomPainter {
       this.robotConfig,
       this.color,
       this.opacity,
-      this.constraints) {
+      this.constraints,
+      this.showArrow) {
     metersToPixelsRatio = usedWidth / fieldImageData.imageWidthInMeters;
   }
 
