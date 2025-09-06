@@ -99,7 +99,16 @@ class Spline {
             yVectors = y.getVectors(arcLengthMap[i].$1),
             thetaVectors = theta.getVectors(arcLengthMap[i].$1);
         double aDirection = atan2(yVectors.acceleration, xVectors.acceleration);
-        double vDirection = atan2(yVectors.velocity, xVectors.velocity);
+        double vDirection;
+        if (i < arcLengthMap.length - 1) {
+          Vectors nextXVectors = x.getVectors(arcLengthMap[i + 1].$1);
+          Vectors nextYVectors = y.getVectors(arcLengthMap[i + 1].$1);
+          vDirection = atan2(nextYVectors.position - path[i - 1].y,
+              nextXVectors.position - path[i - 1].x);
+        } else {
+          vDirection = atan2(yVectors.position - path[i - 1].y,
+              xVectors.position - path[i - 1].x);
+        }
         double dt = ds / prevV;
         double nextT = (prevT + dt);
         double nextAngVel = (thetaVectors.position - prevTheta) / dt;

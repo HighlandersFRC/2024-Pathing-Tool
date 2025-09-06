@@ -395,11 +395,21 @@ class _PathEditorState extends State<PathEditor>
                   persistentFooterAlignment: AlignmentDirectional.bottomCenter,
                   persistentFooterButtons: [
                     Row(children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Text("${animationTime.toStringAsFixed(2)}s"),
+                      ),
                       SizedBox(
                         width: MediaQuery.of(context).size.width -
                             (69 +
                                 (animationTime.toStringAsFixed(2).length - 4) *
-                                    8),
+                                    8 +
+                                (animationDurationSeconds
+                                            .toStringAsFixed(2)
+                                            .length -
+                                        4) *
+                                    8 +
+                                69), // Adjust for both time labels
                         child: ProgressBar(
                           baseBarColor: theme.primaryColor.withOpacity(0.3),
                           thumbColor: theme.primaryColor,
@@ -432,9 +442,11 @@ class _PathEditorState extends State<PathEditor>
                         ),
                       ),
                       Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: Text("${animationTime.toStringAsFixed(2)}s")),
-                    ])
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Text(
+                            "${animationDurationSeconds.toStringAsFixed(2)}s"),
+                      ),
+                    ]),
                   ],
                   appBar: AppBar(
                     leading: widget.returnSpline != null
