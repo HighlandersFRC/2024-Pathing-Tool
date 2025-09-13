@@ -48,10 +48,15 @@ class PathEditor extends StatefulWidget {
       waypoints.add(Waypoint.fromJson(point));
     });
     List<Command> commands = [];
-    var commandsJsonList = pathJson["commands"];
-    commandsJsonList.forEach((command) {
-      commands.add(Command.fromJson(command));
-    });
+    if (pathJson.containsKey("path_time_commands")) {
+      pathJson["path_time_commands"].forEach((commandJson) {
+        commands.add(Command.fromJson(commandJson));
+      });
+    } else {
+      pathJson["commands"].forEach((commandJson) {
+        commands.add(Command.fromJson(commandJson));
+      });
+    }
     String pathName = pathJson["meta_data"]["path_name"];
     return PathEditor(waypoints, pathName, commands,
         returnSpline: returnSpline);

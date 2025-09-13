@@ -49,13 +49,22 @@ class Spline {
     if (points.length > 1) {
       double length = 0.0;
       for (int i = (points.first.time * resolution).floor();
-          i < (points.last.time * resolution).ceil();
+          i < points.last.time * resolution;
           i++) {
+        if (i < 0) continue;
         double time = i / resolution;
         if (time >= points.last.time) break;
+        int segIndex = points.length - 1;
+        for (int j = 1; j < points.length; j++) {
+          if (points[j].time >= time) {
+            segIndex = j - 1;
+            break;
+          }
+        }
         double dx = x.getVectors(time).velocity;
         double dy = y.getVectors(time).velocity;
-        length += sqrt(dx * dx + dy * dy) / resolution;
+        length += sqrt(dx * dx + dy * dy) /
+            (resolution * (points[segIndex + 1].time - points[segIndex].time));
         arcLengthMap.add((time, length));
       }
       for (int i = 0; i < arcLengthMap.length; i++) {
@@ -157,12 +166,12 @@ class Spline {
 
   double getArcLength(double t) {
     if (arcLengthMap.isEmpty) return 0.0;
-    if (t < points.first.time ||
-        (t - points.first.time).round() * resolution < 0) return 0.0;
-    if (t > points.last.time ||
-        (t - points.first.time).floor() * resolution > arcLengthMap.length - 1)
+    int wantedIndex = ((t - points.first.time) * resolution).floor();
+    if (t < points.first.time || wantedIndex < 0) return 0.0;
+    if (t > points.last.time || wantedIndex > arcLengthMap.length - 1) {
       return arcLengthMap.last.$2;
-    return arcLengthMap[((t - points.first.time) * resolution).floor()].$2;
+    }
+    return arcLengthMap[wantedIndex].$2;
   }
 
   double getCurvature(double t) {
@@ -224,9 +233,15 @@ class Spline {
       points.add(Waypoint.fromJson(waypointJson));
     });
     List<Command> commands = [];
-    splineJson["commands"].forEach((commandJson) {
-      commands.add(Command.fromJson(commandJson));
-    });
+    if (splineJson.containsKey("path_time_commands")) {
+      splineJson["path_time_commands"].forEach((commandJson) {
+        commands.add(Command.fromJson(commandJson));
+      });
+    } else {
+      splineJson["commands"].forEach((commandJson) {
+        commands.add(Command.fromJson(commandJson));
+      });
+    }
     String name = splineJson["meta_data"]["path_name"];
     return Spline(points, config, resolution, commands: commands, name: name);
   }
@@ -239,10 +254,6 @@ class Spline {
         return path.last.copyWith();
       }
     }
-    // double timeRatio = 1;
-    // (path.last.t - path.first.t) / (points.last.time - points.first.time);
-    // double scaledTime = timeRatio * (time - points.first.time) + path.first.t;
-    // print(scaledTime);
     for (var point in path) {
       if (point.t >= time) {
         return point.copyWith();
@@ -261,19 +272,6 @@ class Spline {
     if (time > points.last.time) {
       return time - (points.last.time - path.last.t);
     }
-    // int left = 0;
-    // int right = arcLengthMap.length - 1;
-    // while (left < right) {
-    //   int mid = left + ((right - left) >> 1);
-    //   if (arcLengthMap[mid].$1 < time) {
-    //     left = mid + 1;
-    //   } else {
-    //     right = mid;
-    //   }
-    // }
-    // if (left < path.length) {
-    //   return path[left].t;
-    // }
     for (int i = 0; i < arcLengthMap.length; i++) {
       if (arcLengthMap[i].$1 >= time) {
         return path[i].t;
@@ -356,6 +354,9 @@ class Spline {
             startTime: pathTimeToRealTime(command.startTime),
             endTime: pathTimeToRealTime(command.endTime));
         return newCommand.toJson();
+      }).toList(),
+      "path_time_commands": commands.map((Command command) {
+        return command.toJson();
       }).toList(),
       if (path.isNotEmpty)
         "sampled_points": [for (var point in path) point.toJson()]
