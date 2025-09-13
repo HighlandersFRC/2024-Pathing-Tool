@@ -1,7 +1,7 @@
 name: pathing_tool
 description: "FRC All-In-One Autonomous/Pathing Tool"
 publish_to: 'none'
-version: 1.2.0
+version: 1.2.1
 
 environment:
   sdk: '>=3.4.1 <4.0.0'
