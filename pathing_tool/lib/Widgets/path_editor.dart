@@ -317,11 +317,18 @@ class _PathEditorState extends State<PathEditor>
       };
 
       // Allow the user to pick a directory
-      String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
-          dialogTitle: "Save to which folder?",
-          initialDirectory:
-              "${Provider.of<PreferenceProvider>(context, listen: false).repositoryPath}\\Polar Pathing\\Saves");
-
+      String? selectedDirectory;
+      String startDir =
+          "${Provider.of<PreferenceProvider>(context, listen: false).repositoryPath}\\Polar Pathing\\Saves";
+      try {
+        selectedDirectory = await FilePicker.platform.getDirectoryPath(
+            dialogTitle: "Save to which folder?", initialDirectory: startDir);
+      } catch (e) {
+        Directory(startDir).createSync(recursive: true);
+        selectedDirectory = await FilePicker.platform.getDirectoryPath(
+            dialogTitle: "Save to which folder?", initialDirectory: startDir);
+        return;
+      }
       if (selectedDirectory == null) {
         // User canceled the picker
         return;
