@@ -163,8 +163,7 @@ class SettingsPopup extends StatelessWidget {
                                       1,
                                       1,
                                       List<IconCommand>.empty(),
-                                      List<IconCondition>.empty(),
-                                      false),
+                                      List<IconCondition>.empty()),
                                   newRobot: true);
                             },
                             child: Text(
@@ -182,7 +181,7 @@ class SettingsPopup extends StatelessWidget {
                             _openRobotConfigPopup(
                                 context,
                                 RobotConfig("", 1, 1, List<IconCommand>.empty(),
-                                    List<IconCondition>.empty(), false),
+                                    List<IconCondition>.empty()),
                                 newRobot: true);
                           },
                           child: Text(

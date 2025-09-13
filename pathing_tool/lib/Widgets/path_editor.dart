@@ -48,10 +48,15 @@ class PathEditor extends StatefulWidget {
       waypoints.add(Waypoint.fromJson(point));
     });
     List<Command> commands = [];
-    var commandsJsonList = pathJson["commands"];
-    commandsJsonList.forEach((command) {
-      commands.add(Command.fromJson(command));
-    });
+    if (pathJson.containsKey("path_time_commands")) {
+      pathJson["path_time_commands"].forEach((commandJson) {
+        commands.add(Command.fromJson(commandJson));
+      });
+    } else {
+      pathJson["commands"].forEach((commandJson) {
+        commands.add(Command.fromJson(commandJson));
+      });
+    }
     String pathName = pathJson["meta_data"]["path_name"];
     return PathEditor(waypoints, pathName, commands,
         returnSpline: returnSpline);
@@ -112,11 +117,6 @@ class _PathEditorState extends State<PathEditor>
     var robot = Spline(
         waypoints, robotConfig.robotConfig, preferencesProvider.pathResolution,
         commands: commands);
-    if (robotConfig.robotConfig.tank) {
-      return robot.getTankWaypoint(_animationController.value *
-          _animationController.duration!.inMicroseconds /
-          1000000);
-    }
     return robot.getRobotWaypoint(_animationController.value *
         _animationController.duration!.inMicroseconds /
         1000000);
@@ -317,11 +317,18 @@ class _PathEditorState extends State<PathEditor>
       };
 
       // Allow the user to pick a directory
-      String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
-          dialogTitle: "Save to which folder?",
-          initialDirectory:
-              "${Provider.of<PreferenceProvider>(context, listen: false).repositoryPath}\\Polar Pathing\\Saves");
-
+      String? selectedDirectory;
+      String startDir =
+          "${Provider.of<PreferenceProvider>(context, listen: false).repositoryPath}\\Polar Pathing\\Saves";
+      try {
+        selectedDirectory = await FilePicker.platform.getDirectoryPath(
+            dialogTitle: "Save to which folder?", initialDirectory: startDir);
+      } catch (e) {
+        Directory(startDir).createSync(recursive: true);
+        selectedDirectory = await FilePicker.platform.getDirectoryPath(
+            dialogTitle: "Save to which folder?", initialDirectory: startDir);
+        return;
+      }
       if (selectedDirectory == null) {
         // User canceled the picker
         return;

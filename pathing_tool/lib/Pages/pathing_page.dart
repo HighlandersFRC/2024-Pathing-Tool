@@ -39,11 +39,15 @@ class PathingPage extends StatelessWidget {
       waypoints.add(Waypoint.fromJson(point as Map<String, dynamic>));
     });
     List<Command> commands = [];
-    var commandsJsonList = pathJson["commands"];
-    commandsJsonList.forEach((command) {
-      var newCommand = Command.fromJson(command);
-      commands.add(newCommand);
-    });
+    if (pathJson.containsKey("path_time_commands")) {
+      pathJson["path_time_commands"].forEach((commandJson) {
+        commands.add(Command.fromJson(commandJson));
+      });
+    } else {
+      pathJson["commands"].forEach((commandJson) {
+        commands.add(Command.fromJson(commandJson));
+      });
+    }
     String pathName = pathJson["meta_data"]["path_name"];
     String? robotName = pathJson["meta_data"]["robot_name"],
         fieldName = pathJson["meta_data"]["field_name"];

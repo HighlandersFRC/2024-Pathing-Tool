@@ -88,17 +88,10 @@ class _AutoEditorState extends State<AutoEditor>
   }
   Waypoint? _getPlaybackWaypoint() {
     double wantedTime = _animationController.value * duration;
-    RobotConfigProvider? robotConfigProvider =
-        Provider.of<RobotConfigProvider>(context, listen: false);
     double currentDuration = 0;
     for (var spline in splines) {
       currentDuration += spline.realTime;
       if (wantedTime <= currentDuration) {
-        if (robotConfigProvider.robotConfig.tank) {
-          return spline.getTankWaypoint(_animationController.value * duration -
-              (currentDuration) +
-              spline.realTime);
-        }
         return spline.getRobotWaypoint(_animationController.value * duration -
             (currentDuration) +
             spline.realTime);

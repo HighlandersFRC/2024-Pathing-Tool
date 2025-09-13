@@ -6,15 +6,13 @@ class RobotConfig {
   List<IconCommand> commands;
   List<IconCondition> conditions;
   String name;
-  bool tank;
 
   RobotConfig(
     this.name,
     this.length,
     this.width,
     this.commands,
-    this.conditions,
-    this.tank, {
+    this.conditions, {
     this.maxVelocity = 3.0,
     this.maxAcceleration = 2.0,
     this.maxCentripetalAcceleration = 2.0,
@@ -27,10 +25,6 @@ class RobotConfig {
         commandsJson.map((e) => IconCommand.fromJson(e)).toList();
     List<IconCondition> conditionsList =
         conditionsJson.map((e) => IconCondition.fromJson(e)).toList();
-    bool tank = false;
-    try {
-      tank = json['tank'] as bool;
-    } catch (e) {}
     double maxVelocity = json['max_velocity'] != null
         ? (json['max_velocity'] as num).toDouble()
         : 3.0;
@@ -47,7 +41,6 @@ class RobotConfig {
       json['width'],
       commandsList,
       conditionsList,
-      tank,
       maxVelocity: maxVelocity,
       maxAcceleration: maxAcceleration,
       maxCentripetalAcceleration: maxCentripetalAcceleration,
@@ -61,7 +54,6 @@ class RobotConfig {
       'width': width,
       'commands': commands.map((e) => e.toJson()).toList(),
       'conditions': conditions.map((e) => e.toJson()).toList(),
-      'tank': tank,
       'max_velocity': maxVelocity,
       'max_acceleration': maxAcceleration,
     };
