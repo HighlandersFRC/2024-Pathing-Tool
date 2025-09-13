@@ -59,17 +59,22 @@ class Waypoint {
   }
 
   Map<String, dynamic> toJson() {
+    double sanitize(double value) {
+      if (value.isNaN || value.isInfinite) return 0.0;
+      return value;
+    }
+
     return {
-      "x": x,
-      "y": y,
-      "angle": theta,
-      "x_velocity": dx,
-      "y_velocity": dy,
-      "angular_velocity": dtheta,
-      "x_acceleration": d2x,
-      "y_acceleration": d2y,
-      "angular_acceleration": d2theta,
-      "time": t
+      "x": sanitize(x),
+      "y": sanitize(y),
+      "angle": sanitize(theta),
+      "x_velocity": sanitize(dx),
+      "y_velocity": sanitize(dy),
+      "angular_velocity": sanitize(dtheta),
+      "x_acceleration": sanitize(d2x),
+      "y_acceleration": sanitize(d2y),
+      "angular_acceleration": sanitize(d2theta),
+      "time": sanitize(t)
     };
   }
 
