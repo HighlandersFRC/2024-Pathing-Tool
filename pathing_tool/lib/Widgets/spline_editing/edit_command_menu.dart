@@ -251,8 +251,7 @@ class NormalCommandEditor extends StatelessWidget {
               ...robotProvider.robotConfig.commands,
               IconCommand(selectedCommandName, null)
             ],
-            robotProvider.robotConfig.conditions,
-            robotProvider.robotConfig.tank));
+            robotProvider.robotConfig.conditions));
       }
     });
 
@@ -389,7 +388,6 @@ class BranchedCommandEditor extends StatelessWidget {
             ...robotProvider.robotConfig.conditions,
             IconCondition(command.condition, null)
           ],
-          robotProvider.robotConfig.tank,
         ));
       }
     });

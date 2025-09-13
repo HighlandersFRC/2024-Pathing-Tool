@@ -117,11 +117,6 @@ class _PathEditorState extends State<PathEditor>
     var robot = Spline(
         waypoints, robotConfig.robotConfig, preferencesProvider.pathResolution,
         commands: commands);
-    if (robotConfig.robotConfig.tank) {
-      return robot.getTankWaypoint(_animationController.value *
-          _animationController.duration!.inMicroseconds /
-          1000000);
-    }
     return robot.getRobotWaypoint(_animationController.value *
         _animationController.duration!.inMicroseconds /
         1000000);

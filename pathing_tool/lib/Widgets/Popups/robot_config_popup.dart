@@ -25,7 +25,6 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
       TextEditingController();
   final TextEditingController _maxCentripetalAccelerationController =
       TextEditingController();
-  late bool tank;
   List<IconData?> _commandIcons = [];
   List<TextEditingController> _commandControllers = [];
   List<IconData?> _conditionIcons = [];
@@ -77,7 +76,6 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
             : List<IconCondition>.empty(growable: true))
         .map((condition) => TextEditingController(text: condition.name))
         .toList();
-    tank = widget.startingConfig.tank;
   }
 
   @override
@@ -125,7 +123,6 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
     });
   }
 
-  void _setRobotTank(bool tank) {}
   @override
   Widget build(BuildContext context) {
     ThemeData theme = Theme.of(context);
@@ -329,13 +326,6 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
                   foregroundColor: WidgetStateProperty.all(theme.primaryColor)),
               child: const Text('Add Condition'),
             ),
-            const Text('Tank?'),
-            Switch(
-              value: tank,
-              onChanged: (val) => setState(() => tank = val),
-              thumbColor: WidgetStateProperty.all(theme.primaryColor),
-              activeTrackColor: theme.primaryColor.withOpacity(0.8),
-            )
           ],
         ),
       ),
@@ -380,7 +370,6 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
                 double.parse(_robotWidthController.text),
                 commands,
                 conditions,
-                tank,
                 maxVelocity: double.parse(_maxVelocityController.text),
                 maxAcceleration: double.parse(_maxAccelerationController.text),
                 maxCentripetalAcceleration:
