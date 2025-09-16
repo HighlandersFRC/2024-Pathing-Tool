@@ -11,8 +11,6 @@ import 'package:pathing_tool/Widgets/Popups/new_image_popup.dart';
 import 'package:pathing_tool/Widgets/Popups/robot_config_popup.dart';
 import 'package:provider/provider.dart';
 
-// Import your ImageData class here
-
 class SettingsPopup extends StatelessWidget {
   const SettingsPopup({super.key});
 

@@ -8,6 +8,7 @@ import 'package:pathing_tool/Utils/Structs/waypoint.dart';
 import 'Structs/robot_config.dart';
 
 class Spline {
+  // A time-parameterized spline path for a robot to follow
   late QuinticHermiteSpline x, y, theta;
   late List<Waypoint> points;
   final RobotConfig config;
@@ -26,8 +27,11 @@ class Spline {
     this.commands = const [],
     this.name = "",
   }) {
+    // Sort the waypoints by time along the path
     points.sort((a, b) => a.time.compareTo(b.time));
     var startTime = this.startTime;
+
+    // Adjust all times to start at 0
     commands = [
       for (var command in commands)
         command.copyWith(
@@ -38,7 +42,11 @@ class Spline {
     for (var point in points) {
       point = point.copyWith(t: point.t - startTime);
     }
+
+    // Optimize rotations to avoid unnecessary spins (e.g., going from 350 degrees to 10 degrees)
     optimizeRotation();
+
+    // Generate Quintic Hermite Splines for x, y, and theta
     xVectors = List.generate(points.length, (int i) => points[i].getXVectors());
     yVectors = List.generate(points.length, (int i) => points[i].getYVectors());
     thetaVectors =
@@ -46,7 +54,9 @@ class Spline {
     x = QuinticHermiteSpline(xVectors);
     y = QuinticHermiteSpline(yVectors);
     theta = QuinticHermiteSpline(thetaVectors);
+
     if (points.length > 1) {
+      // Precompute arc length along the path using sqrt(dx^2 + dy^2) and build a map of time to arc length
       double length = 0.0;
       for (int i = (points.first.time * resolution).floor();
           i < points.last.time * resolution;
@@ -67,6 +77,8 @@ class Spline {
             (resolution * (points[segIndex + 1].time - points[segIndex].time));
         arcLengthMap.add((time, length));
       }
+
+      // Compute maximum velocity at each point along the path based on robot constraints
       for (int i = 0; i < arcLengthMap.length; i++) {
         double time = arcLengthMap[i].$1;
         Waypoint? point;
@@ -86,8 +98,9 @@ class Spline {
         );
         maxVelocityMap.add((time, vMax));
       }
-      path.add(points.first);
+
       // Forward pass: compute velocity profile with acceleration limits
+      path.add(points.first);
       for (int i = 1; i < arcLengthMap.length; i++) {
         double ds = (arcLengthMap[i].$2 - arcLengthMap[i - 1].$2).abs();
         double prevV = path[i - 1].velocityMag;
@@ -144,6 +157,7 @@ class Spline {
             t: nextT);
         path.add(newWaypoint);
       }
+
       // Backward pass: enforce deceleration limits
       for (int i = path.length - 2; i >= 0; i--) {
         double ds = arcLengthMap[i + 1].$2 - arcLengthMap[i].$2;
@@ -164,6 +178,7 @@ class Spline {
     }
   }
 
+  // Get the arc length along the path at a specific time
   double getArcLength(double t) {
     if (arcLengthMap.isEmpty) return 0.0;
     int wantedIndex = ((t - points.first.time) * resolution).floor();
@@ -174,6 +189,7 @@ class Spline {
     return arcLengthMap[wantedIndex].$2;
   }
 
+  // Get the curvature at a specific time along the path k = (x'y'' - y'x'') / (x'^2 + y'^2)^(3/2)
   double getCurvature(double t) {
     if (t < points.first.time || t > points.last.time) return 0.0;
     var x = this.x.getVectors(t);
@@ -184,6 +200,7 @@ class Spline {
     return curvature;
   }
 
+  // Compute the maximum allowable velocity at a point based on robot constraints
   double _computeVMax(
       {required double vRobotMax, // Max linear velocity of robot
       required double aMax, // Max linear acceleration
@@ -199,23 +216,20 @@ class Spline {
 
     // Acceleration-based velocity limit (kinematics)
     double vAccelMax = sqrt(2 * aMax * distanceRemaining) + endVelocity;
+
     // Final velocity limit
     return min(vRobotMax, min(vCurveMax, vAccelMax));
   }
 
   void optimizeRotation() {
+    // Ensure all adjacent waypoints are within 180 degrees of each other
     for (int i = 1; i < points.length; i++) {
       var p1 = points[i - 1];
-      points[i] = points[i].copyWith(theta: points[i].theta % (2 * pi));
-      while (true) {
-        if (points[i].theta - p1.theta > pi) {
-          points[i] = points[i].copyWith(theta: points[i].theta - 2 * pi);
-        } else if (points[i].theta - p1.theta < -pi) {
-          points[i] = points[i].copyWith(theta: points[i].theta + 2 * pi);
-        } else {
-          break;
-        }
-      }
+      double theta = points[i].theta % (2 * pi);
+      double delta = theta - p1.theta;
+      // Normalize delta to [-pi, pi]
+      delta = (delta + pi) % (2 * pi) - pi;
+      points[i] = points[i].copyWith(theta: p1.theta + delta);
     }
   }
 
@@ -246,6 +260,7 @@ class Spline {
     return Spline(points, config, resolution, commands: commands, name: name);
   }
 
+  // Interpolate to get the robot's state at a specific time along the path
   Waypoint getRobotWaypoint(double time) {
     if (path.length > 1) {
       if (time < path.first.time) {
@@ -262,6 +277,7 @@ class Spline {
     return path.last.copyWith();
   }
 
+  // Convert a time in the path's time frame to the real time frame considering pauses and command timings
   double pathTimeToRealTime(double time) {
     if (points.isEmpty) {
       return time;
@@ -293,6 +309,7 @@ class Spline {
         commands: commands, name: name ?? this.name);
   }
 
+  // Duration of the path including extra command runtime.
   double get realTime {
     if (path.isEmpty) return endTime - startTime;
     return path.last.t -
@@ -301,11 +318,13 @@ class Spline {
         (endTime - points.last.time);
   }
 
+  // Duration of the path excluding extra command runtime.
   double get pathingTime {
     if (path.isEmpty) return 0.0;
     return path.last.t - path.first.t;
   }
 
+  // Start time of the path including any commands before the first waypoint
   double get startTime {
     if (points.isEmpty) {
       if (commands.isEmpty) return 0.0;
@@ -316,6 +335,7 @@ class Spline {
     }
   }
 
+  // End time of the path including any commands after the last waypoint
   double get endTime {
     if (points.isEmpty) {
       if (commands.isEmpty) return 0.0;
@@ -326,6 +346,7 @@ class Spline {
     }
   }
 
+  // Convert the spline to a JSON representation
   Map<String, dynamic> toJson() {
     var json = {
       "meta_data": {"path_name": name},
@@ -347,6 +368,7 @@ class Spline {
     return json;
   }
 
+  // Get the schedule item for a path export
   (Map<String, dynamic>, int) scheduleItem(int pathIndex) {
     return (
       {
@@ -359,14 +381,14 @@ class Spline {
 }
 
 class BranchedSpline extends Spline {
+  // A spline that branches into two different splines based on a condition
   final SplineSet onTrue, onFalse;
   final String condition;
-  final int resolution;
   late bool _isTrue;
-  BranchedSpline(this.onTrue, this.onFalse, this.condition, this.resolution,
+  BranchedSpline(this.onTrue, this.onFalse, this.condition, resolution,
       {bool isTrue = true})
-      : super(isTrue ? onTrue.points : onFalse.points, onTrue.config,
-            onTrue.resolution,
+      : super(
+            isTrue ? onTrue.points : onFalse.points, onTrue.config, resolution,
             name: "Branched Spline") {
     _isTrue = isTrue;
   }
@@ -519,6 +541,7 @@ class BranchedSpline extends Spline {
 }
 
 class SplineSet extends Spline {
+  // A set of splines in a sequence
   final List<Spline> splines;
   SplineSet(this.splines, RobotConfig config, int resolution)
       : super(_getWaypointsFromSplineList(splines), config, resolution,
@@ -679,6 +702,7 @@ class SplineSet extends Spline {
   }
 }
 
+// Helper functions
 List<Waypoint> _getWaypointsFromSplineList(List<Spline> splines) {
   double duration = 0;
   List<Waypoint> waypoints = [];

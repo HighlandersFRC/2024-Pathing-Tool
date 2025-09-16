@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../../Utils/Providers/preference_provider.dart';
 
 class SplineOrderer extends StatefulWidget {
+  // Widget to order and edit a spline set
   final List<Spline> splines;
   final Function(int) onSplineSelected;
   final Function() onDelete,
@@ -94,6 +95,7 @@ class _SplineOrdererState extends State<SplineOrderer> {
 }
 
 class SplineEditor extends StatelessWidget {
+  // List Item for a simple spline
   final Spline spline;
   final Spline? previous;
   final int splineIndex;
@@ -172,6 +174,7 @@ class SplineEditor extends StatelessWidget {
 }
 
 class BranchedSplineEditor extends StatefulWidget {
+  // List Item for a branched spline
   final BranchedSpline spline;
   final int splineIndex;
   final int length;

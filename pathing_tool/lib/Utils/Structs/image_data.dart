@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// Stores Data Required to display a custom field image
 class ImageData {
   Image image;
   String imageName;

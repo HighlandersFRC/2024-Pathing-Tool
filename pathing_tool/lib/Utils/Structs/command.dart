@@ -1,16 +1,20 @@
 import 'dart:math';
 
 class Command {
+  // Base Command Class
+  // Stores Command Name, Start Time, and End Time
   final double startTime, endTime;
   final String commandName;
 
-  static Command normalCommandFromJson(Map<String, dynamic> commandJson) {
+  static Command simpleCommandFromJson(Map<String, dynamic> commandJson) {
+    // Simple Command
     double start = commandJson["start"], end = commandJson["end"];
     String name = commandJson["name"];
     return Command(startTime: start, endTime: end, commandName: name);
   }
 
   static Command fromJson(Map<String, dynamic> commandJson) {
+    // Determine Command Type, then parse sub-commands recursively
     if (commandJson.containsKey("branched_command")) {
       return BranchedCommand.branchedCommandFromJson(
           commandJson["branched_command"]);
@@ -27,11 +31,12 @@ class Command {
       return SequentialCommandGroup.sequentialCommandGroupFromJson(
           commandJson["sequential_command_group"]);
     } else {
-      return normalCommandFromJson(commandJson["command"]);
+      return simpleCommandFromJson(commandJson["command"]);
     }
   }
 
   Map<String, dynamic> toJson() {
+    // Simple Command
     return {
       "start": startTime,
       "end": endTime,
@@ -68,6 +73,7 @@ class Command {
 }
 
 class BranchedCommand extends Command {
+  // A command that branches into two sub-commands based on a condition
   final String condition;
   final Command onTrue, onFalse;
 
@@ -85,6 +91,7 @@ class BranchedCommand extends Command {
 
   @override
   Map<String, dynamic> toJson() {
+    // Convert the branched command to JSON
     return {
       "start": startTime,
       "end": endTime,
@@ -115,6 +122,7 @@ class BranchedCommand extends Command {
     double? endTime,
     String? commandName,
   }) {
+    // Adjust the command with any new values
     if (startTime != null) {
       onTrue = (onTrue ?? this.onTrue).copyWith(startTime: startTime);
       onFalse = (onFalse ?? this.onFalse).copyWith(startTime: startTime);
@@ -133,18 +141,16 @@ class BranchedCommand extends Command {
 }
 
 abstract class MultipleCommand extends Command {
+  // A command that contains multiple sub-commands
+  // Command Groups in WPILIB
   final List<Command> commands;
 
   MultipleCommand({
     required this.commands,
-    required double startTime,
-    required double endTime,
-    required String commandName,
-  }) : super(
-          startTime: startTime,
-          endTime: endTime,
-          commandName: commandName,
-        );
+    required super.startTime,
+    required super.endTime,
+    required super.commandName,
+  });
 
   @override
   MultipleCommand copyWith({
@@ -397,6 +403,7 @@ class SequentialCommandGroup extends MultipleCommand {
   }
 }
 
+// Helper Functions
 double getLastEndTime(List<Command> commands, double defaultNum) {
   commands.sort((a, b) => a.endTime.compareTo(b.endTime));
   return commands.isNotEmpty ? commands.last.endTime : defaultNum;

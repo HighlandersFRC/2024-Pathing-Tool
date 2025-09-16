@@ -1,5 +1,6 @@
 import 'dart:math';
 
+// Stores data for a single waypoint along a path
 class Waypoint {
   final double x;
   final double y;
@@ -122,6 +123,7 @@ class Waypoint {
   }
 }
 
+// Stores position, velocity, acceleration, and time data for a single dimension
 class Vectors {
   final double position, velocity, acceleration, time;
   Vectors(

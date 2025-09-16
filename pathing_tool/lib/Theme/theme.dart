@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
 ThemeData lightTheme(Color primaryColor) {
+  // Create a light theme with the given primary color
   return ThemeData(
     primarySwatch: createMaterialColor(primaryColor),
     primaryColor: primaryColor,
     brightness: Brightness.light,
     textTheme: const TextTheme(
-      titleLarge: TextStyle(
-          color: Colors.black, fontSize: 40, fontFamily: "OpenSans"),
+      titleLarge:
+          TextStyle(color: Colors.black, fontSize: 40, fontFamily: "OpenSans"),
       displayLarge: TextStyle(
           fontSize: 32.0, fontWeight: FontWeight.bold, color: Colors.black),
       bodyLarge: TextStyle(fontSize: 16.0, color: Colors.black),
@@ -26,13 +27,14 @@ ThemeData lightTheme(Color primaryColor) {
 }
 
 ThemeData darkTheme(Color primaryColor) {
+  // Create a dark theme with the given primary color
   return ThemeData(
     primarySwatch: createMaterialColor(primaryColor),
     primaryColor: primaryColor,
     brightness: Brightness.dark,
     textTheme: const TextTheme(
-      titleLarge: TextStyle(
-          color: Colors.white, fontSize: 40, fontFamily: "OpenSans"),
+      titleLarge:
+          TextStyle(color: Colors.white, fontSize: 40, fontFamily: "OpenSans"),
       displayLarge: TextStyle(
           fontSize: 32.0, fontWeight: FontWeight.bold, color: Colors.white),
       bodyLarge: TextStyle(fontSize: 16.0, color: Colors.white),
@@ -51,6 +53,7 @@ ThemeData darkTheme(Color primaryColor) {
 }
 
 MaterialColor createMaterialColor(Color color) {
+  // Create a MaterialColor from a Color
   List strengths = <double>[.05];
   final swatch = <int, Color>{};
   final r = color.red, g = color.green, b = color.blue;

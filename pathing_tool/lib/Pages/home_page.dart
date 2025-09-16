@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dartssh2/dartssh2.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pathing_tool/Pages/autos_page.dart';
 import 'package:pathing_tool/Utils/Structs/robot_config.dart';
@@ -18,6 +19,7 @@ class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   void _newPath(BuildContext context) {
+    // Create a blank autos page
     Navigator.push(
         context,
         MaterialPageRoute(
@@ -29,6 +31,7 @@ class HomePage extends StatelessWidget {
       context: context,
       builder: (context) {
         final theme = Theme.of(context);
+        // Ask User for Auto File from Computer or Robot
         return AlertDialog(
           title:
               Text("Load File From Where?", style: theme.textTheme.titleLarge),
@@ -72,14 +75,14 @@ class HomePage extends StatelessWidget {
         Provider.of<RobotConfigProvider>(context, listen: false).robotConfig;
     PreferenceProvider preferencesProvider =
         Provider.of<PreferenceProvider>(context, listen: false);
-
+    // Open the File Chooser
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       initialDirectory:
           "${Provider.of<PreferenceProvider>(context, listen: false).repositoryPath}\\src\\main\\deploy\\",
       type: FileType.custom,
       allowedExtensions: ['polarauto'],
     );
-
+    // Create an Auto Editor from the selected file
     if (result != null && result.files.single.path != null) {
       String path = result.files.single.path!;
       File pathFile = File(path);
@@ -96,45 +99,56 @@ class HomePage extends StatelessWidget {
         final theme = Theme.of(context);
         List<String> robotIPs = ["10.44.99.2", "172.22.11.2", "42.42.42.42"];
 
-        Future<List<SftpName>> _getClientAndListFiles() async {
+        Future<List<SftpName>> getClientAndListFiles() async {
           SSHClient? robotClient;
+          // Try connecting to each possible robot IP
           for (String robotIP in robotIPs) {
             try {
+              // times out after 5 seconds
               robotClient = SSHClient(
                   await SSHSocket.connect(robotIP, 22,
-                      timeout: Duration(seconds: 5)),
+                      timeout: const Duration(seconds: 5)),
                   username: "lvuser");
               break;
             } catch (error) {
-              print("Error connecting to $robotIP: $error");
+              if (kDebugMode) {
+                print("Error connecting to $robotIP: $error");
+              }
             }
           }
           if (robotClient == null) {
-            Navigator.of(context).pop();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Failed to connect to any robot")),
-            );
+            if (context.mounted) {
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Failed to connect to any robot")),
+              );
+            }
             return [];
           }
 
           try {
+            // Find all of the .polarauto files on the robot's deploy folder
             final robotSFTP = await robotClient.sftp();
             final fileList = await robotSFTP.listdir("./deploy/");
             return fileList.where((file) {
               return file.filename.split(".").last == "polarauto";
             }).toList();
           } catch (e) {
-            print("Error listing files: $e");
-            Navigator.of(context).pop();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Failed to list files on robot")),
-            );
+            if (kDebugMode) {
+              print("Error listing files: $e");
+            }
+            if (context.mounted) {
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Failed to list files on robot")),
+              );
+            }
             return [];
           }
         }
 
         return FutureBuilder<List<SftpName>>(
-          future: _getClientAndListFiles(),
+          future: getClientAndListFiles(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return AlertDialog(
@@ -159,6 +173,7 @@ class HomePage extends StatelessWidget {
                       return ListTile(
                         title: Text(autoFile.filename),
                         onTap: () {
+                          // Create a new Auto Editor from the selected file
                           _newAutoEditorFromSftpName(autoFile, context);
                           Navigator.pop(context);
                         },
@@ -187,12 +202,16 @@ class HomePage extends StatelessWidget {
         robotClient =
             SSHClient(await SSHSocket.connect(robotIP, 22), username: "lvuser");
         break;
-      } catch (error) {}
+      } catch (error) {
+        // Try the next IP
+      }
     }
     if (robotClient == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to connect to any robot")),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to connect to any robot")),
+        );
+      }
       return;
     }
     final robotSFTP = await robotClient.sftp();

@@ -13,6 +13,7 @@ class RobotConfigProvider extends ChangeNotifier {
   }
 
   void _loadConfig() {
+    // Load Robot Config from preferred robot file
     String repoPath = 'C:';
     try {
       Directory prefDir = Directory("C:/Polar Pathing/Preferences");
@@ -83,6 +84,7 @@ class RobotConfigProvider extends ChangeNotifier {
         }
       });
     } on Exception {
+      // If the robot config file doesn't exist, create it with default values
       _robotConfig = RobotConfig("Default Robot", 1, 1, [], []);
       _robotConfigs.add(_robotConfig);
       _saveConfig();
@@ -90,11 +92,13 @@ class RobotConfigProvider extends ChangeNotifier {
   }
 
   void refresh() {
+    // Refresh the robot configs from the Robots directory
     _loadConfig();
     notifyListeners();
   }
 
   void setRobotConfig(RobotConfig robotConfig) {
+    // Set the current robot config
     _robotConfig = robotConfig;
     notifyListeners();
     _saveConfig();
@@ -104,12 +108,14 @@ class RobotConfigProvider extends ChangeNotifier {
   List<RobotConfig> get robotConfigs => _robotConfigs;
 
   void addRobot(RobotConfig robotConfig) {
+    // Add a new robot config
     _robotConfigs.add(robotConfig);
     notifyListeners();
     _saveConfig();
   }
 
   void removeRobot(RobotConfig robotConfig) {
+    // Remove a robot config and delete its file from the Robots directory
     _robotConfigs.remove(robotConfig);
     if (_robotConfig == robotConfig) {
       _robotConfig = _robotConfigs.firstOrNull ?? _robotConfig;
@@ -148,6 +154,7 @@ class RobotConfigProvider extends ChangeNotifier {
   }
 
   void _saveConfig() {
+    // Save the current robot config to the preferred robot file and all robot configs to the Robots directory
     Map<String, dynamic> configJson = _robotConfig.toJson();
     Archive prefArchive = Archive();
     var themeJsonString = json.encode(configJson);
@@ -185,6 +192,7 @@ class RobotConfigProvider extends ChangeNotifier {
     } catch (e) {
       // print("Error: $e");
     }
+    // Save all robot configs to the Robots directory
     for (var configJson in configJsons) {
       Archive prefArchive = Archive();
       var themeJsonString = json.encode(configJson);
