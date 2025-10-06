@@ -27,6 +27,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
           const SizedBox(width: 16),
           FutureBuilder(
+              // Show version from pubspec.yaml
               builder: (BuildContext context, AsyncSnapshot snapshot) => Text(
                     snapshot.hasData ? "v${snapshot.data}" : "",
                     style: const TextStyle(

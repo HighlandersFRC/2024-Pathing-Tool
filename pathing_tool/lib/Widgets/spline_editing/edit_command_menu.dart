@@ -102,8 +102,6 @@ class _EditCommandMenuState extends State<EditCommandMenu> {
                                 headerBuilder:
                                     (BuildContext context, bool isExpanded) {
                                   return ListTile(
-                                    // tileColor: theme.brightness == Brightness.dark? theme.primaryColor.withOpacity(0.2) : null,
-                                    // focusColor: theme.brightness == Brightness.dark? theme.primaryColor.withOpacity(0.2) : null,
                                     title: Text(command.commandName.isNotEmpty
                                         ? "${command.commandName} \n${command.startTime.toStringAsFixed(1)} - ${command.endTime.toStringAsFixed(1)}"
                                         : "Command"),
@@ -123,9 +121,6 @@ class _EditCommandMenuState extends State<EditCommandMenu> {
                                         CommandEditor(
                                           command: command,
                                           onChanged: (newCommand) {
-                                            // setState(() {
-                                            //   widget.commands[idx] = newCommand.copyWith();
-                                            // });
                                             widget
                                                 .onAttributeChanged(newCommand);
                                           },
@@ -159,6 +154,7 @@ class _EditCommandMenuState extends State<EditCommandMenu> {
 }
 
 class CommandEditor extends StatelessWidget {
+  // Show an editor for the command based on its type
   final Command command;
   final Function(Command) onChanged;
   final bool startTimeLocked;

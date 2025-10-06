@@ -88,9 +88,13 @@ class AppDrawer extends StatelessWidget {
       context: context,
       builder: (context) {
         final theme = Theme.of(context);
-        List<String> robotIPs = ["10.44.99.2", "172.22.11.2", "42.42.42.42"];
+        List<String> robotIPs = [
+          "10.44.99.2",
+          "172.22.11.2",
+          "42.42.42.42"
+        ]; // IP addresses to try
 
-        Future<List<SftpName>> _getClientAndListFiles() async {
+        Future<List<SftpName>> getClientAndListFiles() async {
           SSHClient? robotClient;
           for (String robotIP in robotIPs) {
             try {
@@ -126,7 +130,7 @@ class AppDrawer extends StatelessWidget {
         }
 
         return FutureBuilder<List<SftpName>>(
-          future: _getClientAndListFiles(),
+          future: getClientAndListFiles(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return AlertDialog(
