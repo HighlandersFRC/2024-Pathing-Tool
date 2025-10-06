@@ -12,18 +12,20 @@ class ThemeNotifier extends ChangeNotifier {
       _themeData = darkTheme(Colors.blue);
   ThemeNotifier() {
     try {
+      // Find the user's preferences file
       Directory prefDir = Directory("C:/Polar Pathing/Preferences");
       File preferencesFile = prefDir.listSync().first as File;
-      prefDir.listSync().forEach((file){
-        if (file.path.split(".").last == "polartheme"){
+      prefDir.listSync().forEach((file) {
+        if (file.path.split(".").last == "polartheme") {
           preferencesFile = file as File;
-        } 
+        }
       });
       ZipDecoder decoder = ZipDecoder();
       final Uint8List bytes = preferencesFile.readAsBytesSync();
       Archive preferencesArchive = decoder.decodeBytes(bytes);
       for (ArchiveFile file in preferencesArchive) {
         if (file.name == "theme.json") {
+          // Load Theme Preferences
           String jsonString = utf8.decode(file.content);
           Map<String, dynamic> themeJson = json.decode(jsonString);
           Color color = Color.fromARGB(
@@ -38,6 +40,7 @@ class ThemeNotifier extends ChangeNotifier {
         }
       }
     } on Exception {
+      // If the preferences file doesn't exist, create it with default values
       Directory('C:/Polar Pathing/Preferences').createSync(recursive: true);
       Archive prefArchive = Archive();
       Map<String, dynamic> themeJson = <String, dynamic>{
@@ -65,11 +68,13 @@ class ThemeNotifier extends ChangeNotifier {
   ThemeData get themeData => _themeData;
 
   void setTheme(Color color) {
+    // Set a new primary color for the theme
     _lightTheme = lightTheme(color);
     _darkTheme = darkTheme(color);
     _themeData =
         _themeData.brightness == Brightness.light ? _lightTheme : _darkTheme;
     notifyListeners();
+    // Save the new theme to the preferences file
     Map<String, dynamic> themeJson = <String, dynamic>{
       "color": <String, dynamic>{
         "a": color.alpha,
@@ -90,12 +95,14 @@ class ThemeNotifier extends ChangeNotifier {
   }
 
   void toggleTheme() {
+    // Toggle between light and dark themes
     if (_themeData.brightness == Brightness.light) {
       _themeData = _darkTheme;
     } else {
       _themeData = _lightTheme;
     }
     notifyListeners();
+    // Save the new theme to the preferences file
     Map<String, dynamic> themeJson = <String, dynamic>{
       "color": <String, dynamic>{
         "a": _themeData.primaryColor.alpha,

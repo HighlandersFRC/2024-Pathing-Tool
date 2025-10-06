@@ -23,8 +23,10 @@ class AutosPage extends StatelessWidget {
     String autoName = json['meta_data']['auto_name'];
     List<Spline> splines = [];
     var paths = json['paths'];
+    // Loop through Splines in the Schedule
     for (var scheduleItem in json['schedule']) {
       if (scheduleItem['branched']) {
+        // Branched Splines
         var onTrue = SplineSet.fromJsonList(
             scheduleItem["branched_path"]["on_true"],
             paths,
@@ -38,6 +40,7 @@ class AutosPage extends StatelessWidget {
         var condition = scheduleItem["condition"];
         splines.add(BranchedSpline(onTrue, onFalse, condition, resolution));
       } else {
+        // Single Splines
         splines.add(
             Spline.fromJson(paths[scheduleItem['path']], config, resolution));
       }

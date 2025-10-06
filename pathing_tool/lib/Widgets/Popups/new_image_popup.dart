@@ -51,12 +51,14 @@ class _AddImagePopupState extends State<AddImagePopup> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Prompt user for image details
     return AlertDialog(
       title: const Text('Add New Image'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
+            // Select an Image File
             TextButton(
                 onPressed: () async {
                   FilePickerResult? result =
@@ -71,6 +73,8 @@ class _AddImagePopupState extends State<AddImagePopup> {
                     foregroundColor:
                         WidgetStateProperty.all(theme.primaryColor)),
                 child: const Text("Select a File")),
+
+            // If an image is selected, show a preview of it
             _filePath.isNotEmpty
                 ? Image.file(
                     File(_filePath),
@@ -78,6 +82,8 @@ class _AddImagePopupState extends State<AddImagePopup> {
                   )
                 : widget.image ?? Container(),
             const SizedBox(height: 10),
+
+            // Form fields for image details
             TextFormField(
               controller: _imageNameController,
               decoration: InputDecoration(
@@ -186,7 +192,9 @@ class _AddImagePopupState extends State<AddImagePopup> {
 
             // Create ImageData object
             ImageData newImage = ImageData(
-              image: _filePath.isEmpty? widget.image!: Image.file(File(_filePath)),
+              image: _filePath.isEmpty
+                  ? widget.image!
+                  : Image.file(File(_filePath)),
               imageName: _imageNameController.text,
               imageWidthInMeters: double.parse(_widthMetersController.text),
               imageHeightInMeters: double.parse(_heightMetersController.text),

@@ -320,6 +320,7 @@ class _AutoEditorState extends State<AutoEditor>
                     body: Row(children: [
                       Expanded(child: Center(child: LayoutBuilder(builder:
                           (BuildContext context, BoxConstraints constraints) {
+                        // Field with Paths Graphed
                         var availableWidth = constraints.maxWidth;
                         var availableHeight = constraints.maxHeight;
                         double usedWidth = availableWidth;
@@ -425,6 +426,7 @@ class _AutoEditorState extends State<AutoEditor>
                             ])));
                       }))),
                       Container(
+                          // Side Panel With Spline Orderer
                           width: 350,
                           decoration: BoxDecoration(
                             borderRadius:
@@ -768,7 +770,11 @@ class _AutoEditorState extends State<AutoEditor>
   // }
 
   _sendFileToRobotFRC() async {
-    List<String> robotIPs = ["10.44.99.2", "172.22.11.2", "42.42.42.42"];
+    List<String> robotIPs = [
+      "10.44.99.2",
+      "172.22.11.2",
+      "42.42.42.42"
+    ]; // IP addresses to try
     SSHClient? robotClient;
     for (String robotIP in robotIPs) {
       try {

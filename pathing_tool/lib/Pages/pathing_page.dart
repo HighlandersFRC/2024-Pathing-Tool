@@ -31,19 +31,23 @@ class PathingPage extends StatelessWidget {
   });
 
   static PathingPage fromFile(File file) {
+    // Create Pathing Page From File
     String jsonString = file.readAsStringSync();
     var pathJson = json.decode(jsonString);
     var pointsJsonList = pathJson["key_points"];
     List<Waypoint> waypoints = [];
+    // Load Waypoints
     pointsJsonList.forEach((point) {
       waypoints.add(Waypoint.fromJson(point as Map<String, dynamic>));
     });
     List<Command> commands = [];
     if (pathJson.containsKey("path_time_commands")) {
+      // 1.2.1+ Format
       pathJson["path_time_commands"].forEach((commandJson) {
         commands.add(Command.fromJson(commandJson));
       });
     } else {
+      // Legacy 1.2.1- Format
       pathJson["commands"].forEach((commandJson) {
         commands.add(Command.fromJson(commandJson));
       });
@@ -79,6 +83,7 @@ class PathingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (robotName != null) {
+      // Select the correct robot config for the given Auto
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final robotProvider =
             Provider.of<RobotConfigProvider>(context, listen: false);
@@ -93,6 +98,7 @@ class PathingPage extends StatelessWidget {
       });
     }
     if (fieldName != null) {
+      // Select the correct field image for the given Auto
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final fieldProvider =
             Provider.of<ImageDataProvider>(context, listen: false);

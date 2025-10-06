@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// Stores data to analyze robot pathing capabilities and available commands/conditions
 class RobotConfig {
   double width, length;
   double maxVelocity, maxAcceleration, maxCentripetalAcceleration;

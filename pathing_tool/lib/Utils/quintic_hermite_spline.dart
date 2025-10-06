@@ -22,8 +22,9 @@ class QuinticHermiteSpline {
       [15, 8, 1.5, -15, 7, -1],
       [-6, -3, -0.5, 6, -3, 0.5],
     ],
-  );
+  ); // Matrix for quintic Hermite spline basis functions computed by Jan Huenermann: https://janhuenermann.com/paper/spline2020.pdf
 
+  // Constructs a 1-D Quintic Hermite Spline from a list of points with position, velocity, acceleration, time
   QuinticHermiteSpline(this.vectors) {
     numSegments = vectors.length - 1;
     if (numSegments >= 1) {
@@ -49,6 +50,7 @@ class QuinticHermiteSpline {
     }
   }
 
+  // Get the position, velocity, and acceleration at a specific time along the spline
   Vectors getVectors(double time) {
     if (numSegments == 0) return vectors[0];
 
@@ -81,6 +83,7 @@ class QuinticHermiteSpline {
     return Vectors(position: pos, velocity: vel, acceleration: acc, time: time);
   }
 
+  // Get the coefficients of the polynomial for a specific segment between two waypoints
   List<double> getPositionFunction(int segmentIndex) {
     if (segmentIndex < 0 || segmentIndex >= numSegments) {
       throw RangeError('Segment index out of range');
@@ -89,6 +92,7 @@ class QuinticHermiteSpline {
     return row;
   }
 
+  // Get the number of segments in the spline
   int getNumSegments() {
     return numSegments;
   }

@@ -11,6 +11,7 @@ class PreferenceProvider extends ChangeNotifier {
 
   PreferenceProvider() {
     try {
+      // Load Preferences from Preferences File
       Directory prefDir = Directory("C:/Polar Pathing/Preferences");
       File preferencesFile = prefDir.listSync().firstWhere(
               (file) => file.path.split(".").last == "polarrc" && file is File)
@@ -28,12 +29,14 @@ class PreferenceProvider extends ChangeNotifier {
         }
       }
     } on Exception {
+      // If the preferences file doesn't exist, create it with default values
       _preferences = {};
     }
   }
 
   Map<String, dynamic> get preferences {
     try {
+      // Load Preferences from Preferences File
       Directory prefDir = Directory("C:/Polar Pathing/Preferences");
       File preferencesFile = prefDir.listSync().firstWhere((file) =>
           file.path.split(".").last == "polarprefs" && file is File) as File;
@@ -50,6 +53,7 @@ class PreferenceProvider extends ChangeNotifier {
         }
       }
     } catch (e) {
+      // If the preferences file doesn't exist, create it with default values
       _preferences = {};
     }
     return _preferences;
@@ -60,6 +64,7 @@ class PreferenceProvider extends ChangeNotifier {
 
   void savePreferences(
       Map<String, dynamic> newPreferences, BuildContext context) {
+    // Save Preferences to Preferences File
     _preferences = newPreferences;
 
     Archive prefArchive = Archive();

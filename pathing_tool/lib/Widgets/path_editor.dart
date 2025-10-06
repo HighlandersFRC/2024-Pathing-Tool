@@ -69,8 +69,8 @@ class PathEditor extends StatefulWidget {
 
 class _PathEditorState extends State<PathEditor>
     with SingleTickerProviderStateMixin {
-  List<(List<Waypoint>, List<Command>, bool)> undoStack = [];
-  List<(List<Waypoint>, List<Command>, bool)> redoStack = [];
+  List<(List<Waypoint>, List<Command>, bool)> undoStack = []; // (waypoints, commands, isSmooth?) Save state after each edit for undo
+  List<(List<Waypoint>, List<Command>, bool)> redoStack = []; // (waypoints, commands, isSmooth?) Save state after each undo for redo
   List<Waypoint> waypoints = [];
   List<Command> commands = [];
   Waypoint? playbackWaypoint;
@@ -599,7 +599,7 @@ class _PathEditorState extends State<PathEditor>
                   ),
                   body: Row(
                     children: [
-                      Expanded(
+                      Expanded( // Field Image with Spline Graphed
                         child: Center(
                           child: LayoutBuilder(
                             builder: (BuildContext context,
@@ -976,7 +976,7 @@ class _PathEditorState extends State<PathEditor>
                           ),
                         ),
                       ),
-                      SizedBox(
+                      SizedBox( // Waypoint/Command Editing Side Bar
                           width: 350,
                           child: LayoutBuilder(
                             builder: (context, constraints) {
@@ -1341,6 +1341,7 @@ class _PathEditorState extends State<PathEditor>
 }
 
 class RobotPainter extends CustomPainter {
+  // Displays a rectangle representing the robot at a given waypoint, scaled to the field image using the robot configuration
   final Waypoint waypoint;
   final ImageData fieldImageData;
   final double usedWidth;

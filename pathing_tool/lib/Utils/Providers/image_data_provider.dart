@@ -15,13 +15,14 @@ class ImageDataProvider extends ChangeNotifier {
     imageName: "2024 FRC Game Field",
     imageWidthInMeters: 16.65,
     imageWidthInPixels: 7680,
-  );
+  ); // Default Image
 
   ImageDataProvider() {
     _refreshImages();
   }
 
   String _getRepositoryPath() {
+    // Get the path the the connected repository from preferences file
     String repoPath = 'C:';
     try {
       Directory prefDir = Directory("C:/Polar Pathing/Preferences");
@@ -51,6 +52,7 @@ class ImageDataProvider extends ChangeNotifier {
   }
 
   void _refreshImages() {
+    // Load Images from the repository
     _images.clear();
     String repoPath = _getRepositoryPath();
     Directory imageDir = Directory("$repoPath/Polar Pathing/Images");
@@ -61,6 +63,7 @@ class ImageDataProvider extends ChangeNotifier {
     ZipDecoder decoder = ZipDecoder();
     File preferencesFile =
         File("C:/Polar Pathing/Images/ImagePreferences.polarimgprefs");
+    // Load Selected Image from Preferences
     if (preferencesFile.existsSync()) {
       final bytes = preferencesFile.readAsBytesSync();
       final archive = decoder.decodeBytes(bytes);
@@ -88,7 +91,7 @@ class ImageDataProvider extends ChangeNotifier {
           imageWidthInPixels: wp,
           imageHeightInPixels: hp);
     }
-
+    // Load All Images from the Images Directory
     for (var imageFile in imageFiles) {
       if (imageFile is File) {
         final bytes = imageFile.readAsBytesSync();
@@ -130,9 +133,11 @@ class ImageDataProvider extends ChangeNotifier {
   ImageData get selectedImage => _selectedImage;
 
   Future<void> addImage(ImageData imageData) async {
+    // Add a new image to the provider and save it in runtime
     _images.add(imageData);
     _selectedImage = imageData;
     notifyListeners();
+    // Save the image to the Images directory
     Map<String, dynamic> imageDataJson = <String, dynamic>{
       'name': imageData.imageName,
       'width_meters': imageData.imageWidthInMeters,
@@ -156,8 +161,10 @@ class ImageDataProvider extends ChangeNotifier {
   }
 
   Future<void> selectImage(ImageData imageData) async {
+    // Select an image for the current runtime
     _selectedImage = imageData;
     notifyListeners();
+    // Save the selected image to the preferences file
     Map<String, dynamic> imageDataJson = <String, dynamic>{
       'name': imageData.imageName,
       'width_meters': imageData.imageWidthInMeters,
@@ -180,6 +187,7 @@ class ImageDataProvider extends ChangeNotifier {
   }
 
   void removeImage(ImageData imageData) {
+    // Remove an image from the provider and delete it from the Images directory
     _images.remove(imageData);
     String repoPath = _getRepositoryPath();
     var imageDir = Directory("$repoPath/Polar Pathing/Images");
@@ -193,6 +201,7 @@ class ImageDataProvider extends ChangeNotifier {
   }
 
   void refresh() {
+    // Refresh the list of images from the Images directory
     _refreshImages();
   }
 }

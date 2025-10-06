@@ -42,24 +42,21 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
 
   @override
   void initState() {
+    // Initialize controllers with starting config
     super.initState();
-    // final robotConfigProvider =
-    //     Provider.of<RobotConfigProvider>(context, listen: false);
     final robotConfig = widget.startingConfig;
     _robotNameController.text = widget.newRobot ? "" : robotConfig.name;
     _robotLengthController.text =
         widget.newRobot ? "1.0" : robotConfig.length.toString();
     _robotWidthController.text =
         widget.newRobot ? "1.0" : robotConfig.width.toString();
-    _maxVelocityController.text = widget.newRobot
-        ? "3.0"
-        : robotConfig.maxVelocity.toString(); // <-- Added
-    _maxAccelerationController.text = widget.newRobot
-        ? "2.0"
-        : robotConfig.maxAcceleration.toString(); // <-- Added
+    _maxVelocityController.text =
+        widget.newRobot ? "3.0" : robotConfig.maxVelocity.toString();
+    _maxAccelerationController.text =
+        widget.newRobot ? "2.0" : robotConfig.maxAcceleration.toString();
     _maxCentripetalAccelerationController.text = widget.newRobot
         ? "2.0"
-        : robotConfig.maxCentripetalAcceleration.toString(); // <-- Added
+        : robotConfig.maxCentripetalAcceleration.toString();
     _commandControllers = (!widget.newRobot
             ? robotConfig.commands
             : List<IconCommand>.empty(growable: true))
@@ -96,6 +93,7 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
   }
 
   void _addCommandField() {
+    // Add a new command to the list
     setState(() {
       _commandControllers.add(TextEditingController(text: "Command"));
       _commandIcons.add(null);
@@ -103,6 +101,7 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
   }
 
   void _removeCommandField(int index) {
+    // Remove a command from the list
     setState(() {
       _commandControllers.removeAt(index);
       _commandIcons.removeAt(index);
@@ -110,6 +109,7 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
   }
 
   void _addConditionField() {
+    // Add a new condition to the list
     setState(() {
       _conditionControllers.add(TextEditingController());
       _conditionIcons.add(null);
@@ -117,6 +117,7 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
   }
 
   void _removeConditionField(int index) {
+    // Remove a condition from the list
     setState(() {
       _conditionControllers.removeAt(index);
       _conditionIcons.removeAt(index);
@@ -126,6 +127,7 @@ class RobotConfigPopupState extends State<RobotConfigPopup> {
   @override
   Widget build(BuildContext context) {
     ThemeData theme = Theme.of(context);
+    // Prompt user for robot configuration details
     return AlertDialog(
       title: const Text('Robot Configuration'),
       content: SingleChildScrollView(
